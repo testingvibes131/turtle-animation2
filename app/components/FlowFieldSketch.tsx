@@ -20,6 +20,13 @@ type SimState = {
   lifeMax: Float32Array;
 };
 
+/** World XZ under the cursor per floor slab; filled in `useFrame` before particle sim. */
+type PointerRepelState = {
+  active: boolean;
+  xz: Float32Array;
+  valid: Uint8Array;
+};
+
 /** 2D curl of a scalar field ψ = noise: v = (∂ψ/∂z, -∂ψ/∂x) → div v ≈ 0 (swirl-friendly). */
 function curlXZ(
   noise2D: (x: number, z: number) => number,
@@ -358,6 +365,135 @@ function OpenTopFloorBoundWireframe({
   );
 }
 
+/** Open-top shell: frosted “glass” — unlit so it stays correct with scene lights at 0. */
+function OpenTopFloorBoundSolid({
+  planeW,
+  boxH,
+  baseY,
+  color,
+  colorDim = 1,
+  shellOpacity,
+  shellBrightness,
+  opacityScale = 1,
+}: {
+  planeW: number;
+  boxH: number;
+  baseY: number;
+  color: string;
+  colorDim?: number;
+  /** Base alpha (0–1); stack `opacityScale` only (same look on every floor). */
+  shellOpacity: number;
+  /** Multiplies RGB (unlit shell); lower = dimmer panels. */
+  shellBrightness: number;
+  opacityScale?: number;
+}) {
+  const half = planeW * 0.5;
+  const yMid = baseY + boxH * 0.5;
+  /** Slight lift avoids z-fighting with the ground / wire bottom grid. */
+  const yBottom = baseY + 0.004;
+
+  /** Stack fog slightly cools edge floors; keep small so white stays white. */
+  const baseRgb = useMemo(() => {
+    const c = new THREE.Color(color);
+    const k = THREE.MathUtils.lerp(1, colorDim, 0.06);
+    c.multiplyScalar(k);
+    return c;
+  }, [color, colorDim]);
+  const scratchRgb = useRef(new THREE.Color());
+
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g) return;
+    const op = Math.min(1, shellOpacity * opacityScale);
+    const c = scratchRgb.current;
+    c.copy(baseRgb).multiplyScalar(THREE.MathUtils.clamp(shellBrightness, 0, 2));
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material && !Array.isArray(o.material)) {
+        const m = o.material as THREE.MeshBasicMaterial;
+        m.color.copy(c);
+        m.opacity = op;
+      }
+    });
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, yBottom, 0]}>
+        <planeGeometry args={[planeW, planeW]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={shellOpacity}
+          depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+      <mesh position={[0, yMid, half]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[planeW, boxH]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={shellOpacity}
+          depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+      <mesh position={[0, yMid, -half]}>
+        <planeGeometry args={[planeW, boxH]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={shellOpacity}
+          depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+      <mesh position={[half, yMid, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[planeW, boxH]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={shellOpacity}
+          depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+      <mesh position={[-half, yMid, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[planeW, boxH]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={shellOpacity}
+          depthWrite={false}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 type FlowFieldLayerProps = {
   layerIndex: number;
   y: number;
@@ -406,6 +542,9 @@ type FlowFieldLayerProps = {
   hoverFocusEnabled: boolean;
   hoverDimOthersOpacity: number;
   hoverDimOthersRgb: number;
+  pointerRepelRef: MutableRefObject<PointerRepelState>;
+  pointerRepelRadius: number;
+  pointerRepelStrength: number;
 };
 
 function FlowFieldLayer({
@@ -456,6 +595,9 @@ function FlowFieldLayer({
   hoverFocusEnabled,
   hoverDimOthersOpacity,
   hoverDimOthersRgb,
+  pointerRepelRef,
+  pointerRepelRadius,
+  pointerRepelStrength,
 }: FlowFieldLayerProps) {
   const simRef = useRef<SimState | null>(null);
   const trailRef = useRef<Float32Array | null>(null);
@@ -696,6 +838,31 @@ function FlowFieldLayer({
       x += ux * step;
       z += uz * step;
 
+      const pr = pointerRepelRef.current;
+      if (pr.active && pr.valid[layerIndex] && pointerRepelStrength > 1e-6) {
+        const px = pr.xz[layerIndex * 2];
+        const pz = pr.xz[layerIndex * 2 + 1];
+        const dx = x - px;
+        const dz = z - pz;
+        const dist = Math.hypot(dx, dz);
+        const R = pointerRepelRadius;
+        if (dist < R) {
+          if (dist > 1e-7) {
+            const u = 1 - dist / R;
+            const w = u * u * (3 - 2 * u);
+            const inv = 1 / dist;
+            const push = pointerRepelStrength * w * step;
+            x += dx * inv * push;
+            z += dz * inv * push;
+          } else {
+            const ang = hash01(i, layerIndex * 401 + 17) * Math.PI * 2;
+            const push = pointerRepelStrength * step * 0.65;
+            x += Math.cos(ang) * push;
+            z += Math.sin(ang) * push;
+          }
+        }
+      }
+
       if (verticalDriftMix > 1e-5) {
         const nyx =
           x * noiseScale * 0.74 + phase * 1.12 + flowTime * 0.19;
@@ -837,7 +1004,7 @@ function FlowFieldScene({
       },
     }),
     Particles: folder({
-      particleCount: { value: 6200, min: 800, max: 14000, step: 100 },
+      particleCount: { value: 7000, min: 800, max: 14000, step: 100 },
       trailLength: {
         value: 7,
         min: 6,
@@ -885,7 +1052,7 @@ function FlowFieldScene({
         label: "2nd curl mix",
       },
       noiseLayerOffset: {
-        value: 0.42,
+        value: 0.7,
         min: 0,
         max: 2,
         step: 0.05,
@@ -944,7 +1111,7 @@ function FlowFieldScene({
         label: "Gray / green zones (0 = white only)",
       },
       toneScale: {
-        value: 0.058,
+        value: 0.12,
         min: 0.015,
         max: 0.16,
         step: 0.002,
@@ -958,7 +1125,7 @@ function FlowFieldScene({
         label: "Zones drift (time)",
       },
       grayFadeLo: {
-        value: 0.2,
+        value: 0.5,
         min: 0,
         max: 0.55,
         step: 0.01,
@@ -986,7 +1153,7 @@ function FlowFieldScene({
         label: "Green — start by",
       },
       greenFadeHi: {
-        value: 0.82,
+        value: 1.0,
         min: 0.35,
         max: 1,
         step: 0.01,
@@ -1016,7 +1183,7 @@ function FlowFieldScene({
         label: "Tail brightness (trail)",
       },
       lineShimmer: {
-        value: 0.1,
+        value: 0.7,
         min: 0,
         max: 1,
         step: 0.02,
@@ -1059,7 +1226,10 @@ function FlowFieldScene({
       colorGreen: { value: "#73f36c", label: "Green zone" },
     }),
     Scene: folder({
-      showBoundBox: { value: true, label: "Wireframe box" },
+      showBoundBox: {
+        value: true,
+        label: "Wireframe overlay (dashed edges)",
+      },
       boundBoxHeight: {
         value: 0.55,
         min: 0.08,
@@ -1068,6 +1238,28 @@ function FlowFieldScene({
         label: "Box height",
       },
       boundBoxColor: { value: "#454545", label: "Box wire color" },
+      boundBoxGlass: {
+        value: true,
+        label: "Frosted glass shell (open top)",
+      },
+      boundBoxGlassColor: {
+        value: "#ffffff",
+        label: "Glass tint (albedo; #fff = white)",
+      },
+      boundBoxGlassOpacity: {
+        value: 0.3,
+        min: 0.1,
+        max: 0.98,
+        step: 0.01,
+        label: "Glass alpha (density)",
+      },
+      boundBoxGlassBrightness: {
+        value: 0.015,
+        min: 0.0,
+        max: 1.25,
+        step: 0.02,
+        label: "Glass brightness (RGB mult.)",
+      },
       boxSegWBase: {
         value: 2,
         min: 1,
@@ -1151,6 +1343,24 @@ function FlowFieldScene({
         step: 0.01,
         label: "Pick volume height (× box H)",
       },
+      pointerRepelEnabled: {
+        value: true,
+        label: "Cursor repels particles",
+      },
+      pointerRepelRadius: {
+        value: 2.85,
+        min: 0.35,
+        max: 14,
+        step: 0.05,
+        label: "Repel radius (world XZ)",
+      },
+      pointerRepelStrength: {
+        value: 2.35,
+        min: 0,
+        max: 10,
+        step: 0.05,
+        label: "Repel strength (× flow step)",
+      },
     }),
     Post: folder({
       bloomEnabled: { value: true, label: "Bloom (glow)" },
@@ -1162,14 +1372,14 @@ function FlowFieldScene({
         label: "Bloom intensity",
       },
       bloomThreshold: {
-        value: 0.12,
+        value: 0.01,
         min: 0,
         max: 1,
         step: 0.01,
         label: "Bloom luminance threshold",
       },
       bloomSmoothing: {
-        value: 0.35,
+        value: 0.05,
         min: 0,
         max: 1,
         step: 0.02,
@@ -1308,19 +1518,72 @@ function FlowFieldScene({
     cfg.floorStackFogMinOpacity,
   ]);
 
+  const pointerRepelRef = useRef<PointerRepelState>({
+    active: false,
+    xz: new Float32Array(0),
+    valid: new Uint8Array(0),
+  });
+
+  useLayoutEffect(() => {
+    const pr = pointerRepelRef.current;
+    pr.xz = new Float32Array(floorCount * 2);
+    pr.valid = new Uint8Array(floorCount);
+  }, [floorCount]);
+
   const pickGroupRef = useRef<THREE.Group>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useFrame(({ camera, pointer }) => {
+    const pr = pointerRepelRef.current;
+
+    if (!pointerOverSketchRef.current) {
+      floorHoverRef.current = null;
+      pr.active = false;
+      if (pr.valid.length > 0) pr.valid.fill(0);
+      return;
+    }
+
+    raycaster.setFromCamera(pointer, camera);
+
     if (
-      !cfg.hoverFocusEnabled ||
-      !pickGroupRef.current ||
-      !pointerOverSketchRef.current
+      cfg.pointerRepelEnabled &&
+      pr.valid.length === floorCount &&
+      pr.xz.length === floorCount * 2
     ) {
+      pr.active = true;
+      const ray = raycaster.ray;
+      const he = halfExtent * 0.992;
+      for (let i = 0; i < floorCount; i++) {
+        const dy = ray.direction.y;
+        if (Math.abs(dy) < 1e-5) {
+          pr.valid[i] = 0;
+          continue;
+        }
+        const t = (ys[i] - ray.origin.y) / dy;
+        if (t <= 0) {
+          pr.valid[i] = 0;
+          continue;
+        }
+        const ix = ray.origin.x + ray.direction.x * t;
+        const iz = ray.origin.z + ray.direction.z * t;
+        if (Math.abs(ix) <= he && Math.abs(iz) <= he) {
+          pr.valid[i] = 1;
+          pr.xz[2 * i] = ix;
+          pr.xz[2 * i + 1] = iz;
+        } else {
+          pr.valid[i] = 0;
+        }
+      }
+    } else {
+      pr.active = false;
+      if (pr.valid.length > 0) pr.valid.fill(0);
+    }
+
+    if (!cfg.hoverFocusEnabled || !pickGroupRef.current) {
       floorHoverRef.current = null;
       return;
     }
-    raycaster.setFromCamera(pointer, camera);
+
     const hits = raycaster.intersectObject(pickGroupRef.current, true);
     const he = halfExtent * 0.992;
     let chosen: number | null = null;
@@ -1433,31 +1696,51 @@ function FlowFieldScene({
           hoverFocusEnabled={cfg.hoverFocusEnabled}
           hoverDimOthersOpacity={cfg.hoverDimOthersOpacity}
           hoverDimOthersRgb={cfg.hoverDimOthersRgb}
+          pointerRepelRef={pointerRepelRef}
+          pointerRepelRadius={cfg.pointerRepelRadius}
+          pointerRepelStrength={cfg.pointerRepelStrength}
         />
         );
       })}
 
-      {cfg.showBoundBox
+      {cfg.showBoundBox || cfg.boundBoxGlass
         ? ys.map((layerY, floorIndex) => {
             const { w, d } = boxHorizontalSegmentsForFloor(floorIndex);
             const fog = floorFogByIndex[floorIndex];
             return (
-              <OpenTopFloorBoundWireframe
-                key={`box-${floorIndex}-${layerY}-${planeW}-${boxH}-${w}-${d}`}
-                planeW={planeW}
-                boxH={boxH}
-                baseY={layerY}
-                w={w}
-                d={d}
-                color={cfg.boundBoxColor}
-                opacityScale={fog.opacityMul}
-                colorDim={fog.colorMul}
-                floorIndex={floorIndex}
-                floorHoverRef={floorHoverRef}
-                hoverFocusEnabled={cfg.hoverFocusEnabled}
-                hoverDimOthersOpacity={cfg.hoverDimOthersOpacity}
-                hoverDimOthersRgb={cfg.hoverDimOthersRgb}
-              />
+              <group
+                key={`box-shell-${floorIndex}-${layerY}-${planeW}-${boxH}-${w}-${d}`}
+              >
+                {cfg.boundBoxGlass ? (
+                  <OpenTopFloorBoundSolid
+                    planeW={planeW}
+                    boxH={boxH}
+                    baseY={layerY}
+                    color={cfg.boundBoxGlassColor}
+                    colorDim={fog.colorMul}
+                    shellOpacity={cfg.boundBoxGlassOpacity}
+                    shellBrightness={cfg.boundBoxGlassBrightness}
+                    opacityScale={fog.opacityMul}
+                  />
+                ) : null}
+                {cfg.showBoundBox ? (
+                  <OpenTopFloorBoundWireframe
+                    planeW={planeW}
+                    boxH={boxH}
+                    baseY={layerY}
+                    w={w}
+                    d={d}
+                    color={cfg.boundBoxColor}
+                    opacityScale={fog.opacityMul}
+                    colorDim={fog.colorMul}
+                    floorIndex={floorIndex}
+                    floorHoverRef={floorHoverRef}
+                    hoverFocusEnabled={cfg.hoverFocusEnabled}
+                    hoverDimOthersOpacity={cfg.hoverDimOthersOpacity}
+                    hoverDimOthersRgb={cfg.hoverDimOthersRgb}
+                  />
+                ) : null}
+              </group>
             );
           })
         : null}
