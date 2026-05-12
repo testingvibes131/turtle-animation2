@@ -45,6 +45,50 @@ function normalize2(x: number, z: number): [number, number] {
   return [x / len, z / len];
 }
 
+/**
+ * World XZ spawn with optional patchiness: more particles where noise is high,
+ * fewer (near-empty) where noise is low. `densityAmount` 0 = uniform.
+ */
+function sampleSpawnXz(
+  noise2D: (x: number, z: number) => number,
+  halfExtent: number,
+  layerIndex: number,
+  densityEnabled: boolean,
+  densityAmount: number,
+  zoneScale: number,
+  minAccept: number,
+  random01: () => number,
+  maxAttempts = 28,
+): { x: number; z: number } {
+  const span = halfExtent * 2;
+  const lo = -halfExtent;
+  if (!densityEnabled || densityAmount <= 1e-5) {
+    const u0 = random01();
+    const u1 = random01();
+    return { x: u0 * span + lo, z: u1 * span + lo };
+  }
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const u0 = random01();
+    const u1 = random01();
+    const uGate = random01();
+    const x = u0 * span + lo;
+    const z = u1 * span + lo;
+    const n =
+      noise2D(
+        x * zoneScale + layerIndex * 0.37,
+        z * zoneScale - layerIndex * 0.21,
+      ) *
+        0.5 +
+      0.5;
+    const thresh = THREE.MathUtils.lerp(1, n, densityAmount);
+    const accept = Math.max(minAccept, Math.min(1, thresh));
+    if (uGate < accept) return { x, z };
+  }
+  const u0 = random01();
+  const u1 = random01();
+  return { x: u0 * span + lo, z: u1 * span + lo };
+}
+
 /** Brighter center floors, softer top/bottom — pairs with scene depth fog. */
 function floorStackFogMults(
   floorIndex: number,
@@ -545,6 +589,10 @@ type FlowFieldLayerProps = {
   pointerRepelRef: MutableRefObject<PointerRepelState>;
   pointerRepelRadius: number;
   pointerRepelStrength: number;
+  particleDensityZones: boolean;
+  particleDensityAmount: number;
+  particleDensityScale: number;
+  particleDensityMinAccept: number;
 };
 
 function FlowFieldLayer({
@@ -598,6 +646,10 @@ function FlowFieldLayer({
   pointerRepelRef,
   pointerRepelRadius,
   pointerRepelStrength,
+  particleDensityZones,
+  particleDensityAmount,
+  particleDensityScale,
+  particleDensityMinAccept,
 }: FlowFieldLayerProps) {
   const simRef = useRef<SimState | null>(null);
   const trailRef = useRef<Float32Array | null>(null);
@@ -766,8 +818,20 @@ function FlowFieldLayer({
       life[i] = L;
       lifeMaxArr[i] = L;
 
-      const x = (hash01(i, layerIndex * 13 + 1) - 0.5) * 2 * halfExtent;
-      const z = (hash01(i, layerIndex * 13 + 2) - 0.5) * 2 * halfExtent;
+      let slot = 0;
+      const { x, z } = sampleSpawnXz(
+        noise2D,
+        halfExtent,
+        layerIndex,
+        particleDensityZones,
+        particleDensityAmount,
+        particleDensityScale,
+        particleDensityMinAccept,
+        () => {
+          slot += 1;
+          return hash01(i * 47 + slot, layerIndex * 91 + 8801);
+        },
+      );
       const tb = i * trailLen * 3;
       for (let k = 0; k < trailLen; k++) {
         trail[tb + k * 3] = x;
@@ -779,15 +843,36 @@ function FlowFieldLayer({
     simRef.current = { life, lifeMax: lifeMaxArr };
     trailRef.current = trail;
     writeLineAttributes(trail, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reseed only when counts/bounds change
-  }, [count, trailLen, layerIndex, halfExtent, y, lifeMin, lifeMax]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reseed when counts/bounds/density change
+  }, [
+    count,
+    trailLen,
+    layerIndex,
+    halfExtent,
+    y,
+    lifeMin,
+    lifeMax,
+    particleDensityZones,
+    particleDensityAmount,
+    particleDensityScale,
+    particleDensityMinAccept,
+    noise2D,
+  ]);
 
   const spawn = (i: number, sim: SimState) => {
     const trail = trailRef.current;
     if (!trail) return;
 
-    const x = (Math.random() - 0.5) * 2 * halfExtent;
-    const z = (Math.random() - 0.5) * 2 * halfExtent;
+    const { x, z } = sampleSpawnXz(
+      noise2D,
+      halfExtent,
+      layerIndex,
+      particleDensityZones,
+      particleDensityAmount,
+      particleDensityScale,
+      particleDensityMinAccept,
+      Math.random,
+    );
     const tb = i * trailLen * 3;
     for (let k = 0; k < trailLen; k++) {
       trail[tb + k * 3] = x;
@@ -1011,6 +1096,31 @@ function FlowFieldScene({
         max: 48,
         step: 1,
         label: "Trail samples",
+      },
+      particleDensityZones: {
+        value: true,
+        label: "Sparse / dense patches (XZ)",
+      },
+      particleDensityAmount: {
+        value: 0.55,
+        min: 0,
+        max: 1,
+        step: 0.02,
+        label: "Patch contrast (0 = uniform)",
+      },
+      particleDensityScale: {
+        value: 0.095,
+        min: 0.025,
+        max: 0.42,
+        step: 0.005,
+        label: "Patch size (higher = smaller blobs)",
+      },
+      particleDensityMinAccept: {
+        value: 0.045,
+        min: 0,
+        max: 0.35,
+        step: 0.005,
+        label: "Min spawn weight (keeps rare spawns in voids)",
       },
     }),
     Life: folder({
@@ -1699,6 +1809,10 @@ function FlowFieldScene({
           pointerRepelRef={pointerRepelRef}
           pointerRepelRadius={cfg.pointerRepelRadius}
           pointerRepelStrength={cfg.pointerRepelStrength}
+          particleDensityZones={cfg.particleDensityZones}
+          particleDensityAmount={cfg.particleDensityAmount}
+          particleDensityScale={cfg.particleDensityScale}
+          particleDensityMinAccept={cfg.particleDensityMinAccept}
         />
         );
       })}
