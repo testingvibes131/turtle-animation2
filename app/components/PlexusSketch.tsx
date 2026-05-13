@@ -182,7 +182,7 @@ export function PlexusSketch() {
         label: "Drift radius",
       },
       speed: {
-        value: 0.14,
+        value: 0.3,
         min: 0.02,
         max: 0.55,
         step: 0.01,
@@ -290,10 +290,15 @@ export function PlexusSketch() {
       /** Random endpoints for hover hub only; repicked when the hovered node changes. */
       let hoverSpokeIndices: number[] = [];
       let lastHoverSpokeCenter: number | null = null;
+      /** Default hub (nearest in ellipse to center); stays until user hovers a *different* node. */
+      let pinnedDefaultHubIdx: number | null = null;
+      let defaultHubSuperseded = false;
       let lastLayoutSig = "";
       let lastHubSig = "";
       let cw = 0;
       let ch = 0;
+      /** No particles in this band from the top (fixed header). */
+      const NODE_SPAWN_TOP_EXCLUSION_PX = 100;
 
       /** Bottom-aligned target zone: ellipse wider on X, slightly larger than old circle. */
       function targetZoneEllipse(px: PlexusParams, w: number, h: number) {
@@ -334,12 +339,16 @@ export function PlexusSketch() {
         h: number,
         maxAttempts = 220,
       ): { x: number; y: number } {
+        const yLo = h > NODE_SPAWN_TOP_EXCLUSION_PX ? NODE_SPAWN_TOP_EXCLUSION_PX : 0;
         for (let a = 0; a < maxAttempts; a++) {
           const x = p.random(w);
-          const y = p.random(h);
+          const y = yLo < h ? p.random(yLo, h) : p.random(h);
           if (p.random() < spawnAcceptWeight(p, x, y)) return { x, y };
         }
-        return { x: p.random(w), y: p.random(h) };
+        return {
+          x: p.random(w),
+          y: yLo < h ? p.random(yLo, h) : p.random(h),
+        };
       }
 
       function sampleBiasedInEllipse(
@@ -352,6 +361,7 @@ export function PlexusSketch() {
         h: number,
         maxAttempts = 260,
       ): { x: number; y: number } {
+        const yLo = h > NODE_SPAWN_TOP_EXCLUSION_PX ? NODE_SPAWN_TOP_EXCLUSION_PX : 0;
         for (let a = 0; a < maxAttempts; a++) {
           const u = p.random(0, 1);
           const theta = p.random(p.TWO_PI);
@@ -359,6 +369,7 @@ export function PlexusSketch() {
           const x = ccx + rx * rn * Math.cos(theta);
           const y = ccy + ry * rn * Math.sin(theta);
           if (x < 0 || x > w || y < 0 || y > h) continue;
+          if (y < NODE_SPAWN_TOP_EXCLUSION_PX) continue;
           if (p.random() < spawnAcceptWeight(p, x, y)) return { x, y };
         }
         const u = p.random(0, 1);
@@ -366,7 +377,7 @@ export function PlexusSketch() {
         const rn = Math.sqrt(u);
         return {
           x: p.constrain(ccx + rx * rn * Math.cos(theta), 0, w - 1e-6),
-          y: p.constrain(ccy + ry * rn * Math.sin(theta), 0, h - 1e-6),
+          y: p.constrain(ccy + ry * rn * Math.sin(theta), yLo, h - 1e-6),
         };
       }
 
@@ -399,9 +410,11 @@ export function PlexusSketch() {
         if (cw > 0 && ch > 0) {
           const sx = nw / cw;
           const sy = nh / ch;
+          const yMin = nh > NODE_SPAWN_TOP_EXCLUSION_PX ? NODE_SPAWN_TOP_EXCLUSION_PX : 0;
           for (const n of nodes) {
             n.bx *= sx;
             n.by *= sy;
+            n.by = p.constrain(n.by, yMin, nh - 1e-6);
           }
         }
         cw = nw;
@@ -425,9 +438,10 @@ export function PlexusSketch() {
           const names = opportunityNamesRef.current;
           const label =
             names.length > 0 ? names[nodes.length % names.length]! : "";
+          const yMin = h > NODE_SPAWN_TOP_EXCLUSION_PX ? NODE_SPAWN_TOP_EXCLUSION_PX : 0;
           nodes.push({
             bx: p.constrain(bx, 0, w - 1e-6),
-            by: p.constrain(by, 0, h - 1e-6),
+            by: p.constrain(by, yMin, h - 1e-6),
             seed: p.random(10000),
             label,
           });
@@ -529,6 +543,55 @@ export function PlexusSketch() {
       }
 
       const HUB_DISK_RADIUS = 14;
+      /** #73F36C @ 30% opacity — hover hub spokes */
+      const HIGHLIGHT_LINE = { r: 115, g: 243, b: 108, a: Math.round(255 * 0.3) };
+
+      let labelGreenImg: import("p5").Image | null = null;
+      let logoDotImg: import("p5").Image | null = null;
+
+      function drawLogoDotMarker(p: p5Type, cx: number, cy: number, nodeSize: number) {
+        if (!logoDotImg || !logoDotImg.width) return;
+        const d = Math.max(18, nodeSize * 3.2);
+        p.push();
+        p.imageMode(p.CENTER);
+        p.image(logoDotImg, cx, cy, d, d);
+        p.pop();
+      }
+
+      /** `green.svg` at spoke endpoint nodes (where highlighted lines meet the network). */
+      function drawGreenSpokeRootMarker(p: p5Type, cx: number, cy: number, nodeSize: number) {
+        if (!labelGreenImg || !labelGreenImg.width) return;
+        const d = Math.max(12, nodeSize * 2.75);
+        p.push();
+        p.imageMode(p.CENTER);
+        p.image(labelGreenImg, cx, cy, d, d);
+        p.pop();
+      }
+
+      function pickSyntheticHoverIndex(px: PlexusParams, w: number, h: number): number | null {
+        const n = nodes.length;
+        if (n === 0) return null;
+        const { ccx, ccy } = targetZoneEllipse(px, w, h);
+        const inside: number[] = [];
+        for (let i = 0; i < n; i++) {
+          if (posInTargetEllipse(px, w, h, nodes[i]!.bx, nodes[i]!.by)) {
+            inside.push(i);
+          }
+        }
+        if (inside.length === 0) return null;
+        let bestD2 = Infinity;
+        let pick = inside[0]!;
+        for (const i of inside) {
+          const dx = nodes[i]!.bx - ccx;
+          const dy = nodes[i]!.by - ccy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            pick = i;
+          }
+        }
+        return pick;
+      }
 
       function pickHoverSpokeIndices(p: p5Type, centerIdx: number) {
         hoverSpokeIndices = [];
@@ -548,11 +611,26 @@ export function PlexusSketch() {
 
         const want = randomSpokeWantCount(p, inEllipse.length);
 
+        const ax = nodes[centerIdx]!.bx;
+        const ay = nodes[centerIdx]!.by;
+        const scored = inEllipse
+          .map((idx) => {
+            const dx = nodes[idx]!.bx - ax;
+            const dy = nodes[idx]!.by - ay;
+            return { idx, d2: dx * dx + dy * dy };
+          })
+          .sort((u, v) => u.d2 - v.d2);
+        const poolDepth = Math.min(
+          scored.length,
+          Math.max(want + 10, want * 3, 18),
+        );
+        const nearPool = scored.slice(0, poolDepth).map((s) => s.idx);
+
         const used = new Set<number>();
         let guard = 0;
-        while (hoverSpokeIndices.length < want && inEllipse.length > 0 && guard < 12000) {
+        while (hoverSpokeIndices.length < want && nearPool.length > 0 && guard < 12000) {
           guard++;
-          const idx = inEllipse[Math.floor(p.random(inEllipse.length))]!;
+          const idx = nearPool[Math.floor(p.random(nearPool.length))]!;
           if (used.has(idx)) continue;
           used.add(idx);
           hoverSpokeIndices.push(idx);
@@ -560,6 +638,11 @@ export function PlexusSketch() {
       }
 
       p5instance = new P5((p) => {
+        p.preload = () => {
+          labelGreenImg = p.loadImage("/green.svg");
+          logoDotImg = p.loadImage("/logo-dot.png");
+        };
+
         p.setup = () => {
           sketch = p;
           syncCanvasSize(p);
@@ -585,6 +668,8 @@ export function PlexusSketch() {
             rebuildHubSpokes(p);
             lastHoverSpokeCenter = null;
             hoverSpokeIndices = [];
+            pinnedDefaultHubIdx = null;
+            defaultHubSuperseded = false;
           }
 
           const hubSig = `${px.hubCompositionEnabled}`;
@@ -615,44 +700,86 @@ export function PlexusSketch() {
           const mx = p.mouseX;
           const my = p.mouseY;
           const hitR = Math.max(18, px.nodeSize * 2.35);
-          let hoverIdx: number | null = null;
+          let pointerHoverIdx: number | null = null;
           let bestD = hitR;
           for (let hi = 0; hi < positions.length; hi++) {
             const q = positions[hi]!;
             const dh = Math.hypot(mx - q.x, my - q.y);
             if (dh < bestD) {
               bestD = dh;
-              hoverIdx = hi;
+              pointerHoverIdx = hi;
             }
           }
 
-          if (hoverIdx !== lastHoverSpokeCenter) {
-            lastHoverSpokeCenter = hoverIdx;
+          if (!defaultHubSuperseded) {
+            if (pinnedDefaultHubIdx === null) {
+              const picked = pickSyntheticHoverIndex(px, canvasW, canvasH);
+              if (picked !== null) {
+                pinnedDefaultHubIdx = picked;
+              }
+            }
+          }
+
+          let effectiveHoverIdx: number | null = pointerHoverIdx;
+
+          if (pointerHoverIdx !== null) {
+            if (
+              pinnedDefaultHubIdx !== null &&
+              pointerHoverIdx !== pinnedDefaultHubIdx
+            ) {
+              defaultHubSuperseded = true;
+            }
+          } else if (!defaultHubSuperseded && pinnedDefaultHubIdx !== null) {
+            const sp = positions[pinnedDefaultHubIdx];
+            if (
+              sp &&
+              posInTargetEllipse(px, canvasW, canvasH, sp.x, sp.y)
+            ) {
+              effectiveHoverIdx = pinnedDefaultHubIdx;
+            }
+          }
+
+          if (effectiveHoverIdx !== lastHoverSpokeCenter) {
+            lastHoverSpokeCenter = effectiveHoverIdx;
             hoverSpokeIndices = [];
             if (
-              hoverIdx !== null &&
+              effectiveHoverIdx !== null &&
               posInTargetEllipse(
                 px,
                 canvasW,
                 canvasH,
-                positions[hoverIdx]!.x,
-                positions[hoverIdx]!.y,
+                positions[effectiveHoverIdx]!.x,
+                positions[effectiveHoverIdx]!.y,
               )
             ) {
-              pickHoverSpokeIndices(p, hoverIdx);
+              pickHoverSpokeIndices(p, effectiveHoverIdx);
             }
           }
 
           const hoverHubOriginInside =
-            hoverIdx !== null &&
+            effectiveHoverIdx !== null &&
             posInTargetEllipse(
               px,
               canvasW,
               canvasH,
-              positions[hoverIdx!]!.x,
-              positions[hoverIdx!]!.y,
+              positions[effectiveHoverIdx!]!.x,
+              positions[effectiveHoverIdx!]!.y,
             );
           const showHoverHub = hoverHubOriginInside && hoverSpokeIndices.length > 0;
+
+          const highlightNetwork = showHoverHub;
+          const highlightSet = new Set<number>();
+          if (showHoverHub && effectiveHoverIdx !== null) {
+            highlightSet.add(effectiveHoverIdx);
+            for (const idx of hoverSpokeIndices) {
+              highlightSet.add(idx);
+            }
+          }
+
+          /** When a hover hub is active, mute the rest of the field (keep readable). */
+          const NET_DIM_FACTOR = 0.48;
+          const NODE_DIM_FACTOR = 0.52;
+          const netDim = highlightNetwork ? NET_DIM_FACTOR : 1;
 
           p.strokeWeight(px.lineWeight);
           p.noFill();
@@ -681,7 +808,7 @@ export function PlexusSketch() {
               const d = Math.hypot(dx, dy);
               if (d >= maxD) continue;
               const falloff = 1 - d / maxD;
-              const alpha = falloff * falloff * px.lineOpacity * 255;
+              const alpha = falloff * falloff * px.lineOpacity * 255 * netDim;
               const edge = falloff * acc;
               p.stroke(
                 mono + edge * (gTint - mono),
@@ -695,12 +822,13 @@ export function PlexusSketch() {
 
           p.noStroke();
           for (let i = 0; i < positions.length; i++) {
-            if (showHoverHub && i === hoverIdx) continue;
+            if (showHoverHub && highlightSet.has(i)) continue;
             if (fixedHubVisible && i === hubCenterNodeIndex) {
               continue;
             }
             const pt = positions[i]!;
-            p.fill(br, br, br, px.nodeOpacity * 255);
+            const nodeDim = highlightNetwork && !highlightSet.has(i) ? NODE_DIM_FACTOR : 1;
+            p.fill(br, br, br, px.nodeOpacity * 255 * nodeDim);
             p.circle(pt.x, pt.y, px.nodeSize);
           }
 
@@ -759,10 +887,9 @@ export function PlexusSketch() {
           }
 
           if (showHoverHub) {
-            const hpt = positions[hoverIdx!]!;
+            const hpt = positions[effectiveHoverIdx!]!;
             const hcx = hpt.x;
             const hcy = hpt.y;
-            const lineExtend = 44;
 
             const ctx = p.drawingContext;
             ctx.save();
@@ -783,8 +910,13 @@ export function PlexusSketch() {
             ctx.restore();
 
             p.strokeCap(p.ROUND);
-            p.strokeWeight(1.15);
-            p.stroke(228, 228, 232, 200);
+            p.strokeWeight(1.35);
+            p.stroke(
+              HIGHLIGHT_LINE.r,
+              HIGHLIGHT_LINE.g,
+              HIGHLIGHT_LINE.b,
+              HIGHLIGHT_LINE.a,
+            );
             for (const idx of hoverSpokeIndices) {
               const pt = positions[idx];
               if (!pt) continue;
@@ -796,21 +928,39 @@ export function PlexusSketch() {
               const uy = dy / len;
               const x0 = hcx + ux * HUB_DISK_RADIUS;
               const y0 = hcy + uy * HUB_DISK_RADIUS;
-              const rimX = pt.x + ux * nodeR;
-              const rimY = pt.y + uy * nodeR;
-              const x2 = rimX + ux * lineExtend;
-              const y2 = rimY + uy * lineExtend;
-              p.line(x0, y0, x2, y2);
+              /** Far side of endpoint node (toward hub): where the spoke should end. */
+              const x1 = pt.x - ux * nodeR;
+              const y1 = pt.y - uy * nodeR;
+              p.line(x0, y0, x1, y1);
+            }
+
+            if (labelGreenImg && labelGreenImg.width > 0) {
+              for (const idx of hoverSpokeIndices) {
+                const q = positions[idx];
+                if (!q) continue;
+                if (!posInTargetEllipse(px, canvasW, canvasH, q.x, q.y)) continue;
+                const dx = q.x - hcx;
+                const dy = q.y - hcy;
+                const len = Math.max(1e-6, Math.hypot(dx, dy));
+                const ux = dx / len;
+                const uy = dy / len;
+                const gx = q.x - ux * nodeR;
+                const gy = q.y - uy * nodeR;
+                drawGreenSpokeRootMarker(p, gx, gy, px.nodeSize);
+              }
+            }
+            if (logoDotImg && logoDotImg.width > 0) {
+              drawLogoDotMarker(p, hcx, hcy, px.nodeSize);
             }
           }
 
-          p.cursor(hoverIdx === null ? p.ARROW : p.HAND);
+          p.cursor(effectiveHoverIdx === null ? p.ARROW : p.HAND);
 
-          if (hoverIdx !== null) {
-            const hn = nodes[hoverIdx]!;
+          if (effectiveHoverIdx !== null) {
+            const hn = nodes[effectiveHoverIdx]!;
             const raw = hn.label.trim();
             if (raw.length > 0) {
-              const pt = positions[hoverIdx]!;
+              const pt = positions[effectiveHoverIdx]!;
               const maxChars = 54;
               const shown =
                 raw.length > maxChars ? `${raw.slice(0, maxChars - 1)}…` : raw;
@@ -837,8 +987,15 @@ export function PlexusSketch() {
               p.rect(left, top, boxW, boxH, 8);
               const dotCx = left + padX + dotD * 0.5;
               const dotCy = top + boxH * 0.5;
-              p.fill(115, 243, 108);
-              p.circle(dotCx, dotCy, dotD);
+              if (labelGreenImg && labelGreenImg.width > 0) {
+                p.push();
+                p.imageMode(p.CENTER);
+                p.image(labelGreenImg, dotCx, dotCy, dotD, dotD);
+                p.pop();
+              } else {
+                p.fill(115, 243, 108);
+                p.circle(dotCx, dotCy, dotD);
+              }
               p.fill(240, 240, 240);
               p.text(shown, left + padX + dotD + dotGap, top + boxH * 0.5);
               p.rectMode(p.CORNER);
