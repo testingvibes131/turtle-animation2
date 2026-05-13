@@ -560,6 +560,16 @@ export function PlexusSketch() {
         p.pop();
       }
 
+      /** `green.svg` at spoke roots (hub-facing side of endpoint nodes). */
+      function drawGreenSpokeRootMarker(p: p5Type, cx: number, cy: number, nodeSize: number) {
+        if (!labelGreenImg || !labelGreenImg.width) return;
+        const d = Math.max(12, nodeSize * 2.75);
+        p.push();
+        p.imageMode(p.CENTER);
+        p.image(labelGreenImg, cx, cy, d, d);
+        p.pop();
+      }
+
       function pickSyntheticHoverIndex(px: PlexusParams, w: number, h: number): number | null {
         const n = nodes.length;
         if (n === 0) return null;
@@ -906,6 +916,22 @@ export function PlexusSketch() {
               const x1 = pt.x - ux * nodeR;
               const y1 = pt.y - uy * nodeR;
               p.line(x0, y0, x1, y1);
+            }
+
+            if (labelGreenImg && labelGreenImg.width > 0) {
+              for (const idx of hoverSpokeIndices) {
+                const q = positions[idx];
+                if (!q) continue;
+                if (!posInTargetEllipse(px, canvasW, canvasH, q.x, q.y)) continue;
+                const dx = q.x - hcx;
+                const dy = q.y - hcy;
+                const len = Math.max(1e-6, Math.hypot(dx, dy));
+                const ux = dx / len;
+                const uy = dy / len;
+                const gx = q.x - ux * nodeR;
+                const gy = q.y - uy * nodeR;
+                drawGreenSpokeRootMarker(p, gx, gy, px.nodeSize);
+              }
             }
 
             drawSelectedHubImage(p, hcx, hcy);
