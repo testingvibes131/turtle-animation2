@@ -543,28 +543,20 @@ export function PlexusSketch() {
       }
 
       const HUB_DISK_RADIUS = 14;
+      /** Selected hover hub: `logo-dot.png` size (logical px). */
+      const SELECTED_HUB_IMG_PX = 64;
       /** #73F36C @ 30% opacity — hover hub spokes */
       const HIGHLIGHT_LINE = { r: 115, g: 243, b: 108, a: Math.round(255 * 0.3) };
 
       let labelGreenImg: import("p5").Image | null = null;
       let logoDotImg: import("p5").Image | null = null;
 
-      function drawLogoDotMarker(p: p5Type, cx: number, cy: number, nodeSize: number) {
+      function drawSelectedHubImage(p: p5Type, cx: number, cy: number) {
         if (!logoDotImg || !logoDotImg.width) return;
-        const d = Math.max(18, nodeSize * 3.2);
+        const d = SELECTED_HUB_IMG_PX;
         p.push();
         p.imageMode(p.CENTER);
         p.image(logoDotImg, cx, cy, d, d);
-        p.pop();
-      }
-
-      /** `green.svg` at spoke endpoint nodes (where highlighted lines meet the network). */
-      function drawGreenSpokeRootMarker(p: p5Type, cx: number, cy: number, nodeSize: number) {
-        if (!labelGreenImg || !labelGreenImg.width) return;
-        const d = Math.max(12, nodeSize * 2.75);
-        p.push();
-        p.imageMode(p.CENTER);
-        p.image(labelGreenImg, cx, cy, d, d);
         p.pop();
       }
 
@@ -683,6 +675,8 @@ export function PlexusSketch() {
           const minSide = Math.min(cw, ch);
           const maxD = Math.max(20, minSide * px.maxLinkFrac);
           const driftPx = minSide * 0.12 * px.drift;
+          const canvasW = Math.max(1, cw);
+          const canvasH = Math.max(1, ch);
 
           const positions: { x: number; y: number }[] = new Array(nodes.length);
           for (let i = 0; i < nodes.length; i++) {
@@ -693,9 +687,6 @@ export function PlexusSketch() {
             const oy = (p.noise(nx, ny + t * 0.93) - 0.5) * 2 * driftPx;
             positions[i] = { x: n.bx + ox, y: n.by + oy };
           }
-
-          const canvasW = Math.max(1, cw);
-          const canvasH = Math.max(1, ch);
 
           const mx = p.mouseX;
           const my = p.mouseY;
@@ -846,7 +837,7 @@ export function PlexusSketch() {
               HUB_DISK_RADIUS,
             );
             grad.addColorStop(0, "#141514");
-            grad.addColorStop(1, "#356032");
+            grad.addColorStop(1, "#303030");
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(hcx, hcy, HUB_DISK_RADIUS, 0, Math.PI * 2);
@@ -878,7 +869,7 @@ export function PlexusSketch() {
             const h = Math.max(1, ch);
             const { rx, ry, ccx, ccy } = targetZoneEllipse(px, w, h);
             p.noFill();
-            p.stroke(115, 243, 108, px.debugCircleOpacity * 255);
+            p.stroke(160, 162, 168, px.debugCircleOpacity * 255);
             p.strokeWeight(px.debugCircleWeight);
             const dash = [10, 8];
             p.drawingContext.setLineDash(dash);
@@ -890,24 +881,7 @@ export function PlexusSketch() {
             const hpt = positions[effectiveHoverIdx!]!;
             const hcx = hpt.x;
             const hcy = hpt.y;
-
-            const ctx = p.drawingContext;
-            ctx.save();
-            const grad = ctx.createRadialGradient(
-              hcx,
-              hcy,
-              0,
-              hcx,
-              hcy,
-              HUB_DISK_RADIUS,
-            );
-            grad.addColorStop(0, "#141514");
-            grad.addColorStop(1, "#356032");
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(hcx, hcy, HUB_DISK_RADIUS, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+            const hubImgR = SELECTED_HUB_IMG_PX * 0.5;
 
             p.strokeCap(p.ROUND);
             p.strokeWeight(1.35);
@@ -917,6 +891,7 @@ export function PlexusSketch() {
               HIGHLIGHT_LINE.b,
               HIGHLIGHT_LINE.a,
             );
+            p.noFill();
             for (const idx of hoverSpokeIndices) {
               const pt = positions[idx];
               if (!pt) continue;
@@ -926,32 +901,14 @@ export function PlexusSketch() {
               const len = Math.max(1e-6, Math.hypot(dx, dy));
               const ux = dx / len;
               const uy = dy / len;
-              const x0 = hcx + ux * HUB_DISK_RADIUS;
-              const y0 = hcy + uy * HUB_DISK_RADIUS;
-              /** Far side of endpoint node (toward hub): where the spoke should end. */
+              const x0 = hcx + ux * hubImgR;
+              const y0 = hcy + uy * hubImgR;
               const x1 = pt.x - ux * nodeR;
               const y1 = pt.y - uy * nodeR;
               p.line(x0, y0, x1, y1);
             }
 
-            if (labelGreenImg && labelGreenImg.width > 0) {
-              for (const idx of hoverSpokeIndices) {
-                const q = positions[idx];
-                if (!q) continue;
-                if (!posInTargetEllipse(px, canvasW, canvasH, q.x, q.y)) continue;
-                const dx = q.x - hcx;
-                const dy = q.y - hcy;
-                const len = Math.max(1e-6, Math.hypot(dx, dy));
-                const ux = dx / len;
-                const uy = dy / len;
-                const gx = q.x - ux * nodeR;
-                const gy = q.y - uy * nodeR;
-                drawGreenSpokeRootMarker(p, gx, gy, px.nodeSize);
-              }
-            }
-            if (logoDotImg && logoDotImg.width > 0) {
-              drawLogoDotMarker(p, hcx, hcy, px.nodeSize);
-            }
+            drawSelectedHubImage(p, hcx, hcy);
           }
 
           p.cursor(effectiveHoverIdx === null ? p.ARROW : p.HAND);
@@ -977,7 +934,10 @@ export function PlexusSketch() {
               const innerW = dotD + dotGap + tw;
               const boxW = padX * 2 + innerW;
               const boxH = Math.max(ts + padY * 2, dotD + padY * 2);
-              const baseY = pt.y - px.nodeSize * 0.5 - 24;
+              const baseY =
+                showHoverHub && effectiveHoverIdx !== null
+                  ? pt.y - SELECTED_HUB_IMG_PX * 0.5 - 20
+                  : pt.y - px.nodeSize * 0.5 - 24;
               const cx = pt.x;
               const top = baseY - boxH;
               const left = cx - boxW * 0.5;
@@ -993,7 +953,7 @@ export function PlexusSketch() {
                 p.image(labelGreenImg, dotCx, dotCy, dotD, dotD);
                 p.pop();
               } else {
-                p.fill(115, 243, 108);
+                p.fill(150, 152, 156);
                 p.circle(dotCx, dotCy, dotD);
               }
               p.fill(240, 240, 240);
