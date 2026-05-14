@@ -484,11 +484,11 @@ d25cf68c-0482-4755-ae4f-d4e82f44e96a,K3 Capital USDT Earn Vault,Vault,4015.42183
 429641b6-a6d7-4c6e-9b9d-21650fb7c1d6,K3 Isolated shMON-WMON-USDC,Lending,8115.97655663,22.9927,false,K3 Capital,Monad,"An isolated market for shMON, WMON, and USDC, configured by K3 Capital."
 bf94cfdf-b643-4029-9132-b86b82ef8ad3,K3 Isolated shMON-WMON-USDC,Lending,99110.77352347,0,false,K3 Capital,Monad,"An isolated market for shMON, WMON, and USDC, configured by K3 Capital."
 f9698f53-3c99-4d56-889b-f892ed1ce2d5,K3 Isolated shMON-WMON-USDC,Lending,40954.40641447,15.7712,false,K3 Capital,Monad,"An isolated market for shMON, WMON, and USDC, configured by K3 Capital."
-cbef8911-8633-4c10-bdbb-0297d8aca6a6,K3 Isolated sMON-WMON-AUSD,Lending,33.29784569,0,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and AUSD, configured by K3 Capital."
+cbef8911-8633-4c10-bdbb-0297d8aca6a6,K3 Isolated sMON-WMON-AUSD,Lending,33.29784569,2,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and AUSD, configured by K3 Capital."
 a78255d4-9635-44fb-91a0-0ab66b1bfe75,K3 Isolated sMON-WMON-AUSD,Lending,181256.42285598,8.0384,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and AUSD, configured by K3 Capital."
-44d83fb0-ad21-42d1-aff0-0c7661ef4d5f,K3 Isolated sMON-WMON-AUSD,Lending,214901.66633147,0,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and AUSD, configured by K3 Capital."
+44d83fb0-ad21-42d1-aff0-0c7661ef4d5f,K3 Isolated sMON-WMON-AUSD,Lending,214901.66633147,2,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and AUSD, configured by K3 Capital."
 d0a4edbe-5595-468f-ac02-55fb9f096319,K3 Isolated sMON-WMON-USDC,Lending,13251.25016893,1.4215,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and USDC, configured by K3 Capital."
-852c8e89-6942-43dd-a6e5-7fa3c1a6e713,K3 Isolated sMON-WMON-USDC,Lending,18834.78592777,0,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and USDC, configured by K3 Capital."
+852c8e89-6942-43dd-a6e5-7fa3c1a6e713,K3 Isolated sMON-WMON-USDC,Lending,18834.78592777,2,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and USDC, configured by K3 Capital."
 db098cf6-84f0-4cdd-9194-8249a588c1e9,K3 Isolated sMON-WMON-USDC,Lending,173.35648997,0.0199,true,K3 Capital,Monad,"An isolated market for sMON, WMON, and USDC, configured by K3 Capital."
 02141e73-fa23-4fed-89fe-52349d609f6d,K3 Isolated WBTC-USDC,Lending,20533.59054703,0.0762,false,K3 Capital,Monad,"An isolated market for WBTC and USDC, configured by K3 Capital."
 69d679a1-e5e9-4d6d-97d4-b4ca27f24227,K3 Isolated WBTC-USDC,Lending,11300.26591417,16.2,false,K3 Capital,Monad,"An isolated market for WBTC and USDC, configured by K3 Capital."
@@ -545,17 +545,17 @@ f3530f7e-ec56-40ec-94bf-bee6e6897511,Lend AUSD on WMON/AUSD,Lending,338072.15824
 c7a6f8d3-f1c0-4da3-b809-a62116ff86d0,Lend AUSD on YZM/AUSD,Lending,1685614.79830145,10.2902,true,Curvance,Monad,Lend AUSD on Curvance YZM/AUSD Market.
 5a4df1cc-dc44-4396-b856-18f2d1fa8263,Lend earnAUSD on earnAUSD/AUSD,Lending,12648698.1252582,0.7,true,Curvance,Monad,Lend earnAUSD on Curvance earnAUSD/AUSD Market.
 3dcaaa41-d999-424f-a0c7-0d4e3e38c924,Lend eBTC on eBTC/WBTC,Lending,40373989.79209077,0.0004,true,Curvance,Monad,Lend eBTC on Curvance eBTC/WBTC Market.
-d3ce6400-c614-4cb2-b593-cffb2a74a8f3,Lend ezETH on ezETH/WETH,Lending,2212314.88545017,0,true,Curvance,Monad,Lend ezETH on Curvance ezETH/WETH Market.
+d3ce6400-c614-4cb2-b593-cffb2a74a8f3,Lend ezETH on ezETH/WETH,Lending,2212314.88545017,2,true,Curvance,Monad,Lend ezETH on Curvance ezETH/WETH Market.
 aad4ddc0-feec-45a9-af5f-93954cf09bee,Lend gMON on gMON/WMON,Lending,131209.68028443,0,false,Curvance,Monad,Lend gMON on Curvance gMON/WMON Market.
 efeea6a0-412b-4a1a-bca1-f18b3cb45950,Lend muBOND on muBOND/AUSD,Lending,77944.86520131,0,false,Curvance,Monad,Lend muBOND on Curvance muBOND/AUSD Market.
 9830bcb0-f9ff-4756-9e9d-5a9aa858a320,Lend shMON on shMON/WMON,Lending,698764.98963203,0,false,Curvance,Monad,Lend shMON on Curvance shMON/WMON Market.
-9549501a-d7d9-4aeb-9a34-54612bb4a976,Lend sMON on sMON/WMON,Lending,496019.13847609,0,true,Curvance,Monad,Lend sMON on Curvance sMON/WMON Market.
+9549501a-d7d9-4aeb-9a34-54612bb4a976,Lend sMON on sMON/WMON,Lending,496019.13847609,2,true,Curvance,Monad,Lend sMON on Curvance sMON/WMON Market.
 c1aa5a4b-0c30-4f49-aa78-b487c80e4a28,Lend syzUSD on syzUSD/AUSD,Lending,2578731.80218755,1.2,true,Curvance,Monad,Lend syzUSD on Curvance syzUSD/AUSD Market.
 f5441cb7-7b5e-4895-8846-de9465879cc7,Lend USDC on savUSD/USDC,Lending,1883786.3672417,5.1783,false,Curvance,Monad,Lend USDC on Curvance savUSD/USDC Market.
 c329057e-2d6a-44cd-990b-93f3e3b36a50,Lend USDC on WBTC/USDC,Lending,8413.79016908,7.078,true,Curvance,Monad,Lend USDC on Curvance WBTC/USDC Market.
 c7e2e8d6-574b-48a6-a697-400f8a2ee6c8,Lend USDC on WETH/USDC,Lending,1848.4053004,0.7857,true,Curvance,Monad,Lend USDC on Curvance WETH/USDC Market.
 2d952af2-7897-4071-b374-53761117b407,Lend USDC on WMON/USDC,Lending,471754.41393939,8.709,true,Curvance,Monad,Lend USDC on Curvance WMON/USDC Market.
-de398f14-4d49-4922-aab8-dca0832bd01d,Lend vUSD on vUSD/AUSD,Lending,25397688.91827566,0,true,Curvance,Monad,Lend vUSD on Curvance vUSD/AUSD Market.
+de398f14-4d49-4922-aab8-dca0832bd01d,Lend vUSD on vUSD/AUSD,Lending,25397688.91827566,2,true,Curvance,Monad,Lend vUSD on Curvance vUSD/AUSD Market.
 563e641d-0c7a-47d3-9acf-d2dc144a4966,Lend WBTC on eBTC/WBTC,Lending,3380829.1942793,8.955000000000002,true,Curvance,Monad,Lend WBTC on Curvance eBTC/WBTC Market.
 31c8c93f-1dd5-49f4-8137-f49440a7a7f2,Lend WBTC on WBTC/USDC,Lending,36830.09764734,0.0002,true,Curvance,Monad,Lend WBTC on Curvance WBTC/USDC Market.
 8e5383b1-e972-407b-a585-1327bb6d64c1,Lend WETH on ezETH/WETH,Lending,2746874.11512785,10.4245,true,Curvance,Monad,Lend WETH on Curvance ezETH/WETH Market.
@@ -646,7 +646,7 @@ f3b4fb5d-eb6e-4080-a1b8-8a74d2da5036,Moonwell Frontier cbBTC,Lending,593480.0297
 8a3d3e5f-d327-4ed7-824c-9e046f4bd0b7,Noon,Lending,4754.28382623,53.6319,false,Tulipa Capital,Ethereum,"A lending and borrowing market for Noon ecosystem assets, configured by Tulipa Capital."
 ced82b06-347d-4792-8ac0-0cb70717fd2c,Noon,Lending,13994.69447105,5.8112,false,Tulipa Capital,Ethereum,"A lending and borrowing market for Noon ecosystem assets, configured by Tulipa Capital."
 4d536e1f-be26-477e-9f79-9577c83405b3,Noon,Lending,4826.68025685,0,false,Tulipa Capital,Ethereum,"A lending and borrowing market for Noon ecosystem assets, configured by Tulipa Capital."
-bcc112e7-4cda-4295-8b62-f00357288620,Nunchi HYPE Vault,Vault,770283.69179249,0,true,Nunchi,HyperEVM,Deposit HYPE and earn cHIPS. Withdrawals are disabled until 500k HYPE is staked via nHYPE. See [here](https://hyperliquid.gitbook.io/hyperliquid-docs/hyperliquid-improvement-proposals-hips/hip-3-builder-deployed-perpetuals) for more details.
+bcc112e7-4cda-4295-8b62-f00357288620,Nunchi HYPE Vault,Vault,770283.69179249,2,true,Nunchi,HyperEVM,Deposit HYPE and earn cHIPS. Withdrawals are disabled until 500k HYPE is staked via nHYPE. See [here](https://hyperliquid.gitbook.io/hyperliquid-docs/hyperliquid-improvement-proposals-hips/hip-3-builder-deployed-perpetuals) for more details.
 326bc466-b2a1-4fb0-81fb-cf77b3e58843,Origin stETH ARM / WETH,Lending,0,0,false,,Ethereum,"A market for Origin stETH ARM and WETH-related vaults, configured by AlphaGrowth."
 2417284c-d481-4d03-92e6-a7f7ae5d6f43,Origin stETH ARM / WETH,Lending,0.00150735,0,false,,Ethereum,"A market for Origin stETH ARM and WETH-related vaults, configured by AlphaGrowth."
 b6a49783-8464-4573-8b3a-0b405cb35fce,Pangolins USDC,Lending,29983691.38242333,4.9117,false,Pangolins,Base,Morpho pUSDC vault on Base
@@ -726,8 +726,8 @@ c68a09cb-3a72-4917-80c8-148726882eb7,Smokehouse WSTETH,Lending,5009975.69866561,
 1581f8d1-970c-4a10-a513-f67d93fabc73,Spark USDC Vault,Lending,8923669.16508962,4.5488,false,SparkDAO,Base,Morpho sparkUSDC vault on Base
 941553af-686c-478f-93f7-15a26bdd047b,Stake DAO frxUSD v2,Lending,7270302.52512411,16.8067,false,StakeDAO,Ethereum,Morpho sdFRXUSDv2 vault on Ethereum
 fedeea90-fdec-46a4-9cd0-02d2315fc5b2,Stake DAO USDC v2,Lending,460550.41727702,4.0465,false,StakeDAO,Ethereum,Morpho sdUSDCv2 vault on Ethereum
-23ba1faa-8551-4ea3-8e02-eeb5b082b9c8,Stake TURTLE,Staking,298610.00278238,0,true,,Ethereum,Stake TURTLE tokens and receive 100 Turtle Shells per $1k per day. [Leaderboard Reward Pool](https://app.turtle.xyz/leaderboard/turtle) will be split pro-rata based on Turtle Shells holdings at the end of Season 2.
-db73679b-33b9-4a3a-a840-7f531281ccb0,Staked avETH,Vault,10530078.97312275,0,true,Avant,Ethereum,
+23ba1faa-8551-4ea3-8e02-eeb5b082b9c8,Stake TURTLE,Staking,298610.00278238,2,true,,Ethereum,Stake TURTLE tokens and receive 100 Turtle Shells per $1k per day. [Leaderboard Reward Pool](https://app.turtle.xyz/leaderboard/turtle) will be split pro-rata based on Turtle Shells holdings at the end of Season 2.
+db73679b-33b9-4a3a-a840-7f531281ccb0,Staked avETH,Vault,10530078.97312275,2,true,Avant,Ethereum,
 a68428ec-2265-4461-8d5c-71f4fd10bb46,Staked R2USD,Vault,246578.75388144,28,false,R2,Ethereum,"R2 Protocol is the consumer gateway to institutional-grade RWA yields. R2 aims to democratize access to $1T+ of tokenized assets through DeFi vaults. R2 partners with leading funds (Securitize, BlackRock, Apollo etc.) to co-design customized RWA (T-Bills & Private Credit) yield products, making institutional-grade opportunities accessible to everyone. R2 is looking to bootstrap $3M worth of USDC to be provided into its sR2USD+ vault, which generates real yield from tokenized credit assets and is complemented with a token incentive program. LPs must remain deposited for at least 60 days to qualify for the full yield. Early withdrawals (<60d) will result in forfeiting all yields."
 f0b14f26-0a04-4504-8d59-15a16f1666ad,Steakhouse ETH,Lending,31149798.12287134,1.4088,false,Steakhouse,Ethereum,Morpho steakETH vault on Ethereum
 fa06e1b2-b9b1-475d-99d3-84791be87e95,Steakhouse ETH,Lending,812721.40204252,1.4833,false,Steakhouse,Base,Morpho steakETH vault on Base

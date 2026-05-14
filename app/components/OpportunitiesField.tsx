@@ -16,6 +16,7 @@ import { Html, OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 import { DM_Sans, Montserrat } from "next/font/google";
 import { OpportunityCsvStatsPanel } from "@/app/components/OpportunityCsvStatsPanel";
+import { FeaturedAprAxis } from "@/app/components/FeaturedAprAxis";
 import { OpportunityHoverLabel } from "@/app/components/OpportunityHoverLabel";
 import { OpportunityHoverScreenLabel } from "@/app/components/OpportunityHoverScreenLabel";
 import { parseOpportunityRows, type OpportunityRow } from "@/app/lib/opportunitiesCsv";
@@ -72,12 +73,14 @@ const FRAMING_TARGET_Z_RATIO = -0.3;
 
 /** Above drei `<Html zIndexRange>` (~1.68e7) so hover labels stack over curator names. */
 const HOVER_PORTAL_Z = 180_000_000;
+/** APR vertical legend while Features is on (above hover portal). */
+const FEATURES_APR_AXIS_Z = HOVER_PORTAL_Z + 2;
 
 /** Pinned “Features” view (from orbit + Leva copy). Never call `OrbitControls.update()` after setting these: with min/max polar both 0, update() clamps φ to 0 and flattens any oblique camera back to top-down. */
 const FEATURES_CAMERA_POSITION: [number, number, number] = [
-  24.20014, 100.27175, 186.245979,
+  0.20014, 25.27175, 160.245979,
 ];
-const FEATURES_ORBIT_TARGET: [number, number, number] = [0, 0, -52.921258];
+const FEATURES_ORBIT_TARGET: [number, number, number] = [0, 25, -52.921258];
 
 function DebugControls({
   extent,
@@ -250,6 +253,20 @@ function DebugControls({
 const SPHERE_GEO = new THREE.SphereGeometry(1, 14, 12);
 
 const RADIUS_SCALE = 0.34;
+
+/** Logical `size` (same units as `Marker.size`) for all non-featured spheres while Features is on. */
+const FEATURES_NON_FEATURED_UNIFORM_SIZE = 0.5;
+
+function opportunitySphereRadius(
+  m: Marker,
+  featuresEnabled: boolean,
+  blend: number,
+): number {
+  const full = m.size * RADIUS_SCALE;
+  if (m.featured || !featuresEnabled) return full;
+  const small = FEATURES_NON_FEATURED_UNIFORM_SIZE * RADIUS_SCALE;
+  return THREE.MathUtils.lerp(full, small, blend);
+}
 
 const labelBase: CSSProperties = {
   pointerEvents: "none",
@@ -474,7 +491,7 @@ function InstancedOpportunitySpheres({
   }, [featuredMat, neutralMat]);
 
   const writeInstanceMatrices = useCallback(
-    (blend: number) => {
+    (blend: number, featOn: boolean) => {
       const dummy = dummyRef.current;
       const apply = (mesh: THREE.InstancedMesh | null, list: Marker[]) => {
         if (!mesh) return;
@@ -482,7 +499,7 @@ function InstancedOpportunitySpheres({
           const { ox, oy, oz } = featuredSceneOffset(m, blend, featuredAprRange);
           const dy = nonFeaturedSceneYOffset(m, blend);
           dummy.position.set(m.x + ox, oy + dy, m.z + oz);
-          const s = m.size * RADIUS_SCALE;
+          const s = opportunitySphereRadius(m, featOn, blend);
           dummy.scale.set(s, s, s);
           dummy.updateMatrix();
           mesh.setMatrixAt(i, dummy.matrix);
@@ -506,14 +523,19 @@ function InstancedOpportunitySpheres({
   );
 
   useLayoutEffect(() => {
-    writeInstanceMatrices(featuresBlendRef.current);
-  }, [writeInstanceMatrices, featuresBlendRef, featuredAprRange]);
+    writeInstanceMatrices(featuresBlendRef.current, featuresEnabled);
+  }, [
+    writeInstanceMatrices,
+    featuresBlendRef,
+    featuredAprRange,
+    featuresEnabled,
+  ]);
 
   const lastHoverIdRef = useRef<string | null>(null);
   const { raycaster, pointer, camera } = useThree();
 
   useFrame(() => {
-    writeInstanceMatrices(featuresBlendRef.current);
+    writeInstanceMatrices(featuresBlendRef.current, featuresEnabled);
 
     raycaster.setFromCamera(pointer, camera);
     const blend = featuresBlendRef.current;
@@ -539,7 +561,7 @@ function InstancedOpportunitySpheres({
       const cx = m.x + sx;
       const cy = sy + ddy;
       const cz = m.z + sz;
-      const rad = m.size * RADIUS_SCALE;
+      const rad = opportunitySphereRadius(m, featuresEnabled, blend);
       const t = rayIntersectSphereParam(ox, oy, oz, dx, dy, dz, cx, cy, cz, rad);
       if (t != null) along.push({ t, m });
     }
@@ -770,6 +792,17 @@ export default function OpportunitiesField() {
     showPackZones: { value: false, label: "Pack debug zones" },
   });
 
+  const aprAxisTop = useMemo(() => {
+    if (!rows?.length) return 4;
+    let max = 0;
+    for (const r of rows) {
+      if (r.featured && Number.isFinite(r.estAprPercent)) {
+        max = Math.max(max, r.estAprPercent);
+      }
+    }
+    return Math.max(4, Math.ceil(max * 10) / 10);
+  }, [rows]);
+
   useEffect(() => {
     let cancelled = false;
     void fetch("/data/turtle-opportunities.csv")
@@ -827,6 +860,11 @@ export default function OpportunitiesField() {
               className="pointer-events-none absolute inset-0"
               style={{ zIndex: HOVER_PORTAL_Z }}
               aria-hidden
+            />
+            <FeaturedAprAxis
+              visible={featuresEnabled}
+              aprTopPercent={aprAxisTop}
+              zIndex={FEATURES_APR_AXIS_Z}
             />
             {/*
               Hero uses pointer-events-none on the outer section, so without this

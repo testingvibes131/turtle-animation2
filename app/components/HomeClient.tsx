@@ -30,7 +30,7 @@ export function HomeClient() {
       <HeroSection />
       <SiteHeader />
       {/* <HomeStatsStrip /> */}
-      <CoordinatedCapitalStats />
+      {/* <CoordinatedCapitalStats /> */}
     </main>
   );
 }
