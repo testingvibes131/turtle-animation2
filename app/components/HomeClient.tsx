@@ -1,11 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useLayoutEffect, useState } from "react";
 import { CoordinatedCapitalStats } from "./CoordinatedCapitalStats";
-import { PlexusSketch } from "./PlexusSketch";
 import { HeroSection } from "./HeroSection";
 import { HomeStatsStrip } from "./HomeStatsStrip";
 import { SiteHeader } from "./SiteHeader";
+
+const OpportunitiesField = dynamic(() => import("./OpportunitiesField"), {
+  ssr: false,
+});
 
 export function HomeClient() {
   const [fadeIn, setFadeIn] = useState(false);
@@ -22,7 +26,7 @@ export function HomeClient() {
         "motion-reduce:opacity-100",
       ].join(" ")}
     >
-      <PlexusSketch />
+      <OpportunitiesField />
       <HeroSection />
       <SiteHeader />
       <HomeStatsStrip />
