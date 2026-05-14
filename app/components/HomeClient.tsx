@@ -29,7 +29,7 @@ export function HomeClient() {
       <OpportunitiesField />
       <HeroSection />
       <SiteHeader />
-      <HomeStatsStrip />
+      {/* <HomeStatsStrip /> */}
       <CoordinatedCapitalStats />
     </main>
   );

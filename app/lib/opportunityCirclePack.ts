@@ -13,6 +13,9 @@ export type PackedMarker = {
   z: number;
   size: number;
   dust: boolean;
+  featured: boolean;
+  /** Estimated APR (% points), from CSV `est_apr_percent`. */
+  estAprPercent: number;
 };
 
 export type PackedCuratorLabel = {
@@ -642,6 +645,8 @@ export function layoutOpportunitiesCirclePack(
         z: cz + lz,
         size: b.sizes[i]!,
         dust: b.dustFlags[i]!,
+        featured: r.featured,
+        estAprPercent: r.estAprPercent,
       });
     }
 

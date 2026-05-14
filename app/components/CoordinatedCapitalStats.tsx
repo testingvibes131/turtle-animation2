@@ -79,7 +79,7 @@ export function CoordinatedCapitalStats() {
   return (
     <aside
       className={[
-        "pointer-events-none absolute right-6 bottom-6 z-20 flex w-[min(calc(100vw-3rem),340px)] flex-col gap-4 sm:right-[60px] sm:bottom-8",
+        "pointer-events-none absolute bottom-10 right-8 z-20 flex w-[min(calc(100vw-3rem),340px)] flex-col gap-4",
         dmSans.className,
       ].join(" ")}
       aria-label="Coordinated capital metrics"

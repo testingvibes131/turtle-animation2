@@ -3,8 +3,13 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { DM_Sans, Montserrat } from "next/font/google";
 import { useEffect, useMemo, useRef } from "react";
+import type { MutableRefObject } from "react";
 import * as THREE from "three";
 import type { PackedMarker } from "@/app/lib/opportunityCirclePack";
+import {
+  featuredSceneOffset,
+  type FeaturedAprRange,
+} from "@/app/lib/featuredSceneOffset";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -21,13 +26,18 @@ const montserrat = Montserrat({
 const RADIUS_SCALE = 0.34;
 const HIGHLIGHT_SCALE = 1.06;
 
-/** Tailwind classes (must appear as static string for the compiler). */
+/** Above drei `<Html>` curator labels (~1.68e7) and `HOVER_PORTAL_Z`. */
 const LABEL_CLASS =
-  "pointer-events-none absolute z-100 flex max-w-[280px] -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center gap-2 rounded-[10px] bg-[#141514] px-3 py-2 text-[14px] leading-snug font-semibold text-[#f9f9f9] shadow-lg";
+  "pointer-events-none absolute z-[180000001] flex max-w-[min(280px,42vw)] -translate-x-1/2 -translate-y-[calc(100%+10px)] items-start gap-2 rounded-[10px] bg-[#141514] px-3 py-2 text-[14px] leading-snug shadow-lg";
 
 const LABEL_ICON_CLASS = "h-[14px] w-[14px] shrink-0 select-none";
 
-const LABEL_TEXT_CLASS = "min-w-0 flex-1 truncate";
+const LABEL_COL_CLASS = "flex min-w-0 flex-col gap-0.5";
+
+const LABEL_NAME_CLASS = "min-w-0 truncate font-semibold text-[#f9f9f9]";
+
+const LABEL_APR_CLASS =
+  "text-[12px] font-medium tabular-nums text-[#73f36c]";
 
 function hoverLabelWorldY(marker: PackedMarker): number {
   const highlightR = marker.size * RADIUS_SCALE * HIGHLIGHT_SCALE;
@@ -38,6 +48,10 @@ type OpportunityHoverScreenLabelProps = {
   marker: PackedMarker | null;
   /** DOM node above the WebGL layer (sibling after &lt;Canvas&gt;). */
   portalEl: HTMLDivElement | null;
+  featuresBlendRef: MutableRefObject<number>;
+  featuredAprRange: FeaturedAprRange;
+  /** When true, show APY line; when false, name only (all spheres hoverable). */
+  featuresEnabled: boolean;
 };
 
 /**
@@ -47,16 +61,21 @@ type OpportunityHoverScreenLabelProps = {
 export function OpportunityHoverScreenLabel({
   marker,
   portalEl,
+  featuresBlendRef,
+  featuredAprRange,
+  featuresEnabled,
 }: OpportunityHoverScreenLabelProps) {
   const { camera, size } = useThree();
   const ndc = useMemo(() => new THREE.Vector3(), []);
   const labelRef = useRef<HTMLDivElement | null>(null);
-  const labelTextRef = useRef<HTMLSpanElement | null>(null);
+  const nameRef = useRef<HTMLSpanElement | null>(null);
+  const aprRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (!portalEl) {
       labelRef.current = null;
-      labelTextRef.current = null;
+      nameRef.current = null;
+      aprRef.current = null;
       return;
     }
 
@@ -73,19 +92,29 @@ export function OpportunityHoverScreenLabel({
     icon.draggable = false;
     icon.className = LABEL_ICON_CLASS;
 
-    const text = document.createElement("span");
-    text.className = LABEL_TEXT_CLASS;
+    const col = document.createElement("div");
+    col.className = LABEL_COL_CLASS;
 
+    const name = document.createElement("span");
+    name.className = LABEL_NAME_CLASS;
+
+    const apr = document.createElement("span");
+    apr.className = LABEL_APR_CLASS;
+
+    col.appendChild(name);
+    col.appendChild(apr);
     el.appendChild(icon);
-    el.appendChild(text);
+    el.appendChild(col);
 
     portalEl.appendChild(el);
     labelRef.current = el;
-    labelTextRef.current = text;
+    nameRef.current = name;
+    aprRef.current = apr;
 
     return () => {
       labelRef.current = null;
-      labelTextRef.current = null;
+      nameRef.current = null;
+      aprRef.current = null;
       if (el.parentNode === portalEl) {
         portalEl.removeChild(el);
       }
@@ -93,10 +122,24 @@ export function OpportunityHoverScreenLabel({
   }, [portalEl]);
 
   useEffect(() => {
-    const text = labelTextRef.current;
-    if (!text) return;
-    text.textContent = marker?.name ?? "";
-  }, [marker, portalEl]);
+    const name = nameRef.current;
+    const apr = aprRef.current;
+    if (!name || !apr) return;
+    if (!marker) {
+      name.textContent = "";
+      apr.textContent = "";
+      apr.style.display = "none";
+      return;
+    }
+    name.textContent = marker.name;
+    if (featuresEnabled) {
+      apr.textContent = `${marker.estAprPercent.toFixed(2)}% APY`;
+      apr.style.display = "";
+    } else {
+      apr.textContent = "";
+      apr.style.display = "none";
+    }
+  }, [marker, portalEl, featuresEnabled]);
 
   useFrame(() => {
     const el = labelRef.current;
@@ -107,7 +150,13 @@ export function OpportunityHoverScreenLabel({
       return;
     }
 
-    ndc.set(marker.x, hoverLabelWorldY(marker), marker.z);
+    const b = featuresBlendRef.current;
+    const { ox, oy, oz } = featuredSceneOffset(marker, b, featuredAprRange);
+    ndc.set(
+      marker.x + ox,
+      oy + hoverLabelWorldY(marker),
+      marker.z + oz,
+    );
     ndc.project(camera);
 
     if (Math.abs(ndc.z) > 1) {

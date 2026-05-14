@@ -26,7 +26,7 @@ function StatCard({ label, value }: StatCardProps) {
 export function HomeStatsStrip() {
   return (
     <aside
-      className={`${dmSans.className} pointer-events-none absolute bottom-6 left-6 z-10 flex gap-2.5 overflow-x-auto pb-0.5 scrollbar-none`}
+      className={`${dmSans.className} pointer-events-none absolute bottom-10 bottom-10 z-10 flex gap-2.5 overflow-x-auto pb-0.5 scrollbar-none`}
       aria-label="Platform statistics"
     >
       <StatCard label="LPs & Wallets" value="2,400+" />

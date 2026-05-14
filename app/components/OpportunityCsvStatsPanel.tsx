@@ -48,7 +48,7 @@ export function OpportunityCsvStatsPanel({ rows }: OpportunityCsvStatsPanelProps
   return (
     <aside
       className={[
-        "pointer-events-none absolute left-6 top-1/2 z-10 w-[min(calc(100vw-3rem),220px)] -translate-y-1/2",
+        "pointer-events-none absolute bottom-10 left-8 z-10 w-[min(calc(100vw-3rem),220px)]",
         dmSans.className,
       ].join(" ")}
       aria-label="Opportunity data from CSV"
