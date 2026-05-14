@@ -23,7 +23,11 @@ const HIGHLIGHT_SCALE = 1.06;
 
 /** Tailwind classes (must appear as static string for the compiler). */
 const LABEL_CLASS =
-  "pointer-events-none absolute z-15 max-w-[280px] -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-[10px] bg-[#141514] px-3 py-2 text-center text-[16px] leading-snug font-semibold whitespace-nowrap text-ellipsis text-[#f9f9f9] shadow-lg";
+  "pointer-events-none absolute z-100 flex max-w-[280px] -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center gap-2 rounded-[10px] bg-[#141514] px-3 py-2 text-[14px] leading-snug font-semibold text-[#f9f9f9] shadow-lg";
+
+const LABEL_ICON_CLASS = "h-[14px] w-[14px] shrink-0 select-none";
+
+const LABEL_TEXT_CLASS = "min-w-0 flex-1 truncate";
 
 function hoverLabelWorldY(marker: PackedMarker): number {
   const highlightR = marker.size * RADIUS_SCALE * HIGHLIGHT_SCALE;
@@ -47,25 +51,41 @@ export function OpportunityHoverScreenLabel({
   const { camera, size } = useThree();
   const ndc = useMemo(() => new THREE.Vector3(), []);
   const labelRef = useRef<HTMLDivElement | null>(null);
+  const labelTextRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (!portalEl) {
       labelRef.current = null;
+      labelTextRef.current = null;
       return;
     }
 
     const el = document.createElement("div");
     el.className = `${LABEL_CLASS} ${dmSans.className} ${montserrat.className}`;
     el.style.overflow = "hidden";
-    el.style.textOverflow = "ellipsis";
     el.style.pointerEvents = "none";
     el.style.visibility = "hidden";
 
+    const icon = document.createElement("img");
+    icon.src = "/green.svg";
+    icon.alt = "";
+    icon.setAttribute("aria-hidden", "true");
+    icon.draggable = false;
+    icon.className = LABEL_ICON_CLASS;
+
+    const text = document.createElement("span");
+    text.className = LABEL_TEXT_CLASS;
+
+    el.appendChild(icon);
+    el.appendChild(text);
+
     portalEl.appendChild(el);
     labelRef.current = el;
+    labelTextRef.current = text;
 
     return () => {
       labelRef.current = null;
+      labelTextRef.current = null;
       if (el.parentNode === portalEl) {
         portalEl.removeChild(el);
       }
@@ -73,9 +93,9 @@ export function OpportunityHoverScreenLabel({
   }, [portalEl]);
 
   useEffect(() => {
-    const el = labelRef.current;
-    if (!el) return;
-    el.textContent = marker?.name ?? "";
+    const text = labelTextRef.current;
+    if (!text) return;
+    text.textContent = marker?.name ?? "";
   }, [marker, portalEl]);
 
   useFrame(() => {

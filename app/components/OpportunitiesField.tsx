@@ -40,6 +40,12 @@ const montserratScene = Montserrat({
   display: "swap",
 });
 
+const dmSansUi = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+});
+
 const SCENE_LABEL_FONT = `${dmSansScene.style.fontFamily}, ${montserratScene.style.fontFamily}, ui-sans-serif, sans-serif`;
 
 /**
@@ -61,7 +67,7 @@ function DebugControls({ extent }: { extent: number }) {
   const ref = useRef<OrbitControlsType>(null);
   const { camera, size } = useThree();
 
-  const autoY = 746;
+  const autoY = 270;
   const tz = extent * FRAMING_TARGET_Z_RATIO;
 
   const { manualCamera, camX, camY, camZ, orbitZoom } = useControls(
@@ -468,6 +474,48 @@ function OpportunityLand({
   );
 }
 
+function FeaturesToggleSwitch({
+  enabled,
+  onEnabledChange,
+}: {
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label="Features"
+      onClick={() => onEnabledChange(!enabled)}
+      className={[
+        dmSansUi.className,
+        "pointer-events-auto flex cursor-pointer items-center gap-3 rounded-[20px] border border-[rgba(249,249,249,0.1)] bg-[#191a19] px-4 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.35)] select-none",
+      ].join(" ")}
+    >
+      <span className="text-[13px] font-medium text-[#f9f9f9]">Features</span>
+      <span
+        className={[
+          "relative h-6 w-11 shrink-0 rounded-full border transition-colors duration-200",
+          enabled
+            ? "border-[#73f36c]/45 bg-[#73f36c]/20"
+            : "border-[rgba(249,249,249,0.12)] bg-[rgba(255,255,255,0.06)]",
+        ].join(" ")}
+        aria-hidden
+      >
+        <span
+          className={[
+            "pointer-events-none absolute top-1/2 left-[2px] block h-[18px] w-[18px] -translate-y-1/2 rounded-full shadow-sm transition-[transform,background-color] duration-200 ease-out",
+            enabled
+              ? "translate-x-[22px] bg-[#73f36c]"
+              : "translate-x-0 bg-[rgba(249,249,249,0.82)]",
+          ].join(" ")}
+        />
+      </span>
+    </button>
+  );
+}
+
 function SceneWithLayout({
   rows,
   showPackDebug,
@@ -497,6 +545,7 @@ function SceneWithLayout({
 export default function OpportunitiesField() {
   const [rows, setRows] = useState<OpportunityRow[] | null>(null);
   const [hoverPortalEl, setHoverPortalEl] = useState<HTMLDivElement | null>(null);
+  const [featuresEnabled, setFeaturesEnabled] = useState(true);
 
   const { showPackZones } = useControls("Opportunities", {
     showPackZones: { value: false, label: "Pack debug zones" },
@@ -546,9 +595,15 @@ export default function OpportunitiesField() {
               />
             </Canvas>
             <OpportunityCsvStatsPanel rows={rows} />
+            <div className="pointer-events-none fixed right-6 top-32 z-30 sm:right-[60px] sm:top-36">
+              <FeaturesToggleSwitch
+                enabled={featuresEnabled}
+                onEnabledChange={setFeaturesEnabled}
+              />
+            </div>
             <div
               ref={setHoverPortalEl}
-              className="pointer-events-none absolute inset-0 z-15"
+              className="pointer-events-none absolute inset-0 z-100"
               aria-hidden
             />
             {/*

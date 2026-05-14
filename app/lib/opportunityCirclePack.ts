@@ -60,9 +60,9 @@ export function opportunityPackDiskRadius(size: number): number {
 }
 
 /** Minimum center–center slack between opportunity pack disks (almost tangent). */
-const MICRO_GAP = 0.01;
+const MICRO_GAP = 0.66;
 /** Slack between curator macro disks during overlap relaxation (almost tangent). */
-const MACRO_GAP = 0.12;
+const MACRO_GAP = 1.82;
 const CURATOR_LABEL_BELOW = 2.35;
 
 type Vec2 = { x: number; z: number };
@@ -95,10 +95,207 @@ function resolveOverlap(
   b.z += uz;
 }
 
+/** Worst center–center penetration depth (0 = all pairs respect gap). */
+function maxPenetration(pos: Vec2[], radii: number[], gap: number): number {
+  let worst = 0;
+  const n = pos.length;
+  for (let i = 0; i < n; i++) {
+    const pi = pos[i]!;
+    const ri = radii[i]!;
+    for (let j = i + 1; j < n; j++) {
+      const pj = pos[j]!;
+      const d = Math.hypot(pj.x - pi.x, pj.z - pi.z);
+      const need = ri + radii[j]! + gap;
+      if (d < need) worst = Math.max(worst, need - d);
+    }
+  }
+  return worst;
+}
+
+/** Like `resolveOverlap`, but larger disk moves less (keeps hub stable). */
+function resolveOverlapBiased(
+  a: Vec2,
+  b: Vec2,
+  ra: number,
+  rb: number,
+  gap: number,
+  strength: number,
+): void {
+  let dx = b.x - a.x;
+  let dz = b.z - a.z;
+  let d = Math.hypot(dx, dz);
+  const minD = ra + rb + gap;
+  if (d >= minD) return;
+  if (d < 1e-7) {
+    const ang = rnd(`${a.x},${b.z}`, 7) * Math.PI * 2;
+    dx = Math.cos(ang) * 0.04;
+    dz = Math.sin(ang) * 0.04;
+    d = 0.04;
+  }
+  const push = ((minD - d) / d) * strength;
+  const ux = dx * push;
+  const uz = dz * push;
+  const den = ra + rb + 1e-9;
+  const wA = rb / den;
+  const wB = ra / den;
+  a.x -= ux * 2 * wA;
+  a.z -= uz * 2 * wA;
+  b.x += ux * 2 * wB;
+  b.z += uz * 2 * wB;
+}
+
+/** Hub `a` fixed; only `b` moves to clear overlap (index 0 pinned). */
+function resolveOverlapFixedA(
+  a: Vec2,
+  b: Vec2,
+  ra: number,
+  rb: number,
+  gap: number,
+  strength: number,
+): void {
+  let dx = b.x - a.x;
+  let dz = b.z - a.z;
+  let d = Math.hypot(dx, dz);
+  const minD = ra + rb + gap;
+  if (d >= minD) return;
+  if (d < 1e-7) {
+    const ang = rnd(`${a.x},${b.z}`, 13) * Math.PI * 2;
+    dx = Math.cos(ang) * 0.04;
+    dz = Math.sin(ang) * 0.04;
+    d = 0.04;
+  }
+  const mag = (minD - d) * strength;
+  b.x += (dx / d) * mag;
+  b.z += (dz / d) * mag;
+}
+
+function relaxDiskPair(
+  pos: Vec2[],
+  radii: number[],
+  i: number,
+  j: number,
+  gap: number,
+  strength: number,
+): void {
+  if (i === j) return;
+  if (i === 0) {
+    resolveOverlapFixedA(
+      pos[0]!,
+      pos[j]!,
+      radii[0]!,
+      radii[j]!,
+      gap,
+      strength,
+    );
+  } else if (j === 0) {
+    resolveOverlapFixedA(
+      pos[0]!,
+      pos[i]!,
+      radii[0]!,
+      radii[i]!,
+      gap,
+      strength,
+    );
+  } else {
+    resolveOverlapBiased(
+      pos[i]!,
+      pos[j]!,
+      radii[i]!,
+      radii[j]!,
+      gap,
+      strength,
+    );
+  }
+}
+
 /**
- * Per-curator micro packing: all opportunity centers start in a tight disk
- * (from maxRi, sumR/n, capped), heavily overlapping; pairwise repulsion expands
- * into an almost-tangent packing. No per-iteration scale-toward-origin.
+ * Macro: largest-first by **footprint**. Disk 0 at origin. Each next disk: first
+ * valid slot on rings around the **weighted centroid** of already placed disks
+ * (r² weights), so growth hugs the heavy core instead of sneaking small packs
+ * under global (0,0).
+ */
+function packMacroDisksIncremental(
+  centers: Vec2[],
+  macroR: number[],
+  k: number,
+  seedKey: string,
+): void {
+  if (k <= 0) return;
+  centers[0] = { x: 0, z: 0 };
+  if (k === 1) return;
+
+  const DR = 0.032;
+  const phase0 = rnd(seedKey, 42) * Math.PI * 2;
+
+  for (let i = 1; i < k; i++) {
+    const ri = macroR[i]!;
+    let sw = 0;
+    let cmx = 0;
+    let cmz = 0;
+    for (let j = 0; j < i; j++) {
+      const w = macroR[j]! * macroR[j]!;
+      cmx += centers[j]!.x * w;
+      cmz += centers[j]!.z * w;
+      sw += w;
+    }
+    if (sw > 1e-12) {
+      cmx /= sw;
+      cmz /= sw;
+    }
+
+    const phase = phase0 + rnd(seedKey, 50 + i) * 0.65;
+    const maxRings = Math.min(
+      720,
+      Math.ceil(18 + i * 12 + (macroR[0] ?? 6) * 5.5),
+    );
+    let placed = false;
+
+    for (let ring = 0; ring < maxRings && !placed; ring++) {
+      const r = ring * DR;
+      const nAng =
+        r < 1e-9
+          ? 1
+          : Math.max(
+              10,
+              Math.min(100, Math.ceil((2 * Math.PI * r) / (DR * 0.92))),
+            );
+
+      for (let a = 0; a < nAng && !placed; a++) {
+        const ang = phase + (a / nAng) * (Math.PI * 2);
+        const cx = cmx + Math.cos(ang) * r;
+        const cz = cmz + Math.sin(ang) * r;
+
+        let ok = true;
+        for (let j = 0; j < i; j++) {
+          const dx = cx - centers[j]!.x;
+          const dz = cz - centers[j]!.z;
+          const need = ri + macroR[j]! + MACRO_GAP;
+          if (Math.hypot(dx, dz) < need - 1e-7) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          centers[i] = { x: cx, z: cz };
+          placed = true;
+        }
+      }
+    }
+
+    if (!placed) {
+      const fa = rnd(seedKey, 28000 + i) * Math.PI * 2;
+      const rr = 5 + i * 0.5 + (macroR[0] ?? 6) * 0.15;
+      centers[i] = {
+        x: cmx + Math.cos(fa) * rr,
+        z: cmz + Math.sin(fa) * rr,
+      };
+    }
+  }
+}
+
+/**
+ * Per-curator micro packing: tight overlapping disk seed + symmetric repulsion.
+ * (Hub / footprint–centric placement applies only to **macro** curator blobs.)
  */
 function packClusterDisks(radii: number[], seedKey: string): Vec2[] {
   const n = radii.length;
@@ -124,14 +321,17 @@ function packClusterDisks(radii: number[], seedKey: string): Vec2[] {
     pos[i] = { x: Math.cos(ang) * rr, z: Math.sin(ang) * rr };
   }
 
-  const iters = n <= 30 ? 420 : n <= 80 ? 340 : 280;
+  const MIN_ITERS = 8;
+  const MAX_ITERS = 170;
   const pairsPerIter =
     n <= 60
       ? (n * (n - 1)) / 2
-      : Math.min(18000, Math.max(120 * n, 8000));
+      : Math.min(9000, Math.max(48 * n, 4000));
   const strength = 0.58;
+  const checkEvery = n <= 70 ? 3 : 5;
+  const tol = 2.8e-4;
 
-  for (let iter = 0; iter < iters; iter++) {
+  for (let iter = 0; iter < MAX_ITERS; iter++) {
     if (n <= 60) {
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
@@ -159,6 +359,14 @@ function packClusterDisks(radii: number[], seedKey: string): Vec2[] {
           strength,
         );
       }
+    }
+
+    if (
+      iter + 1 >= MIN_ITERS &&
+      (iter + 1) % checkEvery === 0 &&
+      maxPenetration(pos, radii, MICRO_GAP) < tol
+    ) {
+      break;
     }
   }
 
@@ -199,41 +407,33 @@ type CuratorBlob = {
 };
 
 /**
- * Macro: push curator disks apart from a tiny overlapping disk seed.
- * No per-iteration scale / aspect pull. `_canvasAspect` reserved for callers.
+ * Macro polish: biased separation so large curator disks stay nearer the core.
  */
 function relaxMacroBlobs(
   centers: Vec2[],
   radii: number[],
   _canvasAspect: number,
   seed: string,
+  opts?: { maxIters?: number; tol?: number },
 ): void {
   const k = centers.length;
   if (k <= 1) return;
 
-  const iters = k <= 30 ? 420 : k <= 80 ? 340 : 280;
+  const MIN_ITERS = 3;
+  const MAX_ITERS = opts?.maxIters ?? 72;
   const pairsPerIter =
     k <= 60
       ? (k * (k - 1)) / 2
-      : Math.min(18000, Math.max(120 * k, 8000));
+      : Math.min(9000, Math.max(48 * k, 4000));
   const strength = 0.58;
+  const checkEvery = k <= 70 ? 3 : 5;
+  const tol = opts?.tol ?? 7e-4;
 
-  for (let iter = 0; iter < iters; iter++) {
+  for (let iter = 0; iter < MAX_ITERS; iter++) {
     if (k <= 60) {
       for (let i = 0; i < k; i++) {
         for (let j = i + 1; j < k; j++) {
-          const ai = { ...centers[i]! };
-          const aj = { ...centers[j]! };
-          resolveOverlap(
-            ai,
-            aj,
-            radii[i]!,
-            radii[j]!,
-            MACRO_GAP,
-            strength,
-          );
-          centers[i] = ai;
-          centers[j] = aj;
+          relaxDiskPair(centers, radii, i, j, MACRO_GAP, strength);
         }
       }
     } else {
@@ -241,41 +441,19 @@ function relaxMacroBlobs(
         const i = Math.floor(rnd(seed, iter * 50000 + p) * k);
         let j = Math.floor(rnd(seed, iter * 50000 + p + 3333) * k);
         if (j === i) j = (j + 1) % k;
-        resolveOverlap(
-          centers[i]!,
-          centers[j]!,
-          radii[i]!,
-          radii[j]!,
-          MACRO_GAP,
-          strength,
-        );
+        const lo = Math.min(i, j);
+        const hi = Math.max(i, j);
+        relaxDiskPair(centers, radii, lo, hi, MACRO_GAP, strength);
       }
     }
-  }
-}
 
-/** Curator centers in a tiny disk (~0.16 × heaviest footprint, capped). */
-function seedMacroCentersInDisk(
-  centers: Vec2[],
-  macroR: number[],
-  k: number,
-  seedKey: string,
-): void {
-  if (k <= 0) return;
-  if (k === 1) {
-    centers[0] = { x: 0, z: 0 };
-    return;
-  }
-
-  const r0 = macroR[0] ?? 8;
-  const seedR = Math.min(0.16 * r0, 2.4);
-
-  for (let i = 0; i < k; i++) {
-    const u = rnd(seedKey, i * 2 + 201);
-    const v = rnd(seedKey, i * 2 + 202);
-    const rr = seedR * Math.sqrt(u);
-    const ang = v * Math.PI * 2;
-    centers[i] = { x: Math.cos(ang) * rr, z: Math.sin(ang) * rr };
+    if (
+      iter + 1 >= MIN_ITERS &&
+      (iter + 1) % checkEvery === 0 &&
+      maxPenetration(centers, radii, MACRO_GAP) < tol
+    ) {
+      break;
+    }
   }
 }
 
@@ -380,8 +558,8 @@ export function layoutOpportunitiesCirclePack(
 
   blobs.sort(
     (a, b) =>
-      b.list.length - a.list.length ||
       b.footprintR - a.footprintR ||
+      b.list.length - a.list.length ||
       a.curator.localeCompare(b.curator),
   );
 
@@ -389,16 +567,47 @@ export function layoutOpportunitiesCirclePack(
   const macroR = blobs.map((b) => b.footprintR);
   const centers: Vec2[] = new Array(k);
 
-  seedMacroCentersInDisk(centers, macroR, k, "macro-seed");
+  packMacroDisksIncremental(centers, macroR, k, "macro-seed");
   relaxMacroBlobs(centers, macroR, canvasAspect, "macro-seed");
 
-  /** Center the land on “deal mass”: more opportunities + slightly larger footprints pull harder. */
+  /**
+   * Landscape: stretch macro blob centers on **world X** (canvas width) and compress **Z**
+   * so the field uses wide viewports better; `sx * sz ≈ 1` keeps overall footprint stable.
+   * Portrait: the inverse so spread follows the long canvas dimension.
+   */
+  const aspect = Math.min(3.2, Math.max(0.45, canvasAspect));
+  let sx: number;
+  let sz: number;
+  if (aspect >= 1) {
+    const s = Math.pow(aspect, 0.75);
+    sx = s;
+    sz = 1 / s;
+  } else {
+    const s = Math.pow(1 / aspect, 0.75);
+    sz = s;
+    sx = 1 / s;
+  }
+  for (let i = 0; i < k; i++) {
+    centers[i]!.x *= sx;
+    centers[i]!.z *= sz;
+  }
+
+  /**
+   * Aspect stretch is non-uniform in XZ but disks stay circular — re-relax macro
+   * disks so `MACRO_GAP` holds again (especially after Z compression).
+   */
+  relaxMacroBlobs(centers, macroR, canvasAspect, "macro-post-stretch", {
+    maxIters: 140,
+    tol: 3.5e-4,
+  });
+
+  /** Shift so world origin sits on the **macro disk mass center** (r² weights ≈ area). */
   let mx = 0;
   let mz = 0;
   let tw = 0;
   for (let i = 0; i < k; i++) {
-    const w =
-      blobs[i]!.list.length * (1 + macroR[i]! * 0.055);
+    const r = macroR[i]!;
+    const w = r * r;
     mx += centers[i]!.x * w;
     mz += centers[i]!.z * w;
     tw += w;
