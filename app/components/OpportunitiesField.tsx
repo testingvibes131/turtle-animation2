@@ -12,6 +12,7 @@ import {
   type MutableRefObject,
 } from "react";
 import * as THREE from "three";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { Html, OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 import { DM_Sans, Montserrat } from "next/font/google";
@@ -75,6 +76,10 @@ const FRAMING_TARGET_Z_RATIO = -0.3;
 const HOVER_PORTAL_Z = 180_000_000;
 /** APR vertical legend while Features is on (above hover portal). */
 const FEATURES_APR_AXIS_Z = HOVER_PORTAL_Z + 2;
+
+/** Bloom `intensity` tied to the Features toggle (Leva still controls threshold/radius/etc.). */
+const BLOOM_INTENSITY_FEATURES_OFF = 0.35;
+const BLOOM_INTENSITY_FEATURES_ON = 0.55;
 
 /** Pinned “Features” view (from orbit + Leva copy). Never call `OrbitControls.update()` after setting these: with min/max polar both 0, update() clamps φ to 0 and flattens any oblique camera back to top-down. */
 const FEATURES_CAMERA_POSITION: [number, number, number] = [
@@ -632,9 +637,21 @@ function OpportunityLand({
     [markers],
   );
 
-  const onHoverChange = useCallback((m: Marker | null) => {
-    setHovered((prev) => (prev?.id === m?.id ? prev : m));
-  }, []);
+  const onHoverChange = useCallback(
+    (m: Marker | null) => {
+      if (featuresEnabled && m) {
+        console.log("[features mode hover]", {
+          id: m.id,
+          name: m.name,
+          featured: m.featured,
+          estAprPercent: m.estAprPercent,
+          dust: m.dust,
+        });
+      }
+      setHovered((prev) => (prev?.id === m?.id ? prev : m));
+    },
+    [featuresEnabled],
+  );
 
   useEffect(() => {
     if (!featuresEnabled) return;
@@ -750,19 +767,61 @@ function FeaturesToggleSwitch({
   );
 }
 
+function OpportunityBloom({
+  enabled,
+  intensity,
+  luminanceThreshold,
+  luminanceSmoothing,
+  radius,
+  mipmapBlur,
+}: {
+  enabled: boolean;
+  intensity: number;
+  luminanceThreshold: number;
+  luminanceSmoothing: number;
+  radius: number;
+  mipmapBlur: boolean;
+}) {
+  if (!enabled) return null;
+  return (
+    <EffectComposer multisampling={4}>
+      <Bloom
+        intensity={intensity}
+        luminanceThreshold={luminanceThreshold}
+        luminanceSmoothing={luminanceSmoothing}
+        radius={radius}
+        mipmapBlur={mipmapBlur}
+      />
+    </EffectComposer>
+  );
+}
+
 function SceneWithLayout({
   rows,
   showPackDebug,
   hoverPortalEl,
   featuresEnabled,
   featuresBlendRef,
+  bloomEnabled,
+  bloomThreshold,
+  bloomSmoothing,
+  bloomRadius,
+  bloomMipmapBlur,
 }: {
   rows: OpportunityRow[];
   showPackDebug: boolean;
   hoverPortalEl: HTMLDivElement | null;
   featuresEnabled: boolean;
   featuresBlendRef: MutableRefObject<number>;
+  bloomEnabled: boolean;
+  bloomThreshold: number;
+  bloomSmoothing: number;
+  bloomRadius: number;
+  bloomMipmapBlur: boolean;
 }) {
+  const bloomIntensity = featuresEnabled
+    ? BLOOM_INTENSITY_FEATURES_ON
+    : BLOOM_INTENSITY_FEATURES_OFF;
   const { width, height } = useThree((s) => s.size);
   /** Full-viewport canvas: natural width / height (no half-viewport doubling). */
   const layoutAspect =
@@ -772,13 +831,23 @@ function SceneWithLayout({
     [rows, layoutAspect],
   );
   return (
-    <OpportunityLand
-      layout={layout}
-      showPackDebug={showPackDebug}
-      hoverPortalEl={hoverPortalEl}
-      featuresEnabled={featuresEnabled}
-      featuresBlendRef={featuresBlendRef}
-    />
+    <>
+      <OpportunityLand
+        layout={layout}
+        showPackDebug={showPackDebug}
+        hoverPortalEl={hoverPortalEl}
+        featuresEnabled={featuresEnabled}
+        featuresBlendRef={featuresBlendRef}
+      />
+      <OpportunityBloom
+        enabled={bloomEnabled}
+        intensity={bloomIntensity}
+        luminanceThreshold={bloomThreshold}
+        luminanceSmoothing={bloomSmoothing}
+        radius={bloomRadius}
+        mipmapBlur={bloomMipmapBlur}
+      />
+    </>
   );
 }
 
@@ -788,8 +857,41 @@ export default function OpportunitiesField() {
   const [featuresEnabled, setFeaturesEnabled] = useState(false);
   const featuresBlendRef = useRef(0);
 
-  const { showPackZones } = useControls("Opportunities", {
+  const {
+    showPackZones,
+    bloomEnabled,
+    bloomThreshold,
+    bloomSmoothing,
+    bloomRadius,
+    bloomMipmapBlur,
+  } = useControls("Opportunities", {
     showPackZones: { value: false, label: "Pack debug zones" },
+    bloomEnabled: { value: true, label: "Bloom (glow)" },
+    bloomThreshold: {
+      value: 0.08,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Bloom luminance threshold",
+    },
+    bloomSmoothing: {
+      value: 0.06,
+      min: 0,
+      max: 1,
+      step: 0.02,
+      label: "Bloom luminance smoothing",
+    },
+    bloomRadius: {
+      value: 0.28,
+      min: 0,
+      max: 1,
+      step: 0.02,
+      label: "Bloom kernel radius",
+    },
+    bloomMipmapBlur: {
+      value: true,
+      label: "Bloom mipmap blur (softer)",
+    },
   });
 
   const aprAxisTop = useMemo(() => {
@@ -846,6 +948,11 @@ export default function OpportunitiesField() {
                 hoverPortalEl={hoverPortalEl}
                 featuresEnabled={featuresEnabled}
                 featuresBlendRef={featuresBlendRef}
+                bloomEnabled={bloomEnabled}
+                bloomThreshold={bloomThreshold}
+                bloomSmoothing={bloomSmoothing}
+                bloomRadius={bloomRadius}
+                bloomMipmapBlur={bloomMipmapBlur}
               />
             </Canvas>
             <OpportunityCsvStatsPanel rows={rows} />
