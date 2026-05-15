@@ -121,6 +121,9 @@ export type GridTopographyMarker = PackedMarker & {
   y: number;
   /** Curator grouping for hover links (trimmed CSV `curator`). */
   curator: string;
+  /** Grid column / row in the slot layout (for terrain + sticks). */
+  col: number;
+  row: number;
 };
 
 export type OpportunitiesGridTopographyLayout = {
@@ -266,6 +269,8 @@ export function layoutOpportunitiesGridTopography(
       featured: s.row.featured,
       estAprPercent: s.row.estAprPercent,
       curator: s.row.curator.trim() || "Uncurated",
+      col: s.col,
+      row: s.rowIdx,
     });
   }
 

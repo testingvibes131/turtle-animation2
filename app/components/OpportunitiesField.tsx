@@ -25,6 +25,7 @@ import { FeaturedAprAxis } from "@/app/components/FeaturedAprAxis";
 import { OpportunityHoverLabel } from "@/app/components/OpportunityHoverLabel";
 import { OpportunityHoverScreenLabel } from "@/app/components/OpportunityHoverScreenLabel";
 import { parseOpportunityRows, type OpportunityRow } from "@/app/lib/opportunitiesCsv";
+import { opportunitiesCsvPath } from "@/app/lib/opportunitiesCsvSource";
 import {
   layoutOpportunitiesCirclePack,
   opportunityPackDiskRadius,
@@ -635,6 +636,7 @@ function SceneWithLayout({
           layout={gridLayout}
           featuresEnabled={featuresEnabled}
           featuresBlendRef={featuresBlendRef}
+          hoverPortalEl={hoverPortalEl}
         />
       )}
     </>
@@ -673,7 +675,7 @@ export default function OpportunitiesField() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/data/turtle-opportunities.csv")
+    void fetch(opportunitiesCsvPath())
       .then((r) => r.text())
       .then((raw) => {
         if (cancelled) return;

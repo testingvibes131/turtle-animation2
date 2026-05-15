@@ -17,7 +17,7 @@ import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 export const DEFAULT_OPPORTUNITY_FOV = 50;
 
 /** Pinned default rig (orbit target = look-at). */
-export const DEFAULT_CAMERA_POSITION = [0, 24, 79] as const;
+export const DEFAULT_CAMERA_POSITION = [0, 35, 79] as const;
 export const DEFAULT_CAMERA_TARGET = [0, 20.801777, -24.00205] as const;
 
 export function OpportunityDebugControls({

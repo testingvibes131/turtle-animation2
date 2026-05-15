@@ -15,6 +15,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { DM_Sans, Montserrat } from "next/font/google";
 import { OpportunityDebugControls } from "@/app/components/OpportunityDebugControls";
+import { OpportunityGridHoverScreenLabel } from "@/app/components/OpportunityGridHoverScreenLabel";
+import {
+  computeFeaturedAprRange,
+  featuredGridAprLiftY,
+} from "@/app/lib/featuredSceneOffset";
 import type {
   GridTopographyMarker,
   OpportunitiesGridTopographyLayout,
@@ -32,65 +37,7 @@ const montGridHover = Montserrat({
   display: "swap",
 });
 
-const GRID_HOVER_CURATOR_FONT = `${dmGridHover.style.fontFamily}, ${montGridHover.style.fontFamily}, ui-sans-serif, sans-serif`;
-
-const gridHoverLabelWrapStyle: CSSProperties = {
-  pointerEvents: "none",
-  userSelect: "none",
-  fontFamily: GRID_HOVER_CURATOR_FONT,
-};
-
-const gridHoverCardStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  gap: 6,
-  maxWidth: "min(320px, 42vw)",
-  padding: "12px 18px 14px",
-  textAlign: "center",
-  color: "#f0f4f2",
-  background: "rgba(10, 14, 12, 0.9)",
-  border: "1px solid rgba(240, 244, 242, 0.14)",
-  borderRadius: 14,
-  boxShadow:
-    "0 10px 36px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.07)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-};
-
-const gridHoverCuratorStyle: CSSProperties = {
-  color: "#f0f4f2",
-  fontSize: 32,
-  fontWeight: 800,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-  whiteSpace: "nowrap",
-  lineHeight: 1.1,
-};
-
-const gridHoverOpportunityNameStyle: CSSProperties = {
-  color: "#f0f4f2",
-  fontSize: 26,
-  fontWeight: 600,
-  lineHeight: 1.2,
-  whiteSpace: "normal",
-  overflowWrap: "break-word",
-  width: "100%",
-  paddingTop: 2,
-  borderTop: "1px solid rgba(240, 244, 242, 0.1)",
-};
-
-const gridHoverAprStyle: CSSProperties = {
-  color: "#73f36c",
-  fontSize: 22,
-  fontWeight: 700,
-  lineHeight: 1.1,
-  whiteSpace: "nowrap",
-  marginTop: 2,
-};
-
-/** Vertical offset above sphere top for hover stack (world units). */
-const GRID_HOVER_LABEL_Y_PAD = 0.72;
+const GRID_LABEL_FONT = `${dmGridHover.style.fontFamily}, ${montGridHover.style.fontFamily}, ui-sans-serif, sans-serif`;
 
 /** Unit-radius sphere; instance scale sets world radius. */
 const SPHERE_GEO = new THREE.SphereGeometry(1, 14, 12);
@@ -109,31 +56,13 @@ const GRID_SPHERE_RADIUS_SCALE = 0.2;
  */
 const FLAT_FLOOR_GRID_Y = -0.024;
 
-/**
- * Featured-only: extra lift `h` from layout sphere center (`max(0.14, m.y - r) * fr`).
- * Sphere sits at `m.y + h`; green rod runs from **terrain peak** at the cell up to the sphere bottom.
- */
-const FEATURED_STICK_RISE_FR = 0.34;
 /** Stick foot nudged above the draped wire grid so it does not read below the terrain lines. */
 const FEATURED_STICK_TERRAIN_PAD = 0.006;
+/** Min stick height when APR lift is small (world units). */
+const FEATURED_STICK_MIN_HEIGHT = 0.12;
 
 function sphereRadius(m: GridTopographyMarker): number {
   return m.size * GRID_SPHERE_RADIUS_SCALE;
-}
-
-function featuredStickFullOldLen(m: GridTopographyMarker): number {
-  const r = sphereRadius(m);
-  return Math.max(0.14, m.y - r);
-}
-
-function featuredStickRiseHeight(m: GridTopographyMarker): number {
-  return Math.max(0.1, featuredStickFullOldLen(m) * FEATURED_STICK_RISE_FR);
-}
-
-/** Featured sphere center Y: layout APR center + lift `h` (ball rests on rod end). */
-function markerDisplayY(m: GridTopographyMarker): number {
-  if (!m.featured) return m.y;
-  return m.y + featuredStickRiseHeight(m);
 }
 
 /**
@@ -197,7 +126,7 @@ function formatFeaturedApr(percent: number): string {
 const featuredGridLabelWrapStyle: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
-  fontFamily: GRID_HOVER_CURATOR_FONT,
+  fontFamily: GRID_LABEL_FONT,
   color: FEATURED_LABEL_TEXT_GREEN,
   textAlign: "left",
   whiteSpace: "normal",
@@ -383,19 +312,15 @@ function InstancedGridSticks({
   list,
   cap,
   material,
-  allMarkers,
   cols,
   gridRows,
-  cellPitch,
   terrainCellY,
 }: {
   list: GridTopographyMarker[];
   cap: number;
   material: THREE.MeshBasicMaterial;
-  allMarkers: GridTopographyMarker[];
   cols: number;
   gridRows: number;
-  cellPitch: number;
   terrainCellY: (col: number, row: number) => number;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -407,24 +332,14 @@ function InstancedGridSticks({
     const d = dummy.current;
     list.forEach((m, i) => {
       const r = sphereRadius(m);
-      const slot = allMarkers.indexOf(m);
-      let x = m.x;
-      let z = m.z;
-      let col = 0;
-      let row = 0;
-      if (slot >= 0) {
-        col = slot % cols;
-        row = Math.floor(slot / cols);
-        x = nominalGridX(col, cols, cellPitch);
-        z = nominalGridZ(row, gridRows, cellPitch);
-      }
-      const yTop = markerDisplayY(m) - r;
+      /** Sphere bottom at APR-lifted center (`m.y` on render markers). */
+      const yTop = m.y - r;
       const yBottom =
-        terrainPeakYAtCell(col, row, cols, gridRows, terrainCellY) +
+        terrainPeakYAtCell(m.col, m.row, cols, gridRows, terrainCellY) +
         FEATURED_STICK_TERRAIN_PAD;
-      const hStick = Math.max(0.08, yTop - yBottom);
+      const hStick = Math.max(FEATURED_STICK_MIN_HEIGHT, yTop - yBottom);
       const yCenter = yBottom + hStick * 0.5;
-      d.position.set(x, yCenter, z);
+      d.position.set(m.x, yCenter, m.z);
       d.scale.set(1, hStick, 1);
       d.rotation.set(0, 0, 0);
       d.updateMatrix();
@@ -433,7 +348,7 @@ function InstancedGridSticks({
     mesh.count = list.length;
     mesh.instanceMatrix.needsUpdate = true;
     mesh.visible = list.length > 0;
-  }, [list, allMarkers, cols, gridRows, cellPitch, terrainCellY]);
+  }, [list, cols, gridRows, terrainCellY]);
 
   useLayoutEffect(() => {
     write();
@@ -627,34 +542,38 @@ export function OpportunityGridTopographyLand({
   layout,
   featuresEnabled,
   featuresBlendRef,
+  hoverPortalEl,
 }: {
   layout: OpportunitiesGridTopographyLayout;
   featuresEnabled: boolean;
   featuresBlendRef: MutableRefObject<number>;
+  hoverPortalEl: HTMLDivElement | null;
 }) {
   const { markers, extent, planeHalfWidth, planeHalfDepth, cellPitch, cols, gridRows } =
     layout;
 
-  const markersDisplay = useMemo(
-    () =>
-      markers.map((m, slot) => {
-        const col = slot % cols;
-        const row = Math.floor(slot / cols);
-        const x = nominalGridX(col, cols, cellPitch);
-        const z = nominalGridZ(row, gridRows, cellPitch);
-        const y = m.featured ? markerDisplayY(m) : m.y;
-        return { ...m, x, z, y };
-      }),
-    [markers, cols, gridRows, cellPitch],
+  const featuredAprRange = useMemo(
+    () => computeFeaturedAprRange(markers),
+    [markers],
   );
 
-  const { feat, rest } = useMemo(() => splitByFeatured(markers), [markers]);
-  const { feat: featDisp, rest: restDisp } = useMemo(
-    () => splitByFeatured(markersDisplay),
-    [markersDisplay],
+  /** Same XZ/col/row as layout; featured spheres get extra Y from APR only. */
+  const markersRender = useMemo(
+    () =>
+      markers.map((m) =>
+        m.featured
+          ? { ...m, y: m.y + featuredGridAprLiftY(m, featuredAprRange) }
+          : m,
+      ),
+    [markers, featuredAprRange],
   );
-  const capF = Math.max(featDisp.length, 1);
-  const capR = Math.max(restDisp.length, 1);
+
+  const { feat, rest } = useMemo(
+    () => splitByFeatured(markersRender),
+    [markersRender],
+  );
+  const capF = Math.max(feat.length, 1);
+  const capR = Math.max(rest.length, 1);
 
   const matSphereFeat = useMemo(
     () => new THREE.MeshBasicMaterial({ color: 0x73f36c }),
@@ -761,8 +680,8 @@ export function OpportunityGridTopographyLand({
 
   const linkGeo = useMemo(() => {
     if (!hovered) return null;
-    return buildCuratorHoverLinkGeometry(hovered, markersDisplay);
-  }, [hovered, markersDisplay]);
+    return buildCuratorHoverLinkGeometry(hovered, markersRender);
+  }, [hovered, markersRender]);
 
   const matCuratorLinks = useMemo(
     () =>
@@ -826,7 +745,7 @@ export function OpportunityGridTopographyLand({
     const dz = rd.z;
 
     let best: { t: number; m: GridTopographyMarker } | null = null;
-    for (const m of markersDisplay) {
+    for (const m of markersRender) {
       const r = sphereRadius(m);
       const t = rayIntersectSphereParam(
         ox,
@@ -888,17 +807,15 @@ export function OpportunityGridTopographyLand({
           list={feat}
           cap={feat.length}
           material={matStickFeat}
-          allMarkers={markers}
           cols={cols}
           gridRows={gridRows}
-          cellPitch={cellPitch}
           terrainCellY={terrainCellY}
         />
       ) : null}
-      <InstancedGridSpheres list={restDisp} cap={capR} material={matSphereRest} />
-      <InstancedGridSpheres list={featDisp} cap={capF} material={matSphereFeat} />
-      {featDisp.length > 0 ? (
-        <FeaturedGridOpportunityLabels markers={featDisp} />
+      <InstancedGridSpheres list={rest} cap={capR} material={matSphereRest} />
+      <InstancedGridSpheres list={feat} cap={capF} material={matSphereFeat} />
+      {feat.length > 0 ? (
+        <FeaturedGridOpportunityLabels markers={feat} />
       ) : null}
       {linkGeo ? (
         <lineSegments
@@ -909,35 +826,10 @@ export function OpportunityGridTopographyLand({
           renderOrder={18}
         />
       ) : null}
-      {hovered ? (
-        <group
-          position={[
-            hovered.x,
-            hovered.y + sphereRadius(hovered) + GRID_HOVER_LABEL_Y_PAD,
-            hovered.z,
-          ]}
-        >
-          <Html
-            transform
-            sprite
-            occlude={false}
-            pointerEvents="none"
-            center
-            className={`${dmGridHover.className} ${montGridHover.className}`}
-            distanceFactor={8.2}
-            zIndexRange={[16777200, 16777260]}
-            style={gridHoverLabelWrapStyle}
-          >
-            <div style={gridHoverCardStyle}>
-              <span style={gridHoverCuratorStyle}>{hovered.curator}</span>
-              <span style={gridHoverOpportunityNameStyle}>{hovered.name}</span>
-              <span style={gridHoverAprStyle}>
-                {formatFeaturedApr(hovered.estAprPercent)}
-              </span>
-            </div>
-          </Html>
-        </group>
-      ) : null}
+      <OpportunityGridHoverScreenLabel
+        marker={hovered}
+        portalEl={hoverPortalEl}
+      />
     </>
   );
 }

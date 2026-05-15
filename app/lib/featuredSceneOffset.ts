@@ -24,6 +24,32 @@ export function computeFeaturedAprRange(markers: PackedMarker[]): FeaturedAprRan
 }
 
 /**
+ * Extra Y lift for featured markers on the grid topography (XZ stays on the cell).
+ * Higher `estAprPercent` within `aprRange` → higher sphere; stick runs from terrain to the ball.
+ */
+export function featuredGridAprLiftY(
+  marker: PackedMarker,
+  aprRange: FeaturedAprRange,
+): number {
+  if (!marker.featured) return 0;
+
+  const span = aprRange.max - aprRange.min;
+  const t =
+    span < 1e-6
+      ? 1
+      : Math.min(
+          1,
+          Math.max(0, (marker.estAprPercent - aprRange.min) / span),
+        );
+  const tLift = Math.pow(t, 0.82);
+
+  /** Grid sticks: shorter than circle-pack features lift (same APR curve, lower band). */
+  const LIFT_FLOOR = 0.75;
+  const LIFT_APR_SCALE = 16;
+  return LIFT_FLOOR + tLift * LIFT_APR_SCALE + marker.size * 0.06;
+}
+
+/**
  * World-space lift + slight outward push for featured rows (features view).
  * **Y** uses APR normalized within `aprRange` so higher-APR deals read higher; XZ push unchanged.
  */

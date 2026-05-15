@@ -39,7 +39,7 @@ type OpportunityCsvStatsPanelProps = {
 };
 
 /**
- * Live aggregates from `turtle-opportunities.csv`, pinned to the left and
+ * Live aggregates from the active opportunities CSV, pinned to the left and
  * vertically centered over the opportunities canvas.
  */
 export function OpportunityCsvStatsPanel({ rows }: OpportunityCsvStatsPanelProps) {
