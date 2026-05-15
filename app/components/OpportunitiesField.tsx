@@ -652,10 +652,10 @@ export default function OpportunitiesField() {
   const { compositionMode, showPackZones } = useControls("Opportunities", {
     compositionMode: {
       value: "gridTopography" as CompositionMode,
-      // Leva uses **object keys** as the stored value (values are UI labels only).
+      // Leva select: object keys = labels, values = stored value (see leva normalize select).
       options: {
-        circlePack: "Circle pack (curators)",
-        gridTopography: "Grid topography (APR height)",
+        "Circle pack (curators)": "circlePack",
+        "Grid topography (APR height)": "gridTopography",
       },
       label: "Composition",
     },
@@ -687,7 +687,7 @@ export default function OpportunitiesField() {
     };
   }, []);
 
-  /** Normalize Leva value (and legacy inverted-options persistence). */
+  /** Normalize Leva value (and legacy label persistence from inverted options). */
   const sceneComposition: CompositionMode =
     compositionMode === "gridTopography" ||
     compositionMode === "Grid topography (APR height)"
