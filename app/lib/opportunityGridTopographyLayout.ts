@@ -7,6 +7,15 @@ import type { PackedMarker } from "@/app/lib/opportunityCirclePack";
 /** Matches instanced mesh scale in scene (same as circle pack). */
 const RADIUS_SCALE = 0.34;
 
+/**
+ * Target world span of the slot lattice (larger ⇒ wider cell pitch, more spread).
+ * Was ~168; bumped so cells read larger and less dense on screen.
+ */
+const GRID_LAYOUT_WORLD_SPAN = 320;
+/** Minimum centre-to-centre pitch from marker radius (sphere clearance). */
+const GRID_MIN_PITCH_RADIUS_MUL = 2.9;
+const GRID_MIN_PITCH_PAD = 1.22;
+
 function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -234,8 +243,8 @@ export function layoutOpportunitiesGridTopography(
     staged.push({ row, col, rowIdx, size, dust });
   }
 
-  const minPitch = rMax * 2.4 * 1.15;
-  const pitchFromN = 168 / Math.max(cols, gridRows);
+  const minPitch = rMax * GRID_MIN_PITCH_RADIUS_MUL * GRID_MIN_PITCH_PAD;
+  const pitchFromN = GRID_LAYOUT_WORLD_SPAN / Math.max(cols, gridRows);
   const cellPitch = Math.max(minPitch, pitchFromN);
 
   const smoothedAprGrid = smoothAprOnSlotGrid(
