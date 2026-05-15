@@ -12,11 +12,15 @@ import {
   type MutableRefObject,
 } from "react";
 import * as THREE from "three";
-import { Bloom, EffectComposer } from "@react-three/postprocessing";
-import { Html, OrbitControls } from "@react-three/drei";
-import type { OrbitControls as OrbitControlsType } from "three-stdlib";
+import { Html } from "@react-three/drei";
 import { DM_Sans, Montserrat } from "next/font/google";
 import { OpportunityCsvStatsPanel } from "@/app/components/OpportunityCsvStatsPanel";
+import {
+  DEFAULT_CAMERA_POSITION,
+  DEFAULT_OPPORTUNITY_FOV,
+  OpportunityDebugControls,
+} from "@/app/components/OpportunityDebugControls";
+import { OpportunityGridTopographyLand } from "@/app/components/OpportunityGridTopographyLand";
 import { FeaturedAprAxis } from "@/app/components/FeaturedAprAxis";
 import { OpportunityHoverLabel } from "@/app/components/OpportunityHoverLabel";
 import { OpportunityHoverScreenLabel } from "@/app/components/OpportunityHoverScreenLabel";
@@ -29,13 +33,14 @@ import {
   type PackedCuratorLabel,
   type PackedMarker,
 } from "@/app/lib/opportunityCirclePack";
+import { layoutOpportunitiesGridTopography } from "@/app/lib/opportunityGridTopographyLayout";
 import {
   computeFeaturedAprRange,
   featuredSceneOffset,
   nonFeaturedSceneYOffset,
   type FeaturedAprRange,
 } from "@/app/lib/featuredSceneOffset";
-import { Leva, useControls, button } from "leva";
+import { Leva, useControls } from "leva";
 
 const dmSansScene = DM_Sans({
   subsets: ["latin"],
@@ -69,191 +74,10 @@ type CuratorLabel = PackedCuratorLabel;
 
 type OpportunitiesLayout = OpportunitiesCirclePackLayout;
 
-/** Shift look-at on Z so the cluster sits lower on screen (full-viewport canvas). */
-const FRAMING_TARGET_Z_RATIO = -0.3;
-
 /** Above drei `<Html zIndexRange>` (~1.68e7) so hover labels stack over curator names. */
 const HOVER_PORTAL_Z = 180_000_000;
 /** APR vertical legend while Features is on (above hover portal). */
 const FEATURES_APR_AXIS_Z = HOVER_PORTAL_Z + 2;
-
-/** Bloom `intensity` tied to the Features toggle (Leva still controls threshold/radius/etc.). */
-const BLOOM_INTENSITY_FEATURES_OFF = 0.35;
-const BLOOM_INTENSITY_FEATURES_ON = 0.55;
-
-/** Pinned “Features” view (from orbit + Leva copy). Never call `OrbitControls.update()` after setting these: with min/max polar both 0, update() clamps φ to 0 and flattens any oblique camera back to top-down. */
-const FEATURES_CAMERA_POSITION: [number, number, number] = [
-  0.20014, 25.27175, 160.245979,
-];
-const FEATURES_ORBIT_TARGET: [number, number, number] = [0, 25, -52.921258];
-
-function DebugControls({
-  extent,
-  featuresEnabled,
-  featuresBlendRef,
-}: {
-  extent: number;
-  featuresEnabled: boolean;
-  featuresBlendRef: MutableRefObject<number>;
-}) {
-  const ref = useRef<OrbitControlsType>(null);
-  const { camera, size } = useThree();
-
-  const autoY = 270;
-  const tz = extent * FRAMING_TARGET_Z_RATIO;
-
-  const { manualCamera, camX, camY, camZ, orbitZoom } = useControls(
-    "Camera",
-    {
-      manualCamera: {
-        value: false,
-        label: "Manual position (x,y,z)",
-      },
-      camX: { value: 0, min: -2500, max: 2500, step: 1 },
-      camY: { value: autoY, min: 4, max: 2500, step: 1 },
-      camZ: { value: 1e-6, min: -2500, max: 2500, step: 0.01 },
-      orbitZoom: {
-        value: 1,
-        min: 0.25,
-        max: 3,
-        step: 0.02,
-        label: "Orbit dolly (higher = closer in)",
-      },
-    },
-    [extent],
-  );
-
-  useControls(
-    "Camera",
-    {
-      copyOrbitPose: button(() => {
-        const oc = ref.current;
-        if (!oc) {
-          console.warn("OrbitControls not ready yet.");
-          return;
-        }
-        const p = camera.position;
-        const t = oc.target;
-        const r = (n: number) => Math.round(n * 1e6) / 1e6;
-        const text = [
-          `position: [${r(p.x)}, ${r(p.y)}, ${r(p.z)}]`,
-          `target: [${r(t.x)}, ${r(t.y)}, ${r(t.z)}]`,
-        ].join("\n");
-        void navigator.clipboard.writeText(text).then(
-          () => console.info("Copied to clipboard:\n" + text),
-          () => console.info("Clipboard unavailable; copy from console:\n" + text),
-        );
-      }),
-    },
-    [extent, camera],
-  );
-
-  const camRef = useRef({
-    manual: manualCamera,
-    x: camX,
-    y: camY,
-    z: camZ,
-  });
-  camRef.current = { manual: manualCamera, x: camX, y: camY, z: camZ };
-
-  const featuresTargetRef = useRef(featuresEnabled ? 1 : 0);
-  featuresTargetRef.current = featuresEnabled ? 1 : 0;
-
-  const cameraLerpPool = useRef({
-    basePos: new THREE.Vector3(),
-    featPos: new THREE.Vector3(),
-    baseTgt: new THREE.Vector3(),
-    featTgt: new THREE.Vector3(),
-    lerpedTgt: new THREE.Vector3(),
-  });
-
-  useLayoutEffect(() => {
-    if (camRef.current.manual) return;
-    const cam = camera;
-    if (cam instanceof THREE.PerspectiveCamera) {
-      cam.clearViewOffset();
-    }
-    cam.up.set(0, 1, 0);
-    cam.near = 0.1;
-    cam.far = Math.max(2000, autoY * 10);
-    if (cam instanceof THREE.PerspectiveCamera) {
-      cam.updateProjectionMatrix();
-    }
-    const oc = ref.current;
-    if (oc) {
-      oc.target.set(0, 0, tz);
-    }
-  }, [camera, extent, size.height, size.width, manualCamera, autoY, tz]);
-
-  useFrame((_, dt) => {
-    const p = camRef.current;
-    const cam = camera;
-    const oc = ref.current;
-
-    const tgt = featuresTargetRef.current;
-    let blend = featuresBlendRef.current;
-    const k = Math.min(1, dt * 2.65);
-    blend += (tgt - blend) * k;
-    featuresBlendRef.current = blend;
-
-    if (p.manual) {
-      cam.position.set(p.x, p.y, p.z);
-      cam.up.set(0, 1, 0);
-      cam.lookAt(0, 0, tz);
-      cam.near = 0.1;
-      cam.far = Math.max(2000, Math.abs(p.y) * 10, 2000);
-      if (cam instanceof THREE.PerspectiveCamera) {
-        cam.updateProjectionMatrix();
-      }
-      if (oc) {
-        oc.target.set(0, 0, tz);
-      }
-      return;
-    }
-
-    const pool = cameraLerpPool.current;
-    pool.basePos.set(0, autoY, 1e-6);
-    pool.featPos.set(
-      FEATURES_CAMERA_POSITION[0],
-      FEATURES_CAMERA_POSITION[1],
-      FEATURES_CAMERA_POSITION[2],
-    );
-    cam.position.lerpVectors(pool.basePos, pool.featPos, blend);
-
-    pool.baseTgt.set(0, 0, tz);
-    pool.featTgt.set(
-      FEATURES_ORBIT_TARGET[0],
-      FEATURES_ORBIT_TARGET[1],
-      FEATURES_ORBIT_TARGET[2],
-    );
-    pool.lerpedTgt.lerpVectors(pool.baseTgt, pool.featTgt, blend);
-    cam.up.set(0, 1, 0);
-    cam.lookAt(pool.lerpedTgt);
-    cam.near = 0.1;
-    cam.far = Math.max(2000, autoY * 10);
-    if (cam instanceof THREE.PerspectiveCamera) {
-      cam.updateProjectionMatrix();
-    }
-    if (oc) {
-      oc.target.copy(pool.lerpedTgt);
-    }
-  });
-
-  return (
-    <OrbitControls
-      ref={ref}
-      makeDefault
-      enabled={false}
-      enableDamping
-      dampingFactor={0.06}
-      enableRotate={false}
-      minPolarAngle={0}
-      maxPolarAngle={0}
-      minDistance={(extent * 0.12) / Math.max(0.25, orbitZoom)}
-      maxDistance={extent * 5}
-    />
-  );
-}
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 14, 12);
 
@@ -370,7 +194,7 @@ function PackZoneDebugInner({
           depthTest
           depthWrite={false}
           transparent
-          opacity={0.92}
+          opacity={0.99}
         />
       </lineSegments>
       <lineSegments geometry={oppGeo}>
@@ -379,7 +203,7 @@ function PackZoneDebugInner({
           depthTest
           depthWrite={false}
           transparent
-          opacity={0.42}
+          opacity={0.9}
         />
       </lineSegments>
     </group>
@@ -660,7 +484,7 @@ function OpportunityLand({
 
   return (
     <>
-      <DebugControls
+      <OpportunityDebugControls
         extent={extent}
         featuresEnabled={featuresEnabled}
         featuresBlendRef={featuresBlendRef}
@@ -767,86 +591,52 @@ function FeaturesToggleSwitch({
   );
 }
 
-function OpportunityBloom({
-  enabled,
-  intensity,
-  luminanceThreshold,
-  luminanceSmoothing,
-  radius,
-  mipmapBlur,
-}: {
-  enabled: boolean;
-  intensity: number;
-  luminanceThreshold: number;
-  luminanceSmoothing: number;
-  radius: number;
-  mipmapBlur: boolean;
-}) {
-  if (!enabled) return null;
-  return (
-    <EffectComposer multisampling={4}>
-      <Bloom
-        intensity={intensity}
-        luminanceThreshold={luminanceThreshold}
-        luminanceSmoothing={luminanceSmoothing}
-        radius={radius}
-        mipmapBlur={mipmapBlur}
-      />
-    </EffectComposer>
-  );
-}
+type CompositionMode = "circlePack" | "gridTopography";
 
 function SceneWithLayout({
   rows,
+  compositionMode,
   showPackDebug,
   hoverPortalEl,
   featuresEnabled,
   featuresBlendRef,
-  bloomEnabled,
-  bloomThreshold,
-  bloomSmoothing,
-  bloomRadius,
-  bloomMipmapBlur,
 }: {
   rows: OpportunityRow[];
+  compositionMode: CompositionMode;
   showPackDebug: boolean;
   hoverPortalEl: HTMLDivElement | null;
   featuresEnabled: boolean;
   featuresBlendRef: MutableRefObject<number>;
-  bloomEnabled: boolean;
-  bloomThreshold: number;
-  bloomSmoothing: number;
-  bloomRadius: number;
-  bloomMipmapBlur: boolean;
 }) {
-  const bloomIntensity = featuresEnabled
-    ? BLOOM_INTENSITY_FEATURES_ON
-    : BLOOM_INTENSITY_FEATURES_OFF;
   const { width, height } = useThree((s) => s.size);
   /** Full-viewport canvas: natural width / height (no half-viewport doubling). */
   const layoutAspect =
     width > 1 && height > 1 ? width / height : 16 / 9;
-  const layout = useMemo(
+  const packLayout = useMemo(
     () => layoutOpportunitiesCirclePack(rows, layoutAspect),
+    [rows, layoutAspect],
+  );
+  const gridLayout = useMemo(
+    () => layoutOpportunitiesGridTopography(rows, layoutAspect),
     [rows, layoutAspect],
   );
   return (
     <>
-      <OpportunityLand
-        layout={layout}
-        showPackDebug={showPackDebug}
-        hoverPortalEl={hoverPortalEl}
-        featuresEnabled={featuresEnabled}
-        featuresBlendRef={featuresBlendRef}
-      />
-      <OpportunityBloom
-        enabled={bloomEnabled}
-        intensity={bloomIntensity}
-        luminanceThreshold={bloomThreshold}
-        luminanceSmoothing={bloomSmoothing}
-        radius={bloomRadius}
-        mipmapBlur={bloomMipmapBlur}
-      />
+      {compositionMode === "circlePack" ? (
+        <OpportunityLand
+          layout={packLayout}
+          showPackDebug={showPackDebug}
+          hoverPortalEl={hoverPortalEl}
+          featuresEnabled={featuresEnabled}
+          featuresBlendRef={featuresBlendRef}
+        />
+      ) : (
+        <OpportunityGridTopographyLand
+          layout={gridLayout}
+          featuresEnabled={featuresEnabled}
+          featuresBlendRef={featuresBlendRef}
+        />
+      )}
     </>
   );
 }
@@ -857,41 +647,17 @@ export default function OpportunitiesField() {
   const [featuresEnabled, setFeaturesEnabled] = useState(false);
   const featuresBlendRef = useRef(0);
 
-  const {
-    showPackZones,
-    bloomEnabled,
-    bloomThreshold,
-    bloomSmoothing,
-    bloomRadius,
-    bloomMipmapBlur,
-  } = useControls("Opportunities", {
+  const { compositionMode, showPackZones } = useControls("Opportunities", {
+    compositionMode: {
+      value: "gridTopography" as CompositionMode,
+      // Leva uses **object keys** as the stored value (values are UI labels only).
+      options: {
+        circlePack: "Circle pack (curators)",
+        gridTopography: "Grid topography (APR height)",
+      },
+      label: "Composition",
+    },
     showPackZones: { value: false, label: "Pack debug zones" },
-    bloomEnabled: { value: true, label: "Bloom (glow)" },
-    bloomThreshold: {
-      value: 0.08,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      label: "Bloom luminance threshold",
-    },
-    bloomSmoothing: {
-      value: 0.06,
-      min: 0,
-      max: 1,
-      step: 0.02,
-      label: "Bloom luminance smoothing",
-    },
-    bloomRadius: {
-      value: 0.28,
-      min: 0,
-      max: 1,
-      step: 0.02,
-      label: "Bloom kernel radius",
-    },
-    bloomMipmapBlur: {
-      value: true,
-      label: "Bloom mipmap blur (softer)",
-    },
   });
 
   const aprAxisTop = useMemo(() => {
@@ -919,6 +685,13 @@ export default function OpportunitiesField() {
     };
   }, []);
 
+  /** Normalize Leva value (and legacy inverted-options persistence). */
+  const sceneComposition: CompositionMode =
+    compositionMode === "gridTopography" ||
+    compositionMode === "Grid topography (APR height)"
+      ? "gridTopography"
+      : "circlePack";
+
   return (
     <>
       <Leva collapsed />
@@ -928,8 +701,8 @@ export default function OpportunitiesField() {
             <Canvas
               className="absolute inset-0 h-full w-full touch-none"
               camera={{
-                position: [0, 140, 0],
-                fov: 45,
+                position: DEFAULT_CAMERA_POSITION,
+                fov: DEFAULT_OPPORTUNITY_FOV,
                 near: 0.1,
                 far: 12000,
               }}
@@ -944,24 +717,20 @@ export default function OpportunitiesField() {
               <color attach="background" args={["#0a0a0a"]} />
               <SceneWithLayout
                 rows={rows}
+                compositionMode={sceneComposition}
                 showPackDebug={showPackZones}
                 hoverPortalEl={hoverPortalEl}
                 featuresEnabled={featuresEnabled}
                 featuresBlendRef={featuresBlendRef}
-                bloomEnabled={bloomEnabled}
-                bloomThreshold={bloomThreshold}
-                bloomSmoothing={bloomSmoothing}
-                bloomRadius={bloomRadius}
-                bloomMipmapBlur={bloomMipmapBlur}
               />
             </Canvas>
             <OpportunityCsvStatsPanel rows={rows} />
-            <div className="pointer-events-none fixed bottom-10 top-32 z-30 sm:right-[60px] sm:top-36">
+            {/* <div className="pointer-events-none fixed bottom-10 top-32 z-30 sm:right-[60px] sm:top-36">
               <FeaturesToggleSwitch
                 enabled={featuresEnabled}
                 onEnabledChange={setFeaturesEnabled}
               />
-            </div>
+            </div> */}
             <div
               ref={setHoverPortalEl}
               className="pointer-events-none absolute inset-0"

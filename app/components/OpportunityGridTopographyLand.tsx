@@ -1,0 +1,943 @@
+"use client";
+
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  type CSSProperties,
+  type MutableRefObject,
+} from "react";
+import * as THREE from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { DM_Sans, Montserrat } from "next/font/google";
+import { OpportunityDebugControls } from "@/app/components/OpportunityDebugControls";
+import type {
+  GridTopographyMarker,
+  OpportunitiesGridTopographyLayout,
+} from "@/app/lib/opportunityGridTopographyLayout";
+
+const dmGridHover = DM_Sans({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+});
+
+const montGridHover = Montserrat({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  display: "swap",
+});
+
+const GRID_HOVER_CURATOR_FONT = `${dmGridHover.style.fontFamily}, ${montGridHover.style.fontFamily}, ui-sans-serif, sans-serif`;
+
+const gridHoverLabelWrapStyle: CSSProperties = {
+  pointerEvents: "none",
+  userSelect: "none",
+  fontFamily: GRID_HOVER_CURATOR_FONT,
+};
+
+const gridHoverCardStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 6,
+  maxWidth: "min(320px, 42vw)",
+  padding: "12px 18px 14px",
+  textAlign: "center",
+  color: "#f0f4f2",
+  background: "rgba(10, 14, 12, 0.9)",
+  border: "1px solid rgba(240, 244, 242, 0.14)",
+  borderRadius: 14,
+  boxShadow:
+    "0 10px 36px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.07)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+};
+
+const gridHoverCuratorStyle: CSSProperties = {
+  color: "#f0f4f2",
+  fontSize: 32,
+  fontWeight: 800,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  whiteSpace: "nowrap",
+  lineHeight: 1.1,
+};
+
+const gridHoverOpportunityNameStyle: CSSProperties = {
+  color: "#f0f4f2",
+  fontSize: 26,
+  fontWeight: 600,
+  lineHeight: 1.2,
+  whiteSpace: "normal",
+  overflowWrap: "break-word",
+  width: "100%",
+  paddingTop: 2,
+  borderTop: "1px solid rgba(240, 244, 242, 0.1)",
+};
+
+const gridHoverAprStyle: CSSProperties = {
+  color: "#73f36c",
+  fontSize: 22,
+  fontWeight: 700,
+  lineHeight: 1.1,
+  whiteSpace: "nowrap",
+  marginTop: 2,
+};
+
+/** Vertical offset above sphere top for hover stack (world units). */
+const GRID_HOVER_LABEL_Y_PAD = 0.72;
+
+/** Unit-radius sphere; instance scale sets world radius. */
+const SPHERE_GEO = new THREE.SphereGeometry(1, 14, 12);
+
+const _sphPos = new THREE.Vector3();
+const _sphQuat = new THREE.Quaternion();
+const _sphScale = new THREE.Vector3();
+const _sphMat = new THREE.Matrix4();
+/** Unit-height cylinder (Y); instance `scale.y` sets stick length. */
+const STICK_GEO = new THREE.CylinderGeometry(0.062, 0.062, 1, 8);
+/** World radius scale for grid markers (layout pitch still uses 0.34 in layout lib). */
+const GRID_SPHERE_RADIUS_SCALE = 0.2;
+
+/**
+ * Flat floor grid Y (world). Keep in sync with `buildFlatFloorGridGeometry`.
+ */
+const FLAT_FLOOR_GRID_Y = -0.024;
+
+/**
+ * Featured-only: extra lift `h` from layout sphere center (`max(0.14, m.y - r) * fr`).
+ * Sphere sits at `m.y + h`; green rod runs from **terrain peak** at the cell up to the sphere bottom.
+ */
+const FEATURED_STICK_RISE_FR = 0.34;
+/** Stick foot nudged above the draped wire grid so it does not read below the terrain lines. */
+const FEATURED_STICK_TERRAIN_PAD = 0.006;
+
+function sphereRadius(m: GridTopographyMarker): number {
+  return m.size * GRID_SPHERE_RADIUS_SCALE;
+}
+
+function featuredStickFullOldLen(m: GridTopographyMarker): number {
+  const r = sphereRadius(m);
+  return Math.max(0.14, m.y - r);
+}
+
+function featuredStickRiseHeight(m: GridTopographyMarker): number {
+  return Math.max(0.1, featuredStickFullOldLen(m) * FEATURED_STICK_RISE_FR);
+}
+
+/** Featured sphere center Y: layout APR center + lift `h` (ball rests on rod end). */
+function markerDisplayY(m: GridTopographyMarker): number {
+  if (!m.featured) return m.y;
+  return m.y + featuredStickRiseHeight(m);
+}
+
+/**
+ * Analytic ray–sphere hit (world space). `dir` must be unit length.
+ * Returns ray parameter `t` at entry, or null.
+ */
+function rayIntersectSphereParam(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  r: number,
+): number | null {
+  const px = ox - cx;
+  const py = oy - cy;
+  const pz = oz - cz;
+  const b = px * dx + py * dy + pz * dz;
+  const c = px * px + py * py + pz * pz - r * r;
+  const disc = b * b - c;
+  if (disc < 0) return null;
+  const s = Math.sqrt(disc);
+  const EPS = 1e-4;
+  let t = -b - s;
+  if (t < EPS) t = -b + s;
+  if (t < EPS) return null;
+  return t;
+}
+
+/** Label offset along camera **right** (world units): `r * mul + add`. */
+const FEATURED_LABEL_ALONG_RIGHT_R_MUL = 2.52;
+/**
+ * Extra world offset: `@react-three/drei` `Html` with `transform` applies CSS
+ * `translate(-50%,-50%)` so the 3D point is the **center** of the label. Without this,
+ * half the block sits back over the sphere and reads as stacked “on top”.
+ */
+const FEATURED_LABEL_ALONG_RIGHT_ADD = 2.12;
+
+/**
+ * Max width for the label column (screen CSS).
+ */
+const FEATURED_LABEL_BLOCK_MAX = "200px";
+
+/** Screen px for featured name / APR inside the Html layer (before `distanceFactor` scaling in 3D). */
+const FEATURED_LABEL_NAME_FONT_PX = 24;
+const FEATURED_LABEL_APR_FONT_PX = 20;
+
+/** Featured label copy (name + APR) — matches featured sphere / APR accent. */
+const FEATURED_LABEL_TEXT_GREEN = "#73f36c";
+
+function formatFeaturedApr(percent: number): string {
+  if (!Number.isFinite(percent)) return "—";
+  const r = Math.round(percent * 10) / 10;
+  return `${r}%`;
+}
+
+const featuredGridLabelWrapStyle: CSSProperties = {
+  pointerEvents: "none",
+  userSelect: "none",
+  fontFamily: GRID_HOVER_CURATOR_FONT,
+  color: FEATURED_LABEL_TEXT_GREEN,
+  textAlign: "left",
+  whiteSpace: "normal",
+  lineHeight: 1.25,
+  maxWidth: FEATURED_LABEL_BLOCK_MAX,
+  textShadow: "0 1px 10px rgba(0,0,0,0.82), 0 0 1px rgba(0,0,0,0.9)",
+};
+
+function FeaturedGridOpportunityLabels({
+  markers,
+}: {
+  markers: GridTopographyMarker[];
+}) {
+  const { camera } = useThree();
+  return (
+    <>
+      {markers.map((m) => (
+        <FeaturedGridOpportunityLabel key={m.id} marker={m} camera={camera} />
+      ))}
+    </>
+  );
+}
+
+function FeaturedGridOpportunityLabel({
+  marker: m,
+  camera,
+}: {
+  marker: GridTopographyMarker;
+  camera: THREE.Camera;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const anchor = useRef(new THREE.Vector3());
+  const right = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g) return;
+    const r = sphereRadius(m);
+    /** Anchor at sphere center, step out to the camera‑right side of the ball (not above it). */
+    anchor.current.set(m.x, m.y, m.z);
+    /** Screen‑right of the ball: camera’s +X in world space (do not flatten Y — that skews “above” the sphere). */
+    right.current.setFromMatrixColumn(camera.matrixWorld, 0);
+    if (right.current.lengthSq() < 1e-12) {
+      right.current.set(1, 0, 0);
+    } else {
+      right.current.normalize();
+    }
+    const out = r * FEATURED_LABEL_ALONG_RIGHT_R_MUL + FEATURED_LABEL_ALONG_RIGHT_ADD;
+    g.position.copy(anchor.current);
+    g.position.addScaledVector(right.current, out);
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Html
+        transform
+        sprite
+        occlude={false}
+        pointerEvents="none"
+        center={false}
+        className={`${dmGridHover.className} ${montGridHover.className}`}
+        distanceFactor={9}
+        zIndexRange={[16777150, 16777198]}
+        style={featuredGridLabelWrapStyle}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: 4,
+            width: FEATURED_LABEL_BLOCK_MAX,
+            maxWidth: FEATURED_LABEL_BLOCK_MAX,
+            overflowWrap: "break-word",
+            wordBreak: "break-word",
+            textAlign: "left",
+          }}
+        >
+          <span
+            style={{
+              display: "block",
+              fontSize: FEATURED_LABEL_NAME_FONT_PX,
+              fontWeight: 700,
+              color: FEATURED_LABEL_TEXT_GREEN,
+              letterSpacing: "0.02em",
+              textAlign: "left",
+            }}
+          >
+            {m.name.trim() || "—"}
+          </span>
+          <span
+            style={{
+              display: "block",
+              fontSize: FEATURED_LABEL_APR_FONT_PX,
+              fontWeight: 800,
+              color: FEATURED_LABEL_TEXT_GREEN,
+              letterSpacing: "0.04em",
+              textAlign: "left",
+            }}
+          >
+            {formatFeaturedApr(m.estAprPercent)}
+          </span>
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+function buildCuratorHoverLinkGeometry(
+  hovered: GridTopographyMarker,
+  all: GridTopographyMarker[],
+): THREE.BufferGeometry | null {
+  const peers = all.filter(
+    (m) => m.curator === hovered.curator && m.id !== hovered.id,
+  );
+  if (peers.length === 0) return null;
+  const positions = new Float32Array(peers.length * 6);
+  let o = 0;
+  const { x: hx, y: hy, z: hz } = hovered;
+  for (const p of peers) {
+    positions[o++] = hx;
+    positions[o++] = hy;
+    positions[o++] = hz;
+    positions[o++] = p.x;
+    positions[o++] = p.y;
+    positions[o++] = p.z;
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  return geom;
+}
+
+function splitByFeatured(markers: GridTopographyMarker[]) {
+  const feat: GridTopographyMarker[] = [];
+  const rest: GridTopographyMarker[] = [];
+  for (const m of markers) {
+    (m.featured ? feat : rest).push(m);
+  }
+  return { feat, rest };
+}
+
+function InstancedGridSpheres({
+  list,
+  cap,
+  material,
+}: {
+  list: GridTopographyMarker[];
+  cap: number;
+  material: THREE.MeshBasicMaterial;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
+  const write = useCallback(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    _sphQuat.identity();
+    list.forEach((m, i) => {
+      const r = sphereRadius(m);
+      _sphPos.set(m.x, m.y, m.z);
+      _sphScale.setScalar(r);
+      _sphMat.compose(_sphPos, _sphQuat, _sphScale);
+      mesh.setMatrixAt(i, _sphMat);
+    });
+    mesh.count = list.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.visible = list.length > 0;
+  }, [list]);
+
+  useLayoutEffect(() => {
+    write();
+  }, [write]);
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[SPHERE_GEO, material, cap]}
+      frustumCulled={false}
+    />
+  );
+}
+
+function InstancedGridSticks({
+  list,
+  cap,
+  material,
+  allMarkers,
+  cols,
+  gridRows,
+  cellPitch,
+  terrainCellY,
+}: {
+  list: GridTopographyMarker[];
+  cap: number;
+  material: THREE.MeshBasicMaterial;
+  allMarkers: GridTopographyMarker[];
+  cols: number;
+  gridRows: number;
+  cellPitch: number;
+  terrainCellY: (col: number, row: number) => number;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useRef(new THREE.Object3D());
+
+  const write = useCallback(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const d = dummy.current;
+    list.forEach((m, i) => {
+      const r = sphereRadius(m);
+      const slot = allMarkers.indexOf(m);
+      let x = m.x;
+      let z = m.z;
+      let col = 0;
+      let row = 0;
+      if (slot >= 0) {
+        col = slot % cols;
+        row = Math.floor(slot / cols);
+        x = nominalGridX(col, cols, cellPitch);
+        z = nominalGridZ(row, gridRows, cellPitch);
+      }
+      const yTop = markerDisplayY(m) - r;
+      const yBottom =
+        terrainPeakYAtCell(col, row, cols, gridRows, terrainCellY) +
+        FEATURED_STICK_TERRAIN_PAD;
+      const hStick = Math.max(0.08, yTop - yBottom);
+      const yCenter = yBottom + hStick * 0.5;
+      d.position.set(x, yCenter, z);
+      d.scale.set(1, hStick, 1);
+      d.rotation.set(0, 0, 0);
+      d.updateMatrix();
+      mesh.setMatrixAt(i, d.matrix);
+    });
+    mesh.count = list.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.visible = list.length > 0;
+  }, [list, allMarkers, cols, gridRows, cellPitch, terrainCellY]);
+
+  useLayoutEffect(() => {
+    write();
+  }, [write]);
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[STICK_GEO, material, cap]}
+      frustumCulled={false}
+    />
+  );
+}
+
+const PLANE_MAT = new THREE.MeshBasicMaterial({
+  color: 0x0f1210,
+  transparent: true,
+  opacity: 0.96,
+});
+
+/** Same slot-center XZ as `layoutOpportunitiesGridTopography`. */
+function nominalGridX(col: number, cols: number, cellPitch: number): number {
+  return (col - (cols - 1) * 0.5) * cellPitch;
+}
+
+function nominalGridZ(row: number, gridRows: number, cellPitch: number): number {
+  return (row - (gridRows - 1) * 0.5) * cellPitch;
+}
+
+/** Same APR height field as the draped terrain wire (layout Y per slot). */
+function buildTerrainCellYGrid(
+  markers: GridTopographyMarker[],
+  cols: number,
+  gridRows: number,
+): (col: number, row: number) => number {
+  const ySlot: number[][] = Array.from({ length: cols }, () =>
+    Array.from({ length: gridRows }, () => NaN),
+  );
+  for (let slot = 0; slot < markers.length; slot++) {
+    const c = slot % cols;
+    const r = Math.floor(slot / cols);
+    if (r < gridRows && c < cols) {
+      ySlot[c][r] = markers[slot]!.y;
+    }
+  }
+
+  const defaultY =
+    markers.length > 0
+      ? Math.min(...markers.map((m) => m.y))
+      : 1.05;
+
+  return (col, row) => {
+    const v = ySlot[col]?.[row];
+    if (Number.isFinite(v)) return v as number;
+    let sum = 0;
+    let n = 0;
+    for (const [dc, dr] of [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ] as const) {
+      const nc = col + dc;
+      const nr = row + dr;
+      const nv = ySlot[nc]?.[nr];
+      if (Number.isFinite(nv)) {
+        sum += nv as number;
+        n++;
+      }
+    }
+    return n > 0 ? sum / n : defaultY;
+  };
+}
+
+/** Local terrain peak at a cell (max of center + in-bounds neighbors). */
+function terrainPeakYAtCell(
+  col: number,
+  row: number,
+  cols: number,
+  gridRows: number,
+  cellY: (c: number, r: number) => number,
+): number {
+  let peak = cellY(col, row);
+  for (const [dc, dr] of [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ] as const) {
+    const nc = col + dc;
+    const nr = row + dr;
+    if (nc >= 0 && nc < cols && nr >= 0 && nr < gridRows) {
+      peak = Math.max(peak, cellY(nc, nr));
+    }
+  }
+  return peak;
+}
+
+/**
+ * Draped wire grid: lines follow nominal slot centers; Y follows each cell's APR height
+ * so the mesh reads as terrain under/near the spheres.
+ */
+function buildTerrainWireGridGeometry(
+  markers: GridTopographyMarker[],
+  cols: number,
+  gridRows: number,
+  cellPitch: number,
+): THREE.BufferGeometry | null {
+  const cellY = buildTerrainCellYGrid(markers, cols, gridRows);
+
+  /** Slightly below sphere center so dashed lines read in front of the dark plane. */
+  const yWire = (c: number, r: number) => cellY(c, r) - 0.055;
+
+  const positions: number[] = [];
+
+  for (let c = 0; c < cols; c++) {
+    const x = nominalGridX(c, cols, cellPitch);
+    for (let r = 0; r < gridRows - 1; r++) {
+      const z0 = nominalGridZ(r, gridRows, cellPitch);
+      const z1 = nominalGridZ(r + 1, gridRows, cellPitch);
+      positions.push(
+        x,
+        yWire(c, r),
+        z0,
+        x,
+        yWire(c, r + 1),
+        z1,
+      );
+    }
+  }
+
+  for (let r = 0; r < gridRows; r++) {
+    const z = nominalGridZ(r, gridRows, cellPitch);
+    for (let c = 0; c < cols - 1; c++) {
+      const x0 = nominalGridX(c, cols, cellPitch);
+      const x1 = nominalGridX(c + 1, cols, cellPitch);
+      positions.push(
+        x0,
+        yWire(c, r),
+        z,
+        x1,
+        yWire(c + 1, r),
+        z,
+      );
+    }
+  }
+
+  if (positions.length === 0) return null;
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
+  );
+  return geom;
+}
+
+/** Flat reference grid on the ground plane (constant Y); same pitch as layout, no elevation. */
+function buildFlatFloorGridGeometry(
+  cellPitch: number,
+  cols: number,
+  gridRows: number,
+  y: number,
+): THREE.BufferGeometry {
+  const x0 = (-cols / 2) * cellPitch;
+  const z0 = (-gridRows / 2) * cellPitch;
+  const z1 = (gridRows / 2) * cellPitch;
+  const x1 = (cols / 2) * cellPitch;
+  const positions: number[] = [];
+  for (let j = 0; j <= cols; j++) {
+    const x = x0 + j * cellPitch;
+    positions.push(x, y, z0, x, y, z1);
+  }
+  for (let j = 0; j <= gridRows; j++) {
+    const z = z0 + j * cellPitch;
+    positions.push(x0, y, z, x1, y, z);
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
+  );
+  return geom;
+}
+
+export function OpportunityGridTopographyLand({
+  layout,
+  featuresEnabled,
+  featuresBlendRef,
+}: {
+  layout: OpportunitiesGridTopographyLayout;
+  featuresEnabled: boolean;
+  featuresBlendRef: MutableRefObject<number>;
+}) {
+  const { markers, extent, planeHalfWidth, planeHalfDepth, cellPitch, cols, gridRows } =
+    layout;
+
+  const markersDisplay = useMemo(
+    () =>
+      markers.map((m, slot) => {
+        const col = slot % cols;
+        const row = Math.floor(slot / cols);
+        const x = nominalGridX(col, cols, cellPitch);
+        const z = nominalGridZ(row, gridRows, cellPitch);
+        const y = m.featured ? markerDisplayY(m) : m.y;
+        return { ...m, x, z, y };
+      }),
+    [markers, cols, gridRows, cellPitch],
+  );
+
+  const { feat, rest } = useMemo(() => splitByFeatured(markers), [markers]);
+  const { feat: featDisp, rest: restDisp } = useMemo(
+    () => splitByFeatured(markersDisplay),
+    [markersDisplay],
+  );
+  const capF = Math.max(featDisp.length, 1);
+  const capR = Math.max(restDisp.length, 1);
+
+  const matSphereFeat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: 0x73f36c }),
+    [],
+  );
+  const matSphereRest = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    [],
+  );
+  const matStickFeat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: 0x4a9a44 }),
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      matSphereFeat.dispose();
+      matSphereRest.dispose();
+      matStickFeat.dispose();
+    };
+  }, [matSphereFeat, matSphereRest, matStickFeat]);
+
+  const planeGeo = useMemo(
+    () => new THREE.PlaneGeometry(planeHalfWidth * 2, planeHalfDepth * 2),
+    [planeHalfWidth, planeHalfDepth],
+  );
+
+  const terrainCellY = useMemo(
+    () => buildTerrainCellYGrid(markers, cols, gridRows),
+    [markers, cols, gridRows],
+  );
+
+  const terrainWireGridGeo = useMemo(() => {
+    if (cols < 1 || gridRows < 1 || !(cellPitch > 0)) return null;
+    return buildTerrainWireGridGeometry(markers, cols, gridRows, cellPitch);
+  }, [markers, cellPitch, cols, gridRows]);
+
+  const flatFloorGridGeo = useMemo(() => {
+    if (cols < 1 || gridRows < 1 || !(cellPitch > 0)) return null;
+    return buildFlatFloorGridGeometry(
+      cellPitch,
+      cols,
+      gridRows,
+      FLAT_FLOOR_GRID_Y,
+    );
+  }, [cellPitch, cols, gridRows]);
+
+  useEffect(() => {
+    return () => {
+      planeGeo.dispose();
+      terrainWireGridGeo?.dispose();
+      flatFloorGridGeo?.dispose();
+    };
+  }, [planeGeo, terrainWireGridGeo, flatFloorGridGeo]);
+
+  const matTerrainWireGrid = useMemo(
+    () =>
+      new THREE.LineDashedMaterial({
+        color: 0x6d7f78,
+        transparent: true,
+        opacity: 0.48,
+        depthWrite: false,
+        depthTest: true,
+        dashSize: Math.max(0.08, cellPitch * 0.26),
+        gapSize: Math.max(0.05, cellPitch * 0.16),
+        scale: 1,
+      }),
+    [cellPitch],
+  );
+
+  const matFlatFloorGrid = useMemo(
+    () =>
+      new THREE.LineDashedMaterial({
+        color: 0x3d4a45,
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false,
+        depthTest: true,
+        dashSize: Math.max(0.07, cellPitch * 0.34),
+        gapSize: Math.max(0.05, cellPitch * 0.2),
+        scale: 1,
+      }),
+    [cellPitch],
+  );
+
+  useEffect(() => {
+    return () => {
+      matTerrainWireGrid.dispose();
+    };
+  }, [matTerrainWireGrid]);
+
+  useEffect(() => {
+    return () => {
+      matFlatFloorGrid.dispose();
+    };
+  }, [matFlatFloorGrid]);
+
+  const [hovered, setHovered] = useState<GridTopographyMarker | null>(null);
+  const lastHoverIdRef = useRef<string | null>(null);
+  const flatFloorGridLinesRef = useRef<THREE.LineSegments>(null);
+  const terrainWireGridLinesRef = useRef<THREE.LineSegments>(null);
+  const curatorLinkLinesRef = useRef<THREE.LineSegments>(null);
+  const { raycaster, pointer, camera, gl } = useThree();
+
+  const linkGeo = useMemo(() => {
+    if (!hovered) return null;
+    return buildCuratorHoverLinkGeometry(hovered, markersDisplay);
+  }, [hovered, markersDisplay]);
+
+  const matCuratorLinks = useMemo(
+    () =>
+      new THREE.LineDashedMaterial({
+        color: 0xb8d4c8,
+        transparent: true,
+        opacity: 0.52,
+        depthWrite: false,
+        depthTest: true,
+        dashSize: 0.28,
+        gapSize: 0.18,
+        scale: 1,
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      linkGeo?.dispose();
+    };
+  }, [linkGeo]);
+
+  useEffect(() => {
+    return () => {
+      matCuratorLinks.dispose();
+    };
+  }, [matCuratorLinks]);
+
+  useLayoutEffect(() => {
+    if (!linkGeo) return;
+    curatorLinkLinesRef.current?.computeLineDistances();
+  }, [linkGeo]);
+
+  useLayoutEffect(() => {
+    if (!terrainWireGridGeo) return;
+    terrainWireGridLinesRef.current?.computeLineDistances();
+  }, [terrainWireGridGeo]);
+
+  useLayoutEffect(() => {
+    if (!flatFloorGridGeo) return;
+    flatFloorGridLinesRef.current?.computeLineDistances();
+  }, [flatFloorGridGeo]);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    canvas.style.cursor = hovered ? "pointer" : "";
+    return () => {
+      canvas.style.cursor = "";
+    };
+  }, [gl, hovered]);
+
+  useFrame(() => {
+    raycaster.setFromCamera(pointer, camera);
+    const ro = raycaster.ray.origin;
+    const rd = raycaster.ray.direction;
+    const ox = ro.x;
+    const oy = ro.y;
+    const oz = ro.z;
+    const dx = rd.x;
+    const dy = rd.y;
+    const dz = rd.z;
+
+    let best: { t: number; m: GridTopographyMarker } | null = null;
+    for (const m of markersDisplay) {
+      const r = sphereRadius(m);
+      const t = rayIntersectSphereParam(
+        ox,
+        oy,
+        oz,
+        dx,
+        dy,
+        dz,
+        m.x,
+        m.y,
+        m.z,
+        r,
+      );
+      if (t != null && (!best || t < best.t)) {
+        best = { t, m };
+      }
+    }
+
+    const id = best?.m.id ?? null;
+    if (id === lastHoverIdRef.current) return;
+    lastHoverIdRef.current = id;
+    setHovered(best?.m ?? null);
+  });
+
+  return (
+    <>
+      <OpportunityDebugControls
+        extent={extent}
+        featuresEnabled={featuresEnabled}
+        featuresBlendRef={featuresBlendRef}
+      />
+      <ambientLight intensity={1} />
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.04, 0]}
+        geometry={planeGeo}
+        material={PLANE_MAT}
+      />
+      {flatFloorGridGeo ? (
+        <lineSegments
+          ref={flatFloorGridLinesRef}
+          geometry={flatFloorGridGeo}
+          material={matFlatFloorGrid}
+          frustumCulled={false}
+          renderOrder={1}
+        />
+      ) : null}
+      {terrainWireGridGeo ? (
+        <lineSegments
+          ref={terrainWireGridLinesRef}
+          geometry={terrainWireGridGeo}
+          material={matTerrainWireGrid}
+          frustumCulled={false}
+          renderOrder={2}
+        />
+      ) : null}
+      {feat.length > 0 ? (
+        <InstancedGridSticks
+          list={feat}
+          cap={feat.length}
+          material={matStickFeat}
+          allMarkers={markers}
+          cols={cols}
+          gridRows={gridRows}
+          cellPitch={cellPitch}
+          terrainCellY={terrainCellY}
+        />
+      ) : null}
+      <InstancedGridSpheres list={restDisp} cap={capR} material={matSphereRest} />
+      <InstancedGridSpheres list={featDisp} cap={capF} material={matSphereFeat} />
+      {featDisp.length > 0 ? (
+        <FeaturedGridOpportunityLabels markers={featDisp} />
+      ) : null}
+      {linkGeo ? (
+        <lineSegments
+          ref={curatorLinkLinesRef}
+          geometry={linkGeo}
+          material={matCuratorLinks}
+          frustumCulled={false}
+          renderOrder={18}
+        />
+      ) : null}
+      {hovered ? (
+        <group
+          position={[
+            hovered.x,
+            hovered.y + sphereRadius(hovered) + GRID_HOVER_LABEL_Y_PAD,
+            hovered.z,
+          ]}
+        >
+          <Html
+            transform
+            sprite
+            occlude={false}
+            pointerEvents="none"
+            center
+            className={`${dmGridHover.className} ${montGridHover.className}`}
+            distanceFactor={8.2}
+            zIndexRange={[16777200, 16777260]}
+            style={gridHoverLabelWrapStyle}
+          >
+            <div style={gridHoverCardStyle}>
+              <span style={gridHoverCuratorStyle}>{hovered.curator}</span>
+              <span style={gridHoverOpportunityNameStyle}>{hovered.name}</span>
+              <span style={gridHoverAprStyle}>
+                {formatFeaturedApr(hovered.estAprPercent)}
+              </span>
+            </div>
+          </Html>
+        </group>
+      ) : null}
+    </>
+  );
+}

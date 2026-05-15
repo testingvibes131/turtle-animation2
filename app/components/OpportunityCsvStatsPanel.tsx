@@ -53,7 +53,7 @@ export function OpportunityCsvStatsPanel({ rows }: OpportunityCsvStatsPanelProps
       ].join(" ")}
       aria-label="Opportunity data from CSV"
     >
-      <div className="rounded-[20px] border border-[rgba(249,249,249,0.1)] bg-[#191a19] px-4 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
+      {/* <div className="rounded-[20px] border border-[rgba(249,249,249,0.1)] bg-[#191a19] px-4 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
         <StatRow
           label="Opportunities"
           value={summary.opportunityCount.toLocaleString("en-US")}
@@ -80,7 +80,7 @@ export function OpportunityCsvStatsPanel({ rows }: OpportunityCsvStatsPanelProps
           label="Avg APR (TVL-weighted)"
           value={`${summary.tvlWeightedAprPercent.toFixed(2)}%`}
         />
-      </div>
+      </div> */}
     </aside>
   );
 }
