@@ -22,25 +22,13 @@ const GRID_SPHERE_RADIUS_SCALE = 0.2;
 const HOVER_LABEL_Y_PAD = 0.72;
 
 const LABEL_CLASS =
-  "pointer-events-none absolute z-[180000001] flex max-w-[min(280px,42vw)] -translate-x-1/2 -translate-y-[calc(100%+10px)] flex-col items-center gap-1.5 rounded-[14px] border border-[rgba(240,244,242,0.14)] bg-[rgba(10,14,12,0.92)] px-[18px] py-3 text-center shadow-[0_10px_36px_rgba(0,0,0,0.62)] backdrop-blur-[12px]";
+  "pointer-events-none absolute z-[180000001] flex max-w-[min(280px,42vw)] -translate-x-1/2 -translate-y-[calc(100%+10px)] items-center justify-center rounded-[14px] border border-[rgba(240,244,242,0.14)] bg-[rgba(10,14,12,0.92)] px-[18px] py-3 text-center shadow-[0_10px_36px_rgba(0,0,0,0.62)] backdrop-blur-[12px]";
 
 const LABEL_CURATOR_CLASS =
   "max-w-full truncate text-[11px] font-extrabold uppercase tracking-[0.06em] text-[#f0f4f2]";
 
-const LABEL_NAME_CLASS =
-  "w-full border-t border-[rgba(240,244,242,0.1)] pt-1.5 text-[14px] font-semibold leading-snug text-[#f0f4f2] [overflow-wrap:anywhere]";
-
-const LABEL_APR_CLASS =
-  "text-[12px] font-bold tabular-nums text-[#73f36c]";
-
 function sphereRadius(m: GridTopographyMarker): number {
   return m.size * GRID_SPHERE_RADIUS_SCALE;
-}
-
-function formatApr(percent: number): string {
-  if (!Number.isFinite(percent)) return "—";
-  const r = Math.round(percent * 10) / 10;
-  return `${r}%`;
 }
 
 type OpportunityGridHoverScreenLabelProps = {
@@ -49,7 +37,7 @@ type OpportunityGridHoverScreenLabelProps = {
 };
 
 /**
- * Screen-space hover card for grid topography (fixed CSS px, not drei Html / distanceFactor).
+ * Screen-space hover card for grid topography — curator name only.
  */
 export function OpportunityGridHoverScreenLabel({
   marker,
@@ -59,15 +47,11 @@ export function OpportunityGridHoverScreenLabel({
   const ndc = useMemo(() => new THREE.Vector3(), []);
   const labelRef = useRef<HTMLDivElement | null>(null);
   const curatorRef = useRef<HTMLSpanElement | null>(null);
-  const nameRef = useRef<HTMLSpanElement | null>(null);
-  const aprRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (!portalEl) {
       labelRef.current = null;
       curatorRef.current = null;
-      nameRef.current = null;
-      aprRef.current = null;
       return;
     }
 
@@ -79,27 +63,15 @@ export function OpportunityGridHoverScreenLabel({
     const curator = document.createElement("span");
     curator.className = LABEL_CURATOR_CLASS;
 
-    const name = document.createElement("span");
-    name.className = LABEL_NAME_CLASS;
-
-    const apr = document.createElement("span");
-    apr.className = LABEL_APR_CLASS;
-
     el.appendChild(curator);
-    el.appendChild(name);
-    el.appendChild(apr);
 
     portalEl.appendChild(el);
     labelRef.current = el;
     curatorRef.current = curator;
-    nameRef.current = name;
-    aprRef.current = apr;
 
     return () => {
       labelRef.current = null;
       curatorRef.current = null;
-      nameRef.current = null;
-      aprRef.current = null;
       if (el.parentNode === portalEl) {
         portalEl.removeChild(el);
       }
@@ -108,18 +80,12 @@ export function OpportunityGridHoverScreenLabel({
 
   useEffect(() => {
     const curator = curatorRef.current;
-    const name = nameRef.current;
-    const apr = aprRef.current;
-    if (!curator || !name || !apr) return;
+    if (!curator) return;
     if (!marker) {
       curator.textContent = "";
-      name.textContent = "";
-      apr.textContent = "";
       return;
     }
     curator.textContent = marker.curator;
-    name.textContent = marker.name.trim() || "—";
-    apr.textContent = formatApr(marker.estAprPercent);
   }, [marker, portalEl]);
 
   useFrame(() => {

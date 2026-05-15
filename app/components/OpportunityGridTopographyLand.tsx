@@ -61,8 +61,31 @@ const FEATURED_STICK_TERRAIN_PAD = 0.006;
 /** Min stick height when APR lift is small (world units). */
 const FEATURED_STICK_MIN_HEIGHT = 0.12;
 
+/** Default non-featured sphere tint. */
+const SPHERE_REST_COLOR = 0xf9f9f9;
+/** Same-curator hover overlay (featured green, slightly translucent). */
+const SPHERE_CURATOR_HIGHLIGHT_COLOR = 0x73f36c;
+const SPHERE_CURATOR_HIGHLIGHT_OPACITY = 0.78;
+/** Same-curator hover: slightly larger radius. */
+const SPHERE_CURATOR_HOVER_SCALE = 1.7;
+
 function sphereRadius(m: GridTopographyMarker): number {
   return m.size * GRID_SPHERE_RADIUS_SCALE;
+}
+
+function sphereRadiusForHover(
+  m: GridTopographyMarker,
+  hoveredCurator: string | null,
+): number {
+  const r = sphereRadius(m);
+  if (
+    hoveredCurator != null &&
+    hoveredCurator.length > 0 &&
+    m.curator === hoveredCurator
+  ) {
+    return r * SPHERE_CURATOR_HOVER_SCALE;
+  }
+  return r;
 }
 
 /**
@@ -235,30 +258,6 @@ function FeaturedGridOpportunityLabel({
   );
 }
 
-function buildCuratorHoverLinkGeometry(
-  hovered: GridTopographyMarker,
-  all: GridTopographyMarker[],
-): THREE.BufferGeometry | null {
-  const peers = all.filter(
-    (m) => m.curator === hovered.curator && m.id !== hovered.id,
-  );
-  if (peers.length === 0) return null;
-  const positions = new Float32Array(peers.length * 6);
-  let o = 0;
-  const { x: hx, y: hy, z: hz } = hovered;
-  for (const p of peers) {
-    positions[o++] = hx;
-    positions[o++] = hy;
-    positions[o++] = hz;
-    positions[o++] = p.x;
-    positions[o++] = p.y;
-    positions[o++] = p.z;
-  }
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  return geom;
-}
-
 function splitByFeatured(markers: GridTopographyMarker[]) {
   const feat: GridTopographyMarker[] = [];
   const rest: GridTopographyMarker[] = [];
@@ -272,10 +271,14 @@ function InstancedGridSpheres({
   list,
   cap,
   material,
+  radiusScale = 1,
+  renderOrder = 0,
 }: {
   list: GridTopographyMarker[];
   cap: number;
   material: THREE.MeshBasicMaterial;
+  radiusScale?: number;
+  renderOrder?: number;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
@@ -284,7 +287,7 @@ function InstancedGridSpheres({
     if (!mesh) return;
     _sphQuat.identity();
     list.forEach((m, i) => {
-      const r = sphereRadius(m);
+      const r = sphereRadius(m) * radiusScale;
       _sphPos.set(m.x, m.y, m.z);
       _sphScale.setScalar(r);
       _sphMat.compose(_sphPos, _sphQuat, _sphScale);
@@ -293,7 +296,7 @@ function InstancedGridSpheres({
     mesh.count = list.length;
     mesh.instanceMatrix.needsUpdate = true;
     mesh.visible = list.length > 0;
-  }, [list]);
+  }, [list, radiusScale]);
 
   useLayoutEffect(() => {
     write();
@@ -304,6 +307,7 @@ function InstancedGridSpheres({
       ref={meshRef}
       args={[SPHERE_GEO, material, cap]}
       frustumCulled={false}
+      renderOrder={renderOrder}
     />
   );
 }
@@ -572,15 +576,34 @@ export function OpportunityGridTopographyLand({
     () => splitByFeatured(markersRender),
     [markersRender],
   );
-  const capF = Math.max(feat.length, 1);
-  const capR = Math.max(rest.length, 1);
+
+  const [hovered, setHovered] = useState<GridTopographyMarker | null>(null);
+  const hoveredCurator = hovered?.curator ?? null;
+
+  /** Overlay on top of base spheres (base layer always drawn underneath). */
+  const curatorHighlight = useMemo(() => {
+    if (!hoveredCurator) return [];
+    return markersRender.filter((m) => m.curator === hoveredCurator);
+  }, [markersRender, hoveredCurator]);
 
   const matSphereFeat = useMemo(
     () => new THREE.MeshBasicMaterial({ color: 0x73f36c }),
     [],
   );
   const matSphereRest = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    () => new THREE.MeshBasicMaterial({ color: SPHERE_REST_COLOR }),
+    [],
+  );
+  const matSphereCuratorHighlight = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: SPHERE_CURATOR_HIGHLIGHT_COLOR,
+        transparent: true,
+        opacity: SPHERE_CURATOR_HIGHLIGHT_OPACITY,
+        depthWrite: false,
+        depthTest: true,
+        toneMapped: false,
+      }),
     [],
   );
   const matStickFeat = useMemo(
@@ -592,9 +615,10 @@ export function OpportunityGridTopographyLand({
     return () => {
       matSphereFeat.dispose();
       matSphereRest.dispose();
+      matSphereCuratorHighlight.dispose();
       matStickFeat.dispose();
     };
-  }, [matSphereFeat, matSphereRest, matStickFeat]);
+  }, [matSphereFeat, matSphereRest, matSphereCuratorHighlight, matStickFeat]);
 
   const planeGeo = useMemo(
     () => new THREE.PlaneGeometry(planeHalfWidth * 2, planeHalfDepth * 2),
@@ -671,49 +695,10 @@ export function OpportunityGridTopographyLand({
     };
   }, [matFlatFloorGrid]);
 
-  const [hovered, setHovered] = useState<GridTopographyMarker | null>(null);
   const lastHoverIdRef = useRef<string | null>(null);
   const flatFloorGridLinesRef = useRef<THREE.LineSegments>(null);
   const terrainWireGridLinesRef = useRef<THREE.LineSegments>(null);
-  const curatorLinkLinesRef = useRef<THREE.LineSegments>(null);
   const { raycaster, pointer, camera, gl } = useThree();
-
-  const linkGeo = useMemo(() => {
-    if (!hovered) return null;
-    return buildCuratorHoverLinkGeometry(hovered, markersRender);
-  }, [hovered, markersRender]);
-
-  const matCuratorLinks = useMemo(
-    () =>
-      new THREE.LineDashedMaterial({
-        color: 0xb8d4c8,
-        transparent: true,
-        opacity: 0.52,
-        depthWrite: false,
-        depthTest: true,
-        dashSize: 0.28,
-        gapSize: 0.18,
-        scale: 1,
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    return () => {
-      linkGeo?.dispose();
-    };
-  }, [linkGeo]);
-
-  useEffect(() => {
-    return () => {
-      matCuratorLinks.dispose();
-    };
-  }, [matCuratorLinks]);
-
-  useLayoutEffect(() => {
-    if (!linkGeo) return;
-    curatorLinkLinesRef.current?.computeLineDistances();
-  }, [linkGeo]);
 
   useLayoutEffect(() => {
     if (!terrainWireGridGeo) return;
@@ -746,7 +731,7 @@ export function OpportunityGridTopographyLand({
 
     let best: { t: number; m: GridTopographyMarker } | null = null;
     for (const m of markersRender) {
-      const r = sphereRadius(m);
+      const r = sphereRadiusForHover(m, hoveredCurator);
       const t = rayIntersectSphereParam(
         ox,
         oy,
@@ -812,19 +797,31 @@ export function OpportunityGridTopographyLand({
           terrainCellY={terrainCellY}
         />
       ) : null}
-      <InstancedGridSpheres list={rest} cap={capR} material={matSphereRest} />
-      <InstancedGridSpheres list={feat} cap={capF} material={matSphereFeat} />
+      {rest.length > 0 ? (
+        <InstancedGridSpheres
+          list={rest}
+          cap={rest.length}
+          material={matSphereRest}
+        />
+      ) : null}
+      {feat.length > 0 ? (
+        <InstancedGridSpheres
+          list={feat}
+          cap={feat.length}
+          material={matSphereFeat}
+        />
+      ) : null}
+      {curatorHighlight.length > 0 ? (
+        <InstancedGridSpheres
+          list={curatorHighlight}
+          cap={curatorHighlight.length}
+          material={matSphereCuratorHighlight}
+          radiusScale={SPHERE_CURATOR_HOVER_SCALE}
+          renderOrder={12}
+        />
+      ) : null}
       {feat.length > 0 ? (
         <FeaturedGridOpportunityLabels markers={feat} />
-      ) : null}
-      {linkGeo ? (
-        <lineSegments
-          ref={curatorLinkLinesRef}
-          geometry={linkGeo}
-          material={matCuratorLinks}
-          frustumCulled={false}
-          renderOrder={18}
-        />
       ) : null}
       <OpportunityGridHoverScreenLabel
         marker={hovered}
