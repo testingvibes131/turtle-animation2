@@ -8,6 +8,7 @@ import {
   prepareAnimatedTerrain,
 } from "@/app/v2/lib/animatedField";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
+import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
 import {
   buildHorizonGridGeometry,
   buildTerrainWireframeGeometry,
@@ -18,9 +19,10 @@ import { OpportunityMarkers } from "@/app/v2/components/OpportunityMarkers";
 
 type TerrainSurfaceProps = {
   layout: GridLayout;
+  markerMotion: MarkerMotionMode;
 };
 
-export function TerrainSurface({ layout }: TerrainSurfaceProps) {
+export function TerrainSurface({ layout, markerMotion }: TerrainSurfaceProps) {
   const baseField = useMemo(() => buildBaseSmoothedField(layout), [layout]);
   const waveRef = useRef<TerrainWaveSnapshot>({ prepared: null, elapsed: 0 });
 
@@ -114,7 +116,11 @@ export function TerrainSurface({ layout }: TerrainSurfaceProps) {
         frustumCulled={false}
         dispose={null}
       />
-      <OpportunityMarkers layout={layout} waveRef={waveRef} />
+      <OpportunityMarkers
+        layout={layout}
+        waveRef={waveRef}
+        markerMotion={markerMotion}
+      />
     </group>
   );
 }

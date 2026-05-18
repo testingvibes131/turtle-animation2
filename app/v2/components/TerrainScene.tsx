@@ -12,6 +12,7 @@ import {
   getTerrainMaxHeight,
 } from "@/app/v2/lib/terrainGeometry";
 import { TerrainSurface } from "@/app/v2/components/TerrainSurface";
+import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
 
 const CSV_PATH = "/data/turtle-opportunities.csv";
 
@@ -44,7 +45,7 @@ function CameraRig({ layout }: { layout: GridLayout }) {
   );
 }
 
-function SceneContent() {
+function SceneContent({ markerMotion }: { markerMotion: MarkerMotionMode }) {
   const { width, height } = useThree((s) => s.size);
   const [rows, setRows] = useState<ReturnType<typeof parseOpportunityRows> | null>(
     null,
@@ -84,19 +85,23 @@ function SceneContent() {
       <color attach="background" args={["#0a0a0a"]} />
       <ambientLight intensity={1} />
       <CameraRig layout={layout} />
-      <TerrainSurface layout={layout} />
+      <TerrainSurface layout={layout} markerMotion={markerMotion} />
     </>
   );
 }
 
-export function TerrainScene() {
+type TerrainSceneProps = {
+  markerMotion: MarkerMotionMode;
+};
+
+export function TerrainScene({ markerMotion }: TerrainSceneProps) {
   return (
     <Canvas
       className="h-full w-full touch-none"
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
     >
-      <SceneContent />
+      <SceneContent markerMotion={markerMotion} />
     </Canvas>
   );
 }

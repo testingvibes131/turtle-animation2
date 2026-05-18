@@ -12,6 +12,7 @@ import {
 import * as THREE from "three";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
+import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 
 const STICK_GEO = new THREE.CylinderGeometry(1, 1, 1, 8);
@@ -25,6 +26,9 @@ type FeaturedFlagMarkersProps = {
   stickRef: RefObject<THREE.InstancedMesh | null>;
   topRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
+  markersMoveWithBelt: boolean;
+  /** When set, show a flag on any crossing whose scrolled DNA is featured. */
+  dnaLookup?: (TerrainCell | undefined)[][];
 };
 
 export function FeaturedFlagMarkers({
@@ -32,6 +36,8 @@ export function FeaturedFlagMarkers({
   stickRef,
   topRef,
   waveRef,
+  markersMoveWithBelt,
+  dnaLookup,
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
   const dummy = useRef(new THREE.Object3D());
@@ -54,7 +60,18 @@ export function FeaturedFlagMarkers({
     const d = dummy.current;
 
     featured.forEach((cell, i) => {
-      const flag = getFeaturedFlagPose(cell, prepared, elapsed);
+      const show =
+        !dnaLookup || isFeaturedAtCrossing(cell, elapsed, dnaLookup);
+      if (!show) {
+        d.position.set(cell.x, 0, cell.z);
+        d.scale.setScalar(0);
+        d.updateMatrix();
+        stickMesh.setMatrixAt(i, d.matrix);
+        topMesh.setMatrixAt(i, d.matrix);
+        return;
+      }
+
+      const flag = getFeaturedFlagPose(cell, prepared, elapsed, markersMoveWithBelt);
 
       d.position.set(flag.x, flag.yStickCenter, flag.z);
       d.scale.set(flag.stickRadius, flag.stickHeight, flag.stickRadius);
@@ -72,7 +89,7 @@ export function FeaturedFlagMarkers({
     topMesh.count = count;
     stickMesh.instanceMatrix.needsUpdate = true;
     topMesh.instanceMatrix.needsUpdate = true;
-  }, [count, featured, stickRef, topRef, waveRef]);
+  }, [count, dnaLookup, featured, markersMoveWithBelt, stickRef, topRef, waveRef]);
 
   useLayoutEffect(() => {
     write();

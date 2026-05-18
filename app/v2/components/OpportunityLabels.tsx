@@ -2,10 +2,17 @@
 
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef, type CSSProperties, type RefObject } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import * as THREE from "three";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getMarkerLabelPose } from "@/app/v2/lib/markerPosition";
+import { buildCellLookup, isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 
 const LABEL_MAX_WIDTH = "120px";
@@ -26,19 +33,43 @@ const labelWrapBase: CSSProperties = {
 
 function OpportunityLabel({
   cell,
+  cells,
   waveRef,
+  labelsMoveWithBelt,
+  useOffsetColors,
 }: {
   cell: TerrainCell;
+  cells: TerrainCell[];
   waveRef: RefObject<TerrainWaveSnapshot>;
+  labelsMoveWithBelt: boolean;
+  useOffsetColors: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const color = cell.featured ? "#73f36c" : "#f0f0f0";
+  const [isFeatured, setIsFeatured] = useState(cell.featured);
+  const lookup = useMemo(() => {
+    let cols = 1;
+    let rows = 1;
+    for (const c of cells) {
+      cols = Math.max(cols, c.col + 1);
+      rows = Math.max(rows, c.row + 1);
+    }
+    return buildCellLookup(cells, cols, rows);
+  }, [cells]);
 
   useFrame(() => {
     const g = groupRef.current;
     const { prepared, elapsed } = waveRef.current;
     if (!g || !prepared) return;
-    const { x, y, z } = getMarkerLabelPose(cell, prepared, elapsed);
+    const featuredNow = useOffsetColors
+      ? isFeaturedAtCrossing(cell, elapsed, lookup)
+      : cell.featured;
+    if (featuredNow !== isFeatured) setIsFeatured(featuredNow);
+    const { x, y, z } = getMarkerLabelPose(
+      cell,
+      prepared,
+      elapsed,
+      labelsMoveWithBelt,
+    );
     g.position.set(x, y, z);
   });
 
@@ -56,9 +87,9 @@ function OpportunityLabel({
         zIndexRange={[10, 20]}
         style={{
           ...labelWrapBase,
-          color,
-          fontSize: cell.featured ? 11 : 10,
-          fontWeight: cell.featured ? 600 : 500,
+          color: isFeatured ? "#73f36c" : "#f0f0f0",
+          fontSize: isFeatured ? 11 : 10,
+          fontWeight: isFeatured ? 600 : 500,
         }}
       >
         <span title={name}>{name}</span>
@@ -70,15 +101,29 @@ function OpportunityLabel({
 type OpportunityLabelsProps = {
   cells: TerrainCell[];
   waveRef: RefObject<TerrainWaveSnapshot>;
+  labelsMoveWithBelt: boolean;
+  useOffsetColors: boolean;
 };
 
-export function OpportunityLabels({ cells, waveRef }: OpportunityLabelsProps) {
+export function OpportunityLabels({
+  cells,
+  waveRef,
+  labelsMoveWithBelt,
+  useOffsetColors,
+}: OpportunityLabelsProps) {
   if (cells.length === 0) return null;
 
   return (
     <>
       {cells.map((cell) => (
-        <OpportunityLabel key={cell.id} cell={cell} waveRef={waveRef} />
+        <OpportunityLabel
+          key={cell.id}
+          cell={cell}
+          cells={cells}
+          waveRef={waveRef}
+          labelsMoveWithBelt={labelsMoveWithBelt}
+          useOffsetColors={useOffsetColors}
+        />
       ))}
     </>
   );
