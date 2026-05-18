@@ -6,6 +6,7 @@ import {
   smoothHeightField,
 } from "@/app/v2/lib/heightField";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
+import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
 
 export type TerrainGeometryOptions = {
   smoothPasses?: number;
@@ -62,8 +63,11 @@ function heightAt(
   rows: number,
   u: number,
   v: number,
+  toroidal: boolean,
 ): number {
-  return sampleHeightAt(field, cols, rows, u, v);
+  return toroidal
+    ? sampleFieldToroidal(field, cols, rows, u, v)
+    : sampleHeightAt(field, cols, rows, u, v);
 }
 
 function appendDrapedSegment(
@@ -77,6 +81,7 @@ function appendDrapedSegment(
   u1: number,
   v1: number,
   steps: number,
+  toroidal: boolean,
 ): void {
   for (let s = 0; s < steps; s++) {
     const t0 = s / steps;
@@ -88,8 +93,8 @@ function appendDrapedSegment(
 
     const p0 = gridToWorld(ua0, va0, cols, rows, cellPitch);
     const p1 = gridToWorld(ua1, va1, cols, rows, cellPitch);
-    const y0 = heightAt(field, cols, rows, ua0, va0);
-    const y1 = heightAt(field, cols, rows, ua1, va1);
+    const y0 = heightAt(field, cols, rows, ua0, va0, toroidal);
+    const y1 = heightAt(field, cols, rows, ua1, va1, toroidal);
 
     positions.push(p0.x, y0, p0.z, p1.x, y1, p1.z);
   }
@@ -119,6 +124,7 @@ export function buildTerrainWireframeGeometry(
       c,
       rows - 1,
       steps * Math.max(1, rows - 1),
+      false,
     );
   }
 
@@ -135,6 +141,7 @@ export function buildTerrainWireframeGeometry(
       cols - 1,
       r,
       steps * Math.max(1, cols - 1),
+      false,
     );
   }
 
@@ -144,6 +151,62 @@ export function buildTerrainWireframeGeometry(
     new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
   );
   return geom;
+}
+
+/** Rewrite line vertex Y in place (fixed XZ lattice). */
+export function updateTerrainWireframePositions(
+  geometry: THREE.BufferGeometry,
+  prepared: PreparedTerrain,
+  options: TerrainGeometryOptions = {},
+): void {
+  const { field, cols, rows, cellPitch } = prepared;
+  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const attr = geometry.getAttribute("position") as
+    | THREE.BufferAttribute
+    | undefined;
+  if (!attr) return;
+
+  const positions = attr.array as Float32Array;
+  let offset = 0;
+
+  const writeSegment = (
+    u0: number,
+    v0: number,
+    u1: number,
+    v1: number,
+    segmentSteps: number,
+  ) => {
+    for (let s = 0; s < segmentSteps; s++) {
+      const t0 = s / segmentSteps;
+      const t1 = (s + 1) / segmentSteps;
+      const ua0 = u0 + (u1 - u0) * t0;
+      const va0 = v0 + (v1 - v0) * t0;
+      const ua1 = u0 + (u1 - u0) * t1;
+      const va1 = v0 + (v1 - v0) * t1;
+
+      const p0 = gridToWorld(ua0, va0, cols, rows, cellPitch);
+      const p1 = gridToWorld(ua1, va1, cols, rows, cellPitch);
+      const y0 = heightAt(field, cols, rows, ua0, va0, false);
+      const y1 = heightAt(field, cols, rows, ua1, va1, false);
+
+      positions[offset++] = p0.x;
+      positions[offset++] = y0;
+      positions[offset++] = p0.z;
+      positions[offset++] = p1.x;
+      positions[offset++] = y1;
+      positions[offset++] = p1.z;
+    }
+  };
+
+  for (let c = 0; c < cols; c++) {
+    writeSegment(c, 0, c, rows - 1, steps * Math.max(1, rows - 1));
+  }
+  for (let r = 0; r < rows; r++) {
+    writeSegment(0, r, cols - 1, r, steps * Math.max(1, cols - 1));
+  }
+
+  attr.needsUpdate = true;
+  geometry.computeBoundingSphere();
 }
 
 /** Flat reference grid under the terrain (vaporwave horizon). */

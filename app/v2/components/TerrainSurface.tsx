@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import {
+  buildBaseSmoothedField,
+  prepareAnimatedTerrain,
+} from "@/app/v2/lib/animatedField";
+import type { GridLayout } from "@/app/v2/lib/gridLayout";
 import {
   buildHorizonGridGeometry,
   buildTerrainWireframeGeometry,
-  prepareTerrain,
+  updateTerrainWireframePositions,
 } from "@/app/v2/lib/terrainGeometry";
-import type { GridLayout } from "@/app/v2/lib/gridLayout";
+import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { OpportunityMarkers } from "@/app/v2/components/OpportunityMarkers";
 
 type TerrainSurfaceProps = {
@@ -15,12 +21,15 @@ type TerrainSurfaceProps = {
 };
 
 export function TerrainSurface({ layout }: TerrainSurfaceProps) {
-  const prepared = useMemo(() => prepareTerrain(layout), [layout]);
+  const baseField = useMemo(() => buildBaseSmoothedField(layout), [layout]);
+  const waveRef = useRef<TerrainWaveSnapshot>({ prepared: null, elapsed: 0 });
 
-  const terrainLines = useMemo(
-    () => (prepared ? buildTerrainWireframeGeometry(prepared) : null),
-    [prepared],
-  );
+  const terrainLines = useMemo(() => {
+    const prepared = prepareAnimatedTerrain(layout, 0, baseField);
+    if (!prepared) return null;
+    waveRef.current = { prepared, elapsed: 0 };
+    return buildTerrainWireframeGeometry(prepared);
+  }, [layout, baseField]);
 
   const horizonLines = useMemo(
     () => buildHorizonGridGeometry(layout, 0),
@@ -57,6 +66,21 @@ export function TerrainSurface({ layout }: TerrainSurfaceProps) {
     [],
   );
 
+  useLayoutEffect(() => {
+    const prepared = prepareAnimatedTerrain(layout, 0, baseField);
+    if (!prepared || !terrainLines) return;
+    updateTerrainWireframePositions(terrainLines, prepared);
+    waveRef.current = { prepared, elapsed: 0 };
+  }, [layout, baseField, terrainLines]);
+
+  useFrame((state) => {
+    const elapsed = state.clock.elapsedTime;
+    const prepared = prepareAnimatedTerrain(layout, elapsed, baseField);
+    if (!prepared || !terrainLines) return;
+    updateTerrainWireframePositions(terrainLines, prepared);
+    waveRef.current = { prepared, elapsed };
+  });
+
   useEffect(() => {
     return () => {
       terrainLines?.dispose();
@@ -67,16 +91,30 @@ export function TerrainSurface({ layout }: TerrainSurfaceProps) {
     };
   }, [terrainLines, horizonLines, terrainMat, terrainGlowMat, horizonMat]);
 
-  if (!prepared || !terrainLines) return null;
+  if (!terrainLines) return null;
 
   return (
     <group>
       {horizonLines ? (
-        <lineSegments geometry={horizonLines} material={horizonMat} />
+        <lineSegments
+          geometry={horizonLines}
+          material={horizonMat}
+          frustumCulled={false}
+        />
       ) : null}
-      <lineSegments geometry={terrainLines} material={terrainGlowMat} />
-      <lineSegments geometry={terrainLines} material={terrainMat} />
-      <OpportunityMarkers layout={layout} prepared={prepared} />
+      <lineSegments
+        geometry={terrainLines}
+        material={terrainGlowMat}
+        frustumCulled={false}
+        dispose={null}
+      />
+      <lineSegments
+        geometry={terrainLines}
+        material={terrainMat}
+        frustumCulled={false}
+        dispose={null}
+      />
+      <OpportunityMarkers layout={layout} waveRef={waveRef} />
     </group>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -9,21 +10,20 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
-import { sampleHeightAt } from "@/app/v2/lib/heightField";
-import type { PreparedTerrain } from "@/app/v2/lib/terrainGeometry";
 import type { GridLayout, TerrainCell } from "@/app/v2/lib/gridLayout";
+import { getSphereMarkerPose } from "@/app/v2/lib/markerPosition";
+import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { FeaturedFlagMarkers } from "@/app/v2/components/FeaturedFlagMarkers";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
 const RADIUS_RATIO = 0.07;
-const SURFACE_PAD = 1.04;
 
 const COLOR_REST = 0xffffff;
 const COLOR_FEATURED = 0x73f36c;
 
 type OpportunityMarkersProps = {
   layout: GridLayout;
-  prepared: PreparedTerrain;
+  waveRef: RefObject<TerrainWaveSnapshot>;
 };
 
 function splitByFeatured(cells: TerrainCell[]) {
@@ -38,20 +38,18 @@ function splitByFeatured(cells: TerrainCell[]) {
 function MarkerSpheres({
   cells,
   color,
-  prepared,
   cellPitch,
   meshRef,
+  waveRef,
   centerOnTerrain = false,
 }: {
   cells: TerrainCell[];
   color: number;
-  prepared: PreparedTerrain;
   cellPitch: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
-  /** Featured: sphere center on terrain Y; others float slightly above. */
+  waveRef: RefObject<TerrainWaveSnapshot>;
   centerOnTerrain?: boolean;
 }) {
-  const { field, cols, rows } = prepared;
   const count = cells.length;
 
   const material = useMemo(
@@ -59,17 +57,22 @@ function MarkerSpheres({
     [color],
   );
 
-  useLayoutEffect(() => {
+  const write = useCallback(() => {
     const mesh = meshRef.current;
-    if (!mesh || count === 0) return;
+    const { prepared, elapsed } = waveRef.current;
+    if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
     const radius = cellPitch * RADIUS_RATIO;
 
     cells.forEach((cell, i) => {
-      const terrainY = sampleHeightAt(field, cols, rows, cell.col, cell.row);
-      const y = centerOnTerrain ? terrainY : terrainY + radius * SURFACE_PAD;
-      dummy.position.set(cell.x, y, cell.z);
+      const { x, y, z } = getSphereMarkerPose(
+        cell,
+        prepared,
+        elapsed,
+        centerOnTerrain,
+      );
+      dummy.position.set(x, y, z);
       dummy.scale.setScalar(radius);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -77,7 +80,15 @@ function MarkerSpheres({
 
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
-  }, [cells, cellPitch, centerOnTerrain, count, field, cols, rows, meshRef]);
+  }, [cells, cellPitch, centerOnTerrain, count, meshRef, waveRef]);
+
+  useLayoutEffect(() => {
+    write();
+  }, [write]);
+
+  useFrame(() => {
+    write();
+  });
 
   useEffect(() => () => material.dispose(), [material]);
 
@@ -188,7 +199,7 @@ function MarkerHover({
   return null;
 }
 
-export function OpportunityMarkers({ layout, prepared }: OpportunityMarkersProps) {
+export function OpportunityMarkers({ layout, waveRef }: OpportunityMarkersProps) {
   const { cells, cellPitch } = layout;
   const { featured, rest } = useMemo(() => splitByFeatured(cells), [cells]);
   const restMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -203,24 +214,24 @@ export function OpportunityMarkers({ layout, prepared }: OpportunityMarkersProps
       <MarkerSpheres
         cells={rest}
         color={COLOR_REST}
-        prepared={prepared}
         cellPitch={cellPitch}
         meshRef={restMeshRef}
+        waveRef={waveRef}
       />
       <MarkerSpheres
         cells={featured}
         color={COLOR_FEATURED}
-        prepared={prepared}
         cellPitch={cellPitch}
         meshRef={featuredMeshRef}
+        waveRef={waveRef}
         centerOnTerrain
       />
       <FeaturedFlagMarkers
         featured={featured}
-        prepared={prepared}
         cellPitch={cellPitch}
         stickRef={stickRef}
         topRef={topRef}
+        waveRef={waveRef}
       />
       <MarkerHover
         restMeshRef={restMeshRef}
