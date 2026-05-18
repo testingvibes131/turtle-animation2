@@ -2,9 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useLayoutEffect, useState } from "react";
-import { CoordinatedCapitalStats } from "./CoordinatedCapitalStats";
 import { HeroSection } from "./HeroSection";
-import { HomeStatsStrip } from "./HomeStatsStrip";
 import { SiteHeader } from "./SiteHeader";
 
 const OpportunitiesField = dynamic(() => import("./OpportunitiesField"), {
@@ -29,8 +27,6 @@ export function HomeClient() {
       <OpportunitiesField />
       <HeroSection />
       <SiteHeader />
-      {/* <HomeStatsStrip /> */}
-      {/* <CoordinatedCapitalStats /> */}
     </main>
   );
 }

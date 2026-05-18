@@ -2,7 +2,17 @@ import {
   isDustTvl,
   type OpportunityRow,
 } from "@/app/lib/opportunitiesCsv";
-import type { PackedMarker } from "@/app/lib/opportunityCirclePack";
+
+export type OpportunityMarker = {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  size: number;
+  dust: boolean;
+  featured: boolean;
+  estAprPercent: number;
+};
 
 /** Matches instanced mesh scale in scene (same as circle pack). */
 const RADIUS_SCALE = 0.34;
@@ -125,7 +135,7 @@ function smoothAprOnSlotGrid(
   return grid;
 }
 
-export type GridTopographyMarker = PackedMarker & {
+export type GridTopographyMarker = OpportunityMarker & {
   /** Sphere center Y (APR elevation above the ground plane). */
   y: number;
   /** Curator grouping for hover links (trimmed CSV `curator`). */

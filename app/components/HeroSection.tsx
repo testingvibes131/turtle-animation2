@@ -34,13 +34,13 @@ export function HeroSection() {
           className={`${dmSans.className} flex h-10 w-full max-w-[441px] gap-2.5`}
         >
           <Link
-            href="/deals"
+            href="https://app.turtle.xyz"
             className="flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-[1000px] border border-[rgba(249,249,249,0.1)] px-2 text-center text-xs leading-5 font-medium text-[#f9f9f9] bg-[#1E1E1E] transition-colors hover:bg-[rgba(249,249,249,0.06)]"
           >
             Explore Deals
           </Link>
           <Link
-            href="/launch"
+            href="https://turtle.xyz"
             className="flex min-h-10 min-w-0 flex-1 items-center justify-center rounded-[1000px] bg-[#343434] px-2 text-center text-xs leading-5 font-medium text-[#73f36c] transition-colors hover:bg-[#444444]"
           >
             Launch with Turtle

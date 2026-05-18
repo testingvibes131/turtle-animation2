@@ -3,11 +3,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { button, useControls } from "leva";
-import {
-  useLayoutEffect,
-  useRef,
-  type MutableRefObject,
-} from "react";
+import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
@@ -20,15 +16,7 @@ export const DEFAULT_OPPORTUNITY_FOV = 50;
 export const DEFAULT_CAMERA_POSITION = [0, 35, 106] as const;
 export const DEFAULT_CAMERA_TARGET = [0, 20.801777, -24.00205] as const;
 
-export function OpportunityDebugControls({
-  extent,
-  featuresEnabled,
-  featuresBlendRef,
-}: {
-  extent: number;
-  featuresEnabled: boolean;
-  featuresBlendRef: MutableRefObject<number>;
-}) {
+export function OpportunityDebugControls({ extent }: { extent: number }) {
   const ref = useRef<OrbitControlsType>(null);
   const { camera, size } = useThree();
 
@@ -89,9 +77,6 @@ export function OpportunityDebugControls({
   });
   camRef.current = { manual: manualCamera, x: camX, y: camY, z: camZ };
 
-  const featuresTargetRef = useRef(featuresEnabled ? 1 : 0);
-  featuresTargetRef.current = featuresEnabled ? 1 : 0;
-
   const targetVec = useRef(new THREE.Vector3(tx, ty, tz));
 
   useLayoutEffect(() => {
@@ -117,16 +102,10 @@ export function OpportunityDebugControls({
     }
   }, [camera, size.height, size.width, manualCamera, cx, cy, cz, tx, ty, tz]);
 
-  useFrame((_, dt) => {
+  useFrame(() => {
     const p = camRef.current;
     const cam = camera;
     const oc = ref.current;
-
-    const tgt = featuresTargetRef.current;
-    let blend = featuresBlendRef.current;
-    const k = Math.min(1, dt * 2.65);
-    blend += (tgt - blend) * k;
-    featuresBlendRef.current = blend;
 
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.fov = DEFAULT_OPPORTUNITY_FOV;

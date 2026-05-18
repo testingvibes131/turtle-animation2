@@ -8,18 +8,16 @@ import {
   useCallback,
   useState,
   type CSSProperties,
-  type MutableRefObject,
 } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { DM_Sans, Montserrat } from "next/font/google";
-import { OpportunityDebugControls } from "@/app/components/OpportunityDebugControls";
 import { OpportunityGridHoverScreenLabel } from "@/app/components/OpportunityGridHoverScreenLabel";
 import {
   computeFeaturedAprRange,
   featuredGridAprLiftY,
-} from "@/app/lib/featuredSceneOffset";
+} from "@/app/lib/featuredAprGrid";
 import type {
   GridTopographyMarker,
   OpportunitiesGridTopographyLayout,
@@ -544,13 +542,9 @@ function buildFlatFloorGridGeometry(
 
 export function OpportunityGridTopographyLand({
   layout,
-  featuresEnabled,
-  featuresBlendRef,
   hoverPortalEl,
 }: {
   layout: OpportunitiesGridTopographyLayout;
-  featuresEnabled: boolean;
-  featuresBlendRef: MutableRefObject<number>;
   hoverPortalEl: HTMLDivElement | null;
 }) {
   const { markers, extent, planeHalfWidth, planeHalfDepth, cellPitch, cols, gridRows } =
@@ -757,11 +751,6 @@ export function OpportunityGridTopographyLand({
 
   return (
     <>
-      <OpportunityDebugControls
-        extent={extent}
-        featuresEnabled={featuresEnabled}
-        featuresBlendRef={featuresBlendRef}
-      />
       <ambientLight intensity={1} />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
