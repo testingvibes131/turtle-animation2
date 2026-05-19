@@ -151,7 +151,41 @@ export function buildTerrainWireframeGeometry(
     new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
   );
   computeTerrainLineDistancesXZ(geom);
+  computeTerrainWireframeVertexColors(geom, prepared);
   return geom;
+}
+
+/** Fade grid lines toward the layout perimeter (Chebyshev distance in XZ). */
+export function computeTerrainWireframeVertexColors(
+  geometry: THREE.BufferGeometry,
+  prepared: PreparedTerrain,
+): void {
+  const pos = geometry.getAttribute("position");
+  if (!pos) return;
+
+  const { cols, rows, cellPitch } = prepared;
+  const halfX = Math.max(((cols - 1) * cellPitch) * 0.5, 1e-6);
+  const halfZ = Math.max(((rows - 1) * cellPitch) * 0.5, 1e-6);
+  const fadeStart = 0.48;
+  const fadeEnd = 1.02;
+
+  const colors = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const t = Math.max(Math.abs(x) / halfX, Math.abs(z) / halfZ);
+    let fade = 1;
+    if (t > fadeStart) {
+      const u = Math.min(1, (t - fadeStart) / (fadeEnd - fadeStart));
+      const smooth = u * u * (3 - 2 * u);
+      fade = 1 - smooth;
+    }
+    colors[i * 3] = fade;
+    colors[i * 3 + 1] = fade;
+    colors[i * 3 + 2] = fade;
+  }
+
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 }
 
 /**

@@ -11,7 +11,7 @@ import {
 import { getAprRange } from "@/app/v2/lib/apr";
 import { layoutOpportunitiesOnGrid } from "@/app/v2/lib/gridLayout";
 import { TerrainSurface } from "@/app/v2/components/TerrainSurface";
-import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
+import type { MarkerMotionMode } from "@/app/lib/markerMode";
 
 const CSV_PATH = "/data/turtle-opportunities.csv";
 const FOG_COLOR = "#0a0a0a";
@@ -23,9 +23,11 @@ function fogRangeForExtent(extent: number): [number, number] {
 function SceneContent({
   markerMotion,
   showDebugZone,
+  orbitEnabled,
 }: {
   markerMotion: MarkerMotionMode;
   showDebugZone: boolean;
+  orbitEnabled: boolean;
 }) {
   const { width, height } = useThree((s) => s.size);
   const [rows, setRows] = useState<ReturnType<typeof parseOpportunityRows> | null>(
@@ -66,7 +68,7 @@ function SceneContent({
       <color attach="background" args={[FOG_COLOR]} />
       <fog attach="fog" args={[FOG_COLOR, ...fogRangeForExtent(layout.extent)]} />
       <ambientLight intensity={1} />
-      <OpportunityCameraRig extent={layout.extent} />
+      <OpportunityCameraRig extent={layout.extent} orbitEnabled={orbitEnabled} />
       <TerrainSurface
         layout={layout}
         markerMotion={markerMotion}
@@ -79,9 +81,14 @@ function SceneContent({
 type TerrainSceneProps = {
   markerMotion: MarkerMotionMode;
   showDebugZone: boolean;
+  orbitEnabled?: boolean;
 };
 
-export function TerrainScene({ markerMotion, showDebugZone }: TerrainSceneProps) {
+export function TerrainScene({
+  markerMotion,
+  showDebugZone,
+  orbitEnabled = true,
+}: TerrainSceneProps) {
   return (
     <Canvas
       className="h-full w-full touch-none"
@@ -102,6 +109,7 @@ export function TerrainScene({ markerMotion, showDebugZone }: TerrainSceneProps)
       <SceneContent
         markerMotion={markerMotion}
         showDebugZone={showDebugZone}
+        orbitEnabled={orbitEnabled}
       />
     </Canvas>
   );

@@ -8,10 +8,11 @@ import {
   prepareAnimatedTerrain,
 } from "@/app/v2/lib/animatedField";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
-import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
+import type { MarkerMotionMode } from "@/app/lib/markerMode";
 import {
   buildTerrainWireframeGeometry,
   computeTerrainLineDistancesXZ,
+  computeTerrainWireframeVertexColors,
   updateTerrainWireframePositions,
 } from "@/app/v2/lib/terrainGeometry";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
@@ -47,11 +48,12 @@ export function TerrainSurface({
     () =>
       new THREE.LineDashedMaterial({
         color: 0xffffff,
+        vertexColors: true,
         transparent: true,
         opacity: 0.58,
         depthWrite: false,
         dashSize: Math.max(0.04, cellPitch * 0.14),
-        gapSize: Math.max(0.028, cellPitch * 0.09),
+        gapSize: Math.max(0.038, cellPitch * 0.13),
       }),
     [cellPitch],
   );
@@ -60,11 +62,12 @@ export function TerrainSurface({
     () =>
       new THREE.LineDashedMaterial({
         color: 0xffffff,
+        vertexColors: true,
         transparent: true,
         opacity: 0.16,
         depthWrite: false,
         dashSize: Math.max(0.05, cellPitch * 0.18),
-        gapSize: Math.max(0.032, cellPitch * 0.11),
+        gapSize: Math.max(0.044, cellPitch * 0.15),
       }),
     [cellPitch],
   );
@@ -74,6 +77,7 @@ export function TerrainSurface({
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared);
     computeTerrainLineDistancesXZ(terrainLines);
+    computeTerrainWireframeVertexColors(terrainLines, prepared);
     waveRef.current = { prepared, elapsed: 0 };
   }, [layout, baseField, terrainLines]);
 
@@ -82,6 +86,7 @@ export function TerrainSurface({
     const prepared = prepareAnimatedTerrain(layout, elapsed, baseField);
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared);
+    computeTerrainWireframeVertexColors(terrainLines, prepared);
     waveRef.current = { prepared, elapsed };
   });
 

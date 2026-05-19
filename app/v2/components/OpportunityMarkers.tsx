@@ -16,7 +16,7 @@ import {
   markersMoveWithBelt,
   usesScrolledDnaAtCrossing,
   type MarkerMotionMode,
-} from "@/app/v2/lib/markerMode";
+} from "@/app/lib/markerMode";
 import {
   getScrolledDnaSpherePose,
   getSphereMarkerPose,

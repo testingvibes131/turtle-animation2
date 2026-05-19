@@ -15,13 +15,14 @@ import {
 
 type OpportunityCameraRigProps = {
   extent: number;
+  orbitEnabled?: boolean;
   orbitZoom?: number;
   controlsRef?: RefObject<OrbitControlsType | null>;
 };
 
-/** Shared main-route camera + orbit target (rotation disabled, fixed POV). */
 export function OpportunityCameraRig({
   extent,
+  orbitEnabled = true,
   orbitZoom = DEFAULT_ORBIT_ZOOM,
   controlsRef: controlsRefProp,
 }: OpportunityCameraRigProps) {
@@ -37,7 +38,9 @@ export function OpportunityCameraRig({
 
   useLayoutEffect(() => {
     const [tx, ty, tz] = pose.target;
+    const [cx, cy, cz] = pose.position;
     targetVec.current.set(tx, ty, tz);
+
     const cam = camera;
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.clearViewOffset();
@@ -46,13 +49,23 @@ export function OpportunityCameraRig({
     cam.up.set(0, 1, 0);
     cam.near = 0.1;
     cam.far = getOpportunityCameraFar(pose.position, pose.target);
+
+    if (!orbitEnabled) {
+      cam.position.set(cx, cy, cz);
+      cam.lookAt(targetVec.current);
+    } else {
+      cam.position.set(cx, cy, cz);
+      controlsRef.current?.target.copy(targetVec.current);
+    }
+
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.updateProjectionMatrix();
     }
-    controlsRef.current?.target.copy(targetVec.current);
-  }, [camera, pose, size.height, size.width]);
+  }, [camera, orbitEnabled, pose, size.height, size.width]);
 
   useFrame(() => {
+    if (orbitEnabled) return;
+
     const [cx, cy, cz] = pose.position;
     const cam = camera;
     if (cam instanceof THREE.PerspectiveCamera) {
@@ -73,10 +86,10 @@ export function OpportunityCameraRig({
     <OrbitControls
       ref={controlsRef}
       makeDefault
-      enabled={false}
+      enabled={orbitEnabled}
       enableDamping
       dampingFactor={0.06}
-      enableRotate={false}
+      enableRotate={orbitEnabled}
       minDistance={minDistance}
       maxDistance={maxDistance}
     />
