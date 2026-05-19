@@ -326,6 +326,150 @@ export function updateTerrainWireframePositions(
   geometry.computeBoundingSphere();
 }
 
+function floorLatticeSize(
+  cols: number,
+  rows: number,
+  steps: number,
+): { uVerts: number; vVerts: number } {
+  const uVerts = cols > 1 ? (cols - 1) * steps + 1 : 1;
+  const vVerts = rows > 1 ? (rows - 1) * steps + 1 : 1;
+  return { uVerts, vVerts };
+}
+
+function floorVertexIndex(i: number, j: number, uVerts: number): number {
+  return j * uVerts + i;
+}
+
+function writeFloorVertex(
+  positions: Float32Array,
+  index: number,
+  field: number[][],
+  cols: number,
+  rows: number,
+  cellPitch: number,
+  u: number,
+  v: number,
+): void {
+  const { x, z } = gridToWorld(u, v, cols, rows, cellPitch);
+  const y = heightAt(field, cols, rows, u, v, false);
+  const o = index * 3;
+  positions[o] = x;
+  positions[o + 1] = y;
+  positions[o + 2] = z;
+}
+
+/** Solid surface on the APR lattice (same displacement as the wireframe). */
+export function buildTerrainFloorGeometry(
+  prepared: PreparedTerrain,
+  options: TerrainGeometryOptions = {},
+): THREE.BufferGeometry {
+  const { field, cols, rows, cellPitch } = prepared;
+  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const { uVerts, vVerts } = floorLatticeSize(cols, rows, steps);
+  const positions = new Float32Array(uVerts * vVerts * 3);
+  const indices: number[] = [];
+
+  for (let j = 0; j < vVerts; j++) {
+    for (let i = 0; i < uVerts; i++) {
+      const u = cols > 1 ? i / steps : 0;
+      const v = rows > 1 ? j / steps : 0;
+      writeFloorVertex(
+        positions,
+        floorVertexIndex(i, j, uVerts),
+        field,
+        cols,
+        rows,
+        cellPitch,
+        u,
+        v,
+      );
+    }
+  }
+
+  for (let j = 0; j < vVerts - 1; j++) {
+    for (let i = 0; i < uVerts - 1; i++) {
+      const a = floorVertexIndex(i, j, uVerts);
+      const b = floorVertexIndex(i + 1, j, uVerts);
+      const c = floorVertexIndex(i, j + 1, uVerts);
+      const d = floorVertexIndex(i + 1, j + 1, uVerts);
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  computeTerrainFloorVertexColors(geom);
+  return geom;
+}
+
+/** Height relief: black in valleys → dark gray on peaks. */
+const FLOOR_COLOR_LO = 0;
+const FLOOR_COLOR_HI = 0.03;
+
+export function computeTerrainFloorVertexColors(
+  geometry: THREE.BufferGeometry,
+): void {
+  const pos = geometry.getAttribute("position");
+  if (!pos) return;
+
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const span = Math.max(maxY - minY, 1e-6);
+
+  const colors = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const t = (pos.getY(i) - minY) / span;
+    const c = FLOOR_COLOR_LO + t * (FLOOR_COLOR_HI - FLOOR_COLOR_LO);
+    colors[i * 3] = c;
+    colors[i * 3 + 1] = c;
+    colors[i * 3 + 2] = c;
+  }
+
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+}
+
+/** Rewrite floor vertex Y in place (fixed XZ lattice). */
+export function updateTerrainFloorPositions(
+  geometry: THREE.BufferGeometry,
+  prepared: PreparedTerrain,
+  options: TerrainGeometryOptions = {},
+): void {
+  const { field, cols, rows, cellPitch } = prepared;
+  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const { uVerts, vVerts } = floorLatticeSize(cols, rows, steps);
+  const attr = geometry.getAttribute("position") as
+    | THREE.BufferAttribute
+    | undefined;
+  if (!attr || attr.count !== uVerts * vVerts) return;
+
+  const positions = attr.array as Float32Array;
+  for (let j = 0; j < vVerts; j++) {
+    for (let i = 0; i < uVerts; i++) {
+      const u = cols > 1 ? i / steps : 0;
+      const v = rows > 1 ? j / steps : 0;
+      const idx = floorVertexIndex(i, j, uVerts);
+      const { x, z } = gridToWorld(u, v, cols, rows, cellPitch);
+      const y = heightAt(field, cols, rows, u, v, false);
+      const o = idx * 3;
+      positions[o] = x;
+      positions[o + 1] = y;
+      positions[o + 2] = z;
+    }
+  }
+
+  attr.needsUpdate = true;
+  geometry.computeVertexNormals();
+  computeTerrainFloorVertexColors(geometry);
+  geometry.computeBoundingSphere();
+}
+
 /** Flat reference grid under the terrain (vaporwave horizon). */
 export function buildHorizonGridGeometry(
   layout: GridLayout,

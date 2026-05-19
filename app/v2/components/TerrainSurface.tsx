@@ -13,9 +13,11 @@ import {
   type MarkerMotionMode,
 } from "@/app/lib/markerMode";
 import {
+  buildTerrainFloorGeometry,
   buildTerrainWireframeGeometry,
   computeTerrainLineDistancesXZ,
   computeTerrainWireframeVertexColors,
+  updateTerrainFloorPositions,
   updateTerrainWireframePositions,
 } from "@/app/v2/lib/terrainGeometry";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
@@ -56,7 +58,23 @@ export function TerrainSurface({
     return buildTerrainWireframeGeometry(prepared, wireframeOptions);
   }, [layout, baseField, wireframeOptions]);
 
+  const terrainFloor = useMemo(() => {
+    const prepared = prepareAnimatedTerrain(layout, 0, baseField);
+    if (!prepared) return null;
+    return buildTerrainFloorGeometry(prepared, wireframeOptions);
+  }, [layout, baseField, wireframeOptions]);
+
   const { cellPitch } = layout;
+
+  const floorMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        vertexColors: true,
+        side: THREE.DoubleSide,
+      }),
+    [],
+  );
 
   const terrainMat = useMemo(
     () =>
@@ -122,8 +140,11 @@ export function TerrainSurface({
       visualsRef.current,
       debugZone,
     );
+    if (terrainFloor) {
+      updateTerrainFloorPositions(terrainFloor, prepared, wireframeOptions);
+    }
     waveRef.current = { prepared, elapsed: 0 };
-  }, [layout, baseField, terrainLines, wireframeOptions, debugZone]);
+  }, [layout, baseField, terrainLines, terrainFloor, wireframeOptions, debugZone]);
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
@@ -136,21 +157,34 @@ export function TerrainSurface({
       visualsRef.current,
       debugZone,
     );
+    if (terrainFloor) {
+      updateTerrainFloorPositions(terrainFloor, prepared, wireframeOptions);
+    }
     waveRef.current = { prepared, elapsed };
   });
 
   useEffect(() => {
     return () => {
       terrainLines?.dispose();
+      terrainFloor?.dispose();
       terrainMat.dispose();
       terrainGlowMat.dispose();
+      floorMat.dispose();
     };
-  }, [terrainLines, terrainMat, terrainGlowMat]);
+  }, [terrainLines, terrainFloor, terrainMat, terrainGlowMat, floorMat]);
 
   if (!terrainLines) return null;
 
   return (
     <group>
+      {terrainFloor ? (
+        <mesh
+          geometry={terrainFloor}
+          material={floorMat}
+          frustumCulled={false}
+          renderOrder={0}
+        />
+      ) : null}
       {/* <lineSegments
         geometry={terrainLines}
         material={terrainGlowMat}
