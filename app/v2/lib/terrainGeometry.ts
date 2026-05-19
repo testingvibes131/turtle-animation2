@@ -5,6 +5,11 @@ import {
   sampleHeightAt,
   smoothHeightField,
 } from "@/app/v2/lib/heightField";
+import type { DebugZone } from "@/app/v2/lib/debugZone";
+import {
+  buildDebugZoneWithExtent,
+  gridVertexFadeInDebugZone,
+} from "@/app/v2/lib/debugZone";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
 import {
   DEFAULT_TERRAIN_VISUALS,
@@ -190,15 +195,20 @@ export function buildTerrainWireframeGeometry(
     new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
   );
   computeTerrainLineDistancesXZ(geom);
-  computeTerrainWireframeVertexColors(geom, prepared);
+  const halfW = prepared.cols * prepared.cellPitch * 0.5;
+  const halfD = prepared.rows * prepared.cellPitch * 0.5;
+  const extent = Math.max(halfW, halfD, 4) + prepared.maxH * 0.15;
+  const zone = buildDebugZoneWithExtent(extent);
+  computeTerrainWireframeVertexColors(geom, prepared, DEFAULT_TERRAIN_VISUALS, zone);
   return geom;
 }
 
-/** Fade grid lines toward the layout perimeter (Chebyshev distance in XZ). */
+/** Fade grid lines toward the layout perimeter and outside the debug zone circle. */
 export function computeTerrainWireframeVertexColors(
   geometry: THREE.BufferGeometry,
   prepared: PreparedTerrain,
   fade: Pick<TerrainVisualParams, "gridFadeStart" | "gridFadeEnd"> = DEFAULT_TERRAIN_VISUALS,
+  zone?: DebugZone,
 ): void {
   const pos = geometry.getAttribute("position");
   if (!pos) return;
@@ -213,15 +223,18 @@ export function computeTerrainWireframeVertexColors(
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const t = Math.max(Math.abs(x) / halfX, Math.abs(z) / halfZ);
-    let fade = 1;
+    let opacity = 1;
     if (t > fadeStart) {
       const u = Math.min(1, (t - fadeStart) / (fadeEnd - fadeStart));
       const smooth = u * u * (3 - 2 * u);
-      fade = 1 - smooth;
+      opacity = 1 - smooth;
     }
-    colors[i * 3] = fade;
-    colors[i * 3 + 1] = fade;
-    colors[i * 3 + 2] = fade;
+    if (zone) {
+      opacity *= gridVertexFadeInDebugZone(x, z, zone);
+    }
+    colors[i * 3] = opacity;
+    colors[i * 3 + 1] = opacity;
+    colors[i * 3 + 2] = opacity;
   }
 
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));

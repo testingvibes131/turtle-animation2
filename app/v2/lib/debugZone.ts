@@ -15,11 +15,37 @@ export const NO_ZONE_MODIFIER: DebugZone = {
 };
 
 export function buildDebugZone(layout: GridLayout): DebugZone {
+  return buildDebugZoneWithExtent(layout.extent);
+}
+
+export function buildDebugZoneWithExtent(extent: number): DebugZone {
   return {
     centerX: 0,
     centerZ: 0,
-    radius: layout.extent * 0.38 * 0.8,
+    radius: extent * 0.38 * 0.8,
   };
+}
+
+/** Grid line vertex opacity outside the zone (after falloff). */
+export const GRID_ZONE_FADE_MIN = 0.06;
+
+/** Grid fade completes at `radius ×` this. */
+export const GRID_ZONE_FADE_OUTER_MUL = 1.12;
+
+/** 1 inside the debug circle; smooth ramp to GRID_ZONE_FADE_MIN outside. */
+export function gridVertexFadeInDebugZone(
+  x: number,
+  z: number,
+  zone: DebugZone,
+): number {
+  const dist = Math.hypot(x - zone.centerX, z - zone.centerZ);
+  if (dist <= zone.radius) return 1;
+
+  const outer = zone.radius * GRID_ZONE_FADE_OUTER_MUL;
+  const span = Math.max(outer - zone.radius, 1e-6);
+  const t = Math.min(1, (dist - zone.radius) / span);
+  const smooth = t * t * (3 - 2 * t);
+  return 1 - smooth * (1 - GRID_ZONE_FADE_MIN);
 }
 
 export function isInsideDebugZone(

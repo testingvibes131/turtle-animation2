@@ -116,16 +116,26 @@ export function TerrainSurface({
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared, wireframeOptions);
     computeTerrainLineDistancesXZ(terrainLines);
-    computeTerrainWireframeVertexColors(terrainLines, prepared, visualsRef.current);
+    computeTerrainWireframeVertexColors(
+      terrainLines,
+      prepared,
+      visualsRef.current,
+      debugZone,
+    );
     waveRef.current = { prepared, elapsed: 0 };
-  }, [layout, baseField, terrainLines, wireframeOptions]);
+  }, [layout, baseField, terrainLines, wireframeOptions, debugZone]);
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
     const prepared = prepareAnimatedTerrain(layout, elapsed, baseField);
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared, wireframeOptions);
-    computeTerrainWireframeVertexColors(terrainLines, prepared, visualsRef.current);
+    computeTerrainWireframeVertexColors(
+      terrainLines,
+      prepared,
+      visualsRef.current,
+      debugZone,
+    );
     waveRef.current = { prepared, elapsed };
   });
 

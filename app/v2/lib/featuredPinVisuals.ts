@@ -13,6 +13,9 @@ export const FEATURED_PIN_Y_OFFSET = 0.075;
 const LABEL_GAP_RATIO = 0.06;
 const _cameraRight = new THREE.Vector3();
 
+/** Hide opportunity name in pin labels; name copy still resolves for held/swap logic. */
+export const FEATURED_PIN_SHOW_NAME_LABEL = false;
+
 /** Same visibility gate as featured flag sticks (smoothed DNA blend). */
 export function isPinVisibleFromBlend(blend: number): boolean {
   return blend > FLAG_BLEND_SHOW_THRESHOLD;

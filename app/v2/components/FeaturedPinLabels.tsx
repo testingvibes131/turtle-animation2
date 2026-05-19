@@ -16,6 +16,8 @@ import { isInsideDebugZone, type DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import {
   cellToLabelContent,
+  FEATURED_PIN_SHOW_NAME_LABEL,
+  FEATURED_PIN_Y_OFFSET,
   featuredFlagDisplayCell,
   featuredLabelOpacity,
   getFeaturedPinLabelPosition,
@@ -29,6 +31,10 @@ import {
 } from "@/app/v2/lib/scrolledCell";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
+import {
+  markerDepthOpacity,
+  type MarkerDepthFadeRange,
+} from "@/app/v2/lib/markerDepthFade";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 
 const LABEL_MAX_WIDTH = "70px";
@@ -59,13 +65,14 @@ const nameStyle: CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   maxWidth: LABEL_MAX_WIDTH,
+  display: FEATURED_PIN_SHOW_NAME_LABEL ? undefined : "none",
 };
 
 const aprStyle: CSSProperties = {
   fontSize: 6,
   fontWeight: 500,
   opacity: 0.92,
-  marginTop: 1,
+  marginTop: FEATURED_PIN_SHOW_NAME_LABEL ? 1 : 0,
 };
 
 type SlotState = {
@@ -226,6 +233,7 @@ type FeaturedPinLabelsProps = {
   markersMoveWithBelt: boolean;
   debugZone: DebugZone;
   sphereRadiusRatio: number;
+  depthFadeRange: MarkerDepthFadeRange;
   dnaLookup?: (TerrainCell | undefined)[][];
   dnaBlendsRef?: RefObject<Float32Array>;
 };
@@ -237,6 +245,7 @@ export function FeaturedPinLabels({
   markersMoveWithBelt,
   debugZone,
   sphereRadiusRatio,
+  depthFadeRange,
   dnaLookup,
   dnaBlendsRef,
 }: FeaturedPinLabelsProps) {
@@ -351,22 +360,6 @@ export function FeaturedPinLabels({
           continue;
         }
 
-        if (
-          Math.abs(slot.opacity - slot.lastOpacityWrite) > OPACITY_WRITE_EPSILON
-        ) {
-          dom.fade.style.opacity = String(slot.opacity);
-          slot.lastOpacityWrite = slot.opacity;
-        }
-
-        const { name, aprLine } = slot.text;
-        if (dom.name.textContent !== name) {
-          dom.name.textContent = name;
-          dom.name.title = name;
-        }
-        if (dom.apr.textContent !== aprLine) {
-          dom.apr.textContent = aprLine;
-        }
-
         const flag = getFeaturedFlagPose(
           cell,
           prepared,
@@ -383,6 +376,31 @@ export function FeaturedPinLabels({
           }
           continue;
         }
+
+        const depthOpacity = markerDepthOpacity(
+          flag.x,
+          flag.yTop + FEATURED_PIN_Y_OFFSET,
+          flag.z,
+          camera,
+          depthFadeRange,
+        );
+        const displayOpacity = slot.opacity * depthOpacity;
+        if (
+          Math.abs(displayOpacity - slot.lastOpacityWrite) > OPACITY_WRITE_EPSILON
+        ) {
+          dom.fade.style.opacity = String(displayOpacity);
+          slot.lastOpacityWrite = displayOpacity;
+        }
+
+        const { name, aprLine } = slot.text;
+        if (dom.name.textContent !== name) {
+          dom.name.textContent = name;
+          dom.name.title = name;
+        }
+        if (dom.apr.textContent !== aprLine) {
+          dom.apr.textContent = aprLine;
+        }
+
         getFeaturedPinLabelPosition(flag, camera, cellPitch, labelPos.current);
         group.position.copy(labelPos.current);
       }
@@ -431,8 +449,6 @@ export function FeaturedPinLabels({
         const group = groupsRef.current.get(i);
         if (!cell || !slot?.text || !dom || !group) continue;
 
-        dom.fade.style.opacity = String(slot.opacity);
-        slot.lastOpacityWrite = slot.opacity;
         dom.name.textContent = slot.text.name;
         dom.name.title = slot.text.name;
         dom.apr.textContent = slot.text.aprLine;
@@ -451,6 +467,18 @@ export function FeaturedPinLabels({
           slot.lastOpacityWrite = 0;
           continue;
         }
+
+        const depthOpacity = markerDepthOpacity(
+          flag.x,
+          flag.yTop + FEATURED_PIN_Y_OFFSET,
+          flag.z,
+          camera,
+          depthFadeRange,
+        );
+        const displayOpacity = slot.opacity * depthOpacity;
+        dom.fade.style.opacity = String(displayOpacity);
+        slot.lastOpacityWrite = displayOpacity;
+
         getFeaturedPinLabelPosition(flag, camera, cellPitch, labelPos.current);
         group.position.copy(labelPos.current);
       }

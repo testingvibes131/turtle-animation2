@@ -23,6 +23,13 @@ import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { updateFeaturedStickLineDistances } from "@/app/v2/lib/stickLineDistances";
 import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
+import {
+  attachLineMaterialDepthFade,
+  attachMeshBasicDepthFade,
+  updateMarkerDepthFadeUniforms,
+  type MarkerDepthFadeRange,
+  type MarkerDepthFadeUniforms,
+} from "@/app/v2/lib/markerDepthFade";
 import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 import { stickDashSizesFromVisuals } from "@/app/v2/lib/terrainVisuals";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
@@ -45,6 +52,8 @@ type FeaturedFlagMarkersProps = {
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
   debugZone: DebugZone;
+  depthFadeUniforms: MarkerDepthFadeUniforms;
+  depthFadeRange: MarkerDepthFadeRange;
   /** When set, show a flag on any crossing whose scrolled DNA is featured. */
   dnaLookup?: (TerrainCell | undefined)[][];
   /** Smoothed featured blend per flag cell index (fixed-offsetting). */
@@ -70,6 +79,8 @@ function FeaturedFlagMarkersInner({
   waveRef,
   markersMoveWithBelt,
   debugZone,
+  depthFadeUniforms,
+  depthFadeRange,
   dnaLookup,
   dnaBlendsRef,
 }: FeaturedFlagMarkersProps) {
@@ -112,8 +123,9 @@ function FeaturedFlagMarkersInner({
       depthWrite: false,
     });
     mat.defines.USE_DASH = "";
+    attachLineMaterialDepthFade(mat, depthFadeUniforms);
     return mat;
-  }, [dashSize, gapSize, lineWidth, visuals.stickColor]);
+  }, [dashSize, depthFadeUniforms, gapSize, lineWidth, visuals.stickColor]);
 
   useLayoutEffect(() => {
     stickMat.resolution.set(size.width, size.height);
@@ -140,17 +152,17 @@ function FeaturedFlagMarkersInner({
     pinTexture.needsUpdate = true;
   }, [pinTexture]);
 
-  const topMat = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: pinTexture,
-        transparent: true,
-        alphaTest: 0.05,
-        depthWrite: false,
-        toneMapped: false,
-      }),
-    [pinTexture],
-  );
+  const topMat = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
+      map: pinTexture,
+      transparent: true,
+      alphaTest: 0.05,
+      depthWrite: false,
+      toneMapped: false,
+    });
+    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    return mat;
+  }, [depthFadeUniforms, pinTexture]);
 
   const stickLines = useMemo(() => {
     const lines = new LineSegments2();
@@ -299,6 +311,7 @@ function FeaturedFlagMarkersInner({
   }, [write]);
 
   useFrame(() => {
+    updateMarkerDepthFadeUniforms(depthFadeUniforms, camera, depthFadeRange);
     write();
   });
 

@@ -36,6 +36,13 @@ import {
   colorFromFeaturedBlend,
   updateScrolledDnaBlends,
 } from "@/app/v2/lib/scrolledDnaBlend";
+import {
+  attachMeshBasicDepthFade,
+  createMarkerDepthFadeUniforms,
+  markerDepthFadeRange,
+  updateMarkerDepthFadeUniforms,
+  type MarkerDepthFadeUniforms,
+} from "@/app/v2/lib/markerDepthFade";
 import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
@@ -127,6 +134,7 @@ function MarkerSpheres({
   useCrossingCurator,
   dnaLookup,
   centerOnTerrain = false,
+  depthFadeUniforms,
 }: {
   cells: TerrainCell[];
   color: number;
@@ -140,13 +148,15 @@ function MarkerSpheres({
   useCrossingCurator: boolean;
   dnaLookup: (TerrainCell | undefined)[][] | null;
   centerOnTerrain?: boolean;
+  depthFadeUniforms: MarkerDepthFadeUniforms;
 }) {
   const count = cells.length;
 
-  const material = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    [],
-  );
+  const material = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    return mat;
+  }, [depthFadeUniforms]);
 
   const write = useCallback(() => {
     const mesh = meshRef.current;
@@ -240,6 +250,7 @@ function ScrolledDnaMarkerSpheres({
   dnaBlendsRef,
   hoverRef,
   dnaLookup,
+  depthFadeUniforms,
 }: {
   cells: TerrainCell[];
   cellPitch: number;
@@ -252,13 +263,15 @@ function ScrolledDnaMarkerSpheres({
   dnaBlendsRef: RefObject<Float32Array>;
   hoverRef: RefObject<CuratorHoverState>;
   dnaLookup: (TerrainCell | undefined)[][];
+  depthFadeUniforms: MarkerDepthFadeUniforms;
 }) {
   const count = cells.length;
 
-  const material = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    [],
-  );
+  const material = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    return mat;
+  }, [depthFadeUniforms]);
 
   const write = useCallback(() => {
     const mesh = meshRef.current;
@@ -590,7 +603,13 @@ export function OpportunityMarkers({
   debugZone,
   visuals,
 }: OpportunityMarkersProps) {
-  const { cells, cellPitch } = layout;
+  const { cells, cellPitch, extent } = layout;
+  const camera = useThree((s) => s.camera);
+  const depthFadeUniforms = useMemo(() => createMarkerDepthFadeUniforms(), []);
+  const depthFadeRange = useMemo(
+    () => markerDepthFadeRange(extent, visuals),
+    [extent, visuals],
+  );
   const moveWithBelt = markersMoveWithBelt(markerMotion);
   const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
   const { featured, rest } = useMemo(() => splitByFeatured(cells), [cells]);
@@ -618,6 +637,8 @@ export function OpportunityMarkers({
   }, [cells.length]);
 
   useFrame((_, delta) => {
+    updateMarkerDepthFadeUniforms(depthFadeUniforms, camera, depthFadeRange);
+
     if (!useScrolledDna || cells.length === 0) return;
     const { elapsed } = waveRef.current;
     if (dnaBlendsRef.current.length !== cells.length) {
@@ -651,6 +672,7 @@ export function OpportunityMarkers({
           dnaBlendsRef={dnaBlendsRef}
           hoverRef={hoverRef}
           dnaLookup={dnaLookup}
+          depthFadeUniforms={depthFadeUniforms}
         />
       ) : (
         <>
@@ -666,6 +688,7 @@ export function OpportunityMarkers({
             hoverRef={hoverRef}
             useCrossingCurator={false}
             dnaLookup={null}
+            depthFadeUniforms={depthFadeUniforms}
           />
           <MarkerSpheres
             cells={featured}
@@ -680,6 +703,7 @@ export function OpportunityMarkers({
             useCrossingCurator={false}
             dnaLookup={null}
             centerOnTerrain
+            depthFadeUniforms={depthFadeUniforms}
           />
         </>
       )}
@@ -694,6 +718,8 @@ export function OpportunityMarkers({
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
             debugZone={debugZone}
+            depthFadeUniforms={depthFadeUniforms}
+            depthFadeRange={depthFadeRange}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
             dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
           />
@@ -704,6 +730,7 @@ export function OpportunityMarkers({
             markersMoveWithBelt={moveWithBelt}
             debugZone={debugZone}
             sphereRadiusRatio={visuals.sphereRadiusRatio}
+            depthFadeRange={depthFadeRange}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
             dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
           />
