@@ -141,12 +141,12 @@ export function TerrainSurface({
 
   return (
     <group>
-      <lineSegments
+      {/* <lineSegments
         geometry={terrainLines}
         material={terrainGlowMat}
         frustumCulled={false}
         dispose={null}
-      />
+      /> */}
       <lineSegments
         geometry={terrainLines}
         material={terrainMat}

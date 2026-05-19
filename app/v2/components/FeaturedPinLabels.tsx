@@ -12,7 +12,7 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
-import type { DebugZone } from "@/app/v2/lib/debugZone";
+import { isInsideDebugZone, type DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import {
   cellToLabelContent,
@@ -376,6 +376,13 @@ export function FeaturedPinLabels({
           slot.blend,
           sphereRadiusRatio,
         );
+        if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
+          if (slot.lastOpacityWrite !== 0) {
+            dom.fade.style.opacity = "0";
+            slot.lastOpacityWrite = 0;
+          }
+          continue;
+        }
         getFeaturedPinLabelPosition(flag, camera, cellPitch, labelPos.current);
         group.position.copy(labelPos.current);
       }
@@ -384,13 +391,23 @@ export function FeaturedPinLabels({
         const cell = featured[i]!;
         const blend = blends ? (blends[i] ?? 0) : 1;
         const slot = getSlot(i);
-        const show = isFeaturedFlagVisible(
+        const flag = getFeaturedFlagPose(
           cell,
-          i,
+          prepared,
           elapsed,
-          dnaLookup,
-          blends ?? null,
+          markersMoveWithBelt,
+          debugZone,
+          blend,
+          sphereRadiusRatio,
         );
+        const show =
+          isFeaturedFlagVisible(
+            cell,
+            i,
+            elapsed,
+            dnaLookup,
+            blends ?? null,
+          ) && isInsideDebugZone(flag.x, flag.z, debugZone);
         if (show) {
           slot.text = cellToLabelContent(
             featuredFlagDisplayCell(cell, elapsed, dnaLookup),
@@ -429,6 +446,11 @@ export function FeaturedPinLabels({
           slot.blend,
           sphereRadiusRatio,
         );
+        if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
+          dom.fade.style.opacity = "0";
+          slot.lastOpacityWrite = 0;
+          continue;
+        }
         getFeaturedPinLabelPosition(flag, camera, cellPitch, labelPos.current);
         group.position.copy(labelPos.current);
       }

@@ -18,7 +18,7 @@ export function buildDebugZone(layout: GridLayout): DebugZone {
   return {
     centerX: 0,
     centerZ: 0,
-    radius: layout.extent * 0.38,
+    radius: layout.extent * 0.38 * 0.8,
   };
 }
 

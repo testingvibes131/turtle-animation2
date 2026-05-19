@@ -17,7 +17,7 @@ import {
   LineSegments2,
   LineSegmentsGeometry,
 } from "three-stdlib";
-import type { DebugZone } from "@/app/v2/lib/debugZone";
+import { isInsideDebugZone, type DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { updateFeaturedStickLineDistances } from "@/app/v2/lib/stickLineDistances";
@@ -217,6 +217,22 @@ function FeaturedFlagMarkersInner({
         blends ? blend : 1,
         visuals.sphereRadiusRatio,
       );
+
+      if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
+        positions[base] = flag.x;
+        positions[base + 1] = 0;
+        positions[base + 2] = flag.z;
+        positions[base + 3] = flag.x;
+        positions[base + 4] = 0;
+        positions[base + 5] = flag.z;
+        dashSpans[i] = 0;
+        d.position.set(flag.x, 0, flag.z);
+        d.scale.setScalar(0);
+        d.updateMatrix();
+        topMesh.setMatrixAt(i, d.matrix);
+        return;
+      }
+
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;
       const yTop = flag.yStickCenter + flag.stickHeight * 0.5;
 

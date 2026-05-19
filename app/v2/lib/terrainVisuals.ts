@@ -40,7 +40,7 @@ export const DEFAULT_TERRAIN_VISUALS: TerrainVisualParams = {
   gridGlowDashMul: 0.18,
   gridGlowGapMin: 0.044,
   gridGlowGapMul: 0.15,
-  gridOpacity: 0.58,
+  gridOpacity: 0.25,
   gridGlowOpacity: 0.16,
   gridFadeStart: 0.48,
   gridFadeEnd: 1.02,
