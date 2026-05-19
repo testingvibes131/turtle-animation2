@@ -31,7 +31,7 @@ export type GridLayoutOptions = {
 };
 
 const DEFAULT_CELL_PITCH = 1.2;
-const DEFAULT_MAX_HEIGHT = 12;
+const DEFAULT_MAX_HEIGHT = 18;
 
 export function computeGridDimensions(
   count: number,

@@ -20,7 +20,7 @@ export function HeroSection() {
       <div className="pointer-events-auto flex flex-col items-center gap-10">
         <h1
           id="hero-heading"
-          className={`${montserrat.className} bg-gradient-to-r from-[#f9f9f9] to-[#8d928c] bg-clip-text text-center text-6xl font-medium capitalize leading-[1.2] tracking-[-0.48px] text-transparent`}
+          className={`${montserrat.className} bg-gradient-to-r from-[#f9f9f9] to-[#8d928c] bg-clip-text text-center text-5xl font-medium capitalize leading-[1.2] tracking-[-0.48px] text-transparent`}
         >
           <span className="block whitespace-pre-wrap">
             The trusted dealflow layer for{" "}

@@ -88,7 +88,13 @@ export function lerpBlendToward(
   return displayed + (target - displayed) * t;
 }
 
-export function colorFromFeaturedBlend(blend: number): number {
+export function colorFromFeaturedBlend(
+  blend: number,
+  restColor = COLOR_REST,
+  featuredColor = COLOR_FEATURED,
+): number {
+  _restColor.setHex(restColor);
+  _featuredColor.setHex(featuredColor);
   return _mixedColor.copy(_restColor).lerp(_featuredColor, blend).getHex();
 }
 

@@ -1,7 +1,9 @@
 "use client";
 
+import { useTexture } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -18,20 +20,26 @@ import {
 import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
+import { updateFeaturedStickLineDistances } from "@/app/v2/lib/stickLineDistances";
 import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
-import {
-  COLOR_FEATURED,
-  COLOR_STICK,
-  stickDashSizes,
-} from "@/app/v2/lib/markerVisuals";
+import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
+import { stickDashSizesFromVisuals } from "@/app/v2/lib/terrainVisuals";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
+import {
+  FEATURED_PIN_SIZE_MUL,
+  FEATURED_PIN_Y_OFFSET,
+} from "@/app/v2/lib/featuredPinVisuals";
 
-const TOP_SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
+const FEATURED_PIN_PATH = "/featured-pin.png";
+const TOP_PIN_GEO = new THREE.PlaneGeometry(1, 1);
+
+useTexture.preload(FEATURED_PIN_PATH);
 
 type FeaturedFlagMarkersProps = {
   featured: TerrainCell[];
   cellPitch: number;
+  visuals: TerrainVisualParams;
   stickRef: RefObject<LineSegments2 | null>;
   topRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
@@ -43,9 +51,20 @@ type FeaturedFlagMarkersProps = {
   dnaBlendsRef?: RefObject<Float32Array>;
 };
 
-export function FeaturedFlagMarkers({
+export function FeaturedFlagMarkers(props: FeaturedFlagMarkersProps) {
+  if (props.featured.length === 0) return null;
+
+  return (
+    <Suspense fallback={null}>
+      <FeaturedFlagMarkersInner {...props} />
+    </Suspense>
+  );
+}
+
+function FeaturedFlagMarkersInner({
   featured,
   cellPitch,
+  visuals,
   stickRef,
   topRef,
   waveRef,
@@ -56,10 +75,17 @@ export function FeaturedFlagMarkers({
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
   const dummy = useRef(new THREE.Object3D());
+  const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  const pinTexture = useTexture(FEATURED_PIN_PATH);
 
   const positions = useMemo(
     () => new Float32Array(Math.max(count, 1) * 6),
+    [count],
+  );
+
+  const dashSpans = useMemo(
+    () => new Float32Array(Math.max(count, 1)),
     [count],
   );
 
@@ -70,13 +96,13 @@ export function FeaturedFlagMarkers({
   }, [positions]);
 
   const { dashSize, gapSize, lineWidth } = useMemo(
-    () => stickDashSizes(cellPitch),
-    [cellPitch],
+    () => stickDashSizesFromVisuals(cellPitch, visuals),
+    [cellPitch, visuals],
   );
 
   const stickMat = useMemo(() => {
     const mat = new LineMaterial({
-      color: COLOR_STICK,
+      color: visuals.stickColor,
       linewidth: lineWidth,
       dashed: true,
       dashSize,
@@ -87,15 +113,43 @@ export function FeaturedFlagMarkers({
     });
     mat.defines.USE_DASH = "";
     return mat;
-  }, [dashSize, gapSize, lineWidth]);
+  }, [dashSize, gapSize, lineWidth, visuals.stickColor]);
 
   useLayoutEffect(() => {
     stickMat.resolution.set(size.width, size.height);
   }, [size.height, size.width, stickMat]);
 
+  useEffect(() => {
+    stickMat.color.setHex(visuals.stickColor);
+    stickMat.linewidth = visuals.stickLineWidth;
+    stickMat.dashSize = Math.max(
+      visuals.stickDashMin,
+      cellPitch * visuals.stickDashMul,
+    );
+    stickMat.gapSize = Math.max(
+      visuals.stickGapMin,
+      cellPitch * visuals.stickGapMul,
+    );
+    stickMat.needsUpdate = true;
+  }, [cellPitch, stickMat, visuals]);
+
+  useLayoutEffect(() => {
+    pinTexture.colorSpace = THREE.SRGBColorSpace;
+    pinTexture.minFilter = THREE.LinearFilter;
+    pinTexture.magFilter = THREE.LinearFilter;
+    pinTexture.needsUpdate = true;
+  }, [pinTexture]);
+
   const topMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: COLOR_FEATURED }),
-    [],
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: pinTexture,
+        transparent: true,
+        alphaTest: 0.05,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    [pinTexture],
   );
 
   const stickLines = useMemo(() => {
@@ -146,6 +200,7 @@ export function FeaturedFlagMarkers({
         positions[base + 3] = cell.x;
         positions[base + 4] = 0;
         positions[base + 5] = cell.z;
+        dashSpans[i] = 0;
         d.position.set(cell.x, 0, cell.z);
         d.scale.setScalar(0);
         d.updateMatrix();
@@ -160,6 +215,7 @@ export function FeaturedFlagMarkers({
         markersMoveWithBelt,
         debugZone,
         blends ? blend : 1,
+        visuals.sphereRadiusRatio,
       );
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;
       const yTop = flag.yStickCenter + flag.stickHeight * 0.5;
@@ -170,9 +226,12 @@ export function FeaturedFlagMarkers({
       positions[base + 3] = flag.x;
       positions[base + 4] = yTop;
       positions[base + 5] = flag.z;
+      dashSpans[i] = flag.stickDashSpan;
 
-      d.position.set(flag.x, flag.yTop, flag.z);
-      d.scale.setScalar(flag.topRadius);
+      d.position.set(flag.x, flag.yTop + FEATURED_PIN_Y_OFFSET, flag.z);
+      d.quaternion.copy(camera.quaternion);
+      const pinSize = flag.topRadius * FEATURED_PIN_SIZE_MUL;
+      d.scale.set(pinSize, pinSize, 1);
       d.updateMatrix();
       topMesh.setMatrixAt(i, d.matrix);
     });
@@ -196,14 +255,15 @@ export function FeaturedFlagMarkers({
       geo.setPositions(slice);
     }
 
-    if (stickLines.geometry) {
-      stickLines.computeLineDistances();
+    if (geo) {
+      updateFeaturedStickLineDistances(geo, dashSpans, count);
     }
 
     topMesh.count = count;
     topMesh.instanceMatrix.needsUpdate = true;
   }, [
     count,
+    dashSpans,
     dnaBlendsRef,
     dnaLookup,
     debugZone,
@@ -212,7 +272,9 @@ export function FeaturedFlagMarkers({
     markersMoveWithBelt,
     positions,
     stickLines,
+    camera,
     topRef,
+    visuals.sphereRadiusRatio,
     waveRef,
   ]);
 
@@ -232,14 +294,12 @@ export function FeaturedFlagMarkers({
     };
   }, [lineGeo, stickMat, topMat]);
 
-  if (count === 0) return null;
-
   return (
     <>
       <primitive object={stickLines} frustumCulled={false} renderOrder={2} />
       <instancedMesh
         ref={topRef}
-        args={[TOP_SPHERE_GEO, topMat, count]}
+        args={[TOP_PIN_GEO, topMat, count]}
         frustumCulled={false}
         renderOrder={3}
       />

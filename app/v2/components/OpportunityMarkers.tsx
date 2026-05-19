@@ -1,5 +1,6 @@
 "use client";
 
+import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
   useCallback,
@@ -7,6 +8,8 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
+  type CSSProperties,
   type RefObject,
 } from "react";
 import * as THREE from "three";
@@ -28,24 +31,78 @@ import {
 import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { FeaturedFlagMarkers } from "@/app/v2/components/FeaturedFlagMarkers";
+import { FeaturedPinLabels } from "@/app/v2/components/FeaturedPinLabels";
 import {
   colorFromFeaturedBlend,
   updateScrolledDnaBlends,
 } from "@/app/v2/lib/scrolledDnaBlend";
-import {
-  COLOR_FEATURED,
-  COLOR_REST,
-  SPHERE_RADIUS_RATIO,
-} from "@/app/v2/lib/markerVisuals";
+import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
 const _instanceColor = new THREE.Color();
+/** Highlight tint for all spheres sharing the hovered curator. */
+const CURATOR_HOVER_COLOR = 0x5b9cf5;
+const CURATOR_HOVER_SCALE = 2;
+const LABEL_GAP_RATIO = 0.18;
+/** Inflated pick radius vs rendered sphere (small spheres + belt motion). */
+const SPHERE_PICK_RADIUS_MUL = 5;
+const SPHERE_PICK_MIN_RATIO = 0.11;
+
+const _pickCenter = new THREE.Vector3();
+const _pickClosest = new THREE.Vector3();
+
+const curatorLabelWrap: CSSProperties = {
+  pointerEvents: "none",
+  userSelect: "none",
+  fontFamily:
+    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  textAlign: "center",
+  whiteSpace: "nowrap",
+  lineHeight: 1.2,
+  color: "#5b9cf5",
+  fontSize: 18,
+  fontWeight: 600,
+  transform: "translate(-50%, -100%)",
+  textShadow: "0 1px 10px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.95)",
+};
+
+export type CuratorHoverState = {
+  curator: string | null;
+  /** Grid peg under the pointer (label tracks this, not scrolled source cell). */
+  anchorCell: TerrainCell | null;
+};
+
+function getSphereHoverStyle(
+  cell: TerrainCell,
+  hover: CuratorHoverState,
+  elapsed: number,
+  options: {
+    useCrossingCurator: boolean;
+    dnaLookup: (TerrainCell | undefined)[][] | null;
+  },
+): boolean {
+  const isAnchor =
+    hover.anchorCell !== null && hover.anchorCell.id === cell.id;
+  if (!hover.curator) {
+    return false;
+  }
+  if (isAnchor) {
+    return true;
+  }
+  let matchesCurator = cell.curator === hover.curator;
+  if (options.useCrossingCurator && options.dnaLookup) {
+    const atCrossing = sourceCellAtCrossing(cell, elapsed, options.dnaLookup);
+    matchesCurator = atCrossing?.curator === hover.curator;
+  }
+  return matchesCurator;
+}
 
 type OpportunityMarkersProps = {
   layout: GridLayout;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markerMotion: MarkerMotionMode;
   debugZone: DebugZone;
+  visuals: TerrainVisualParams;
 };
 
 function splitByFeatured(cells: TerrainCell[]) {
@@ -61,26 +118,34 @@ function MarkerSpheres({
   cells,
   color,
   cellPitch,
+  sphereRadiusRatio,
   meshRef,
   waveRef,
   markersMoveWithBelt,
   debugZone,
+  hoverRef,
+  useCrossingCurator,
+  dnaLookup,
   centerOnTerrain = false,
 }: {
   cells: TerrainCell[];
   color: number;
   cellPitch: number;
+  sphereRadiusRatio: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
   debugZone: DebugZone;
+  hoverRef: RefObject<CuratorHoverState>;
+  useCrossingCurator: boolean;
+  dnaLookup: (TerrainCell | undefined)[][] | null;
   centerOnTerrain?: boolean;
 }) {
   const count = cells.length;
 
   const material = useMemo(
-    () => new THREE.MeshBasicMaterial({ color }),
-    [color],
+    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    [],
   );
 
   const write = useCallback(() => {
@@ -88,6 +153,7 @@ function MarkerSpheres({
     const { prepared, elapsed } = waveRef.current;
     if (!mesh || !prepared || count === 0) return;
 
+    const hover = hoverRef.current;
     const dummy = new THREE.Object3D();
 
     cells.forEach((cell, i) => {
@@ -98,23 +164,45 @@ function MarkerSpheres({
         centerOnTerrain,
         markersMoveWithBelt,
         debugZone,
+        sphereRadiusRatio,
+      );
+      const highlighted = getSphereHoverStyle(
+        cell,
+        hover,
+        elapsed,
+        { useCrossingCurator, dnaLookup },
       );
       dummy.position.set(x, y, z);
-      dummy.scale.setScalar(cellPitch * SPHERE_RADIUS_RATIO * zoneScale);
+      dummy.scale.setScalar(
+        cellPitch *
+          sphereRadiusRatio *
+          zoneScale *
+          (highlighted ? CURATOR_HOVER_SCALE : 1),
+      );
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(
+        i,
+        _instanceColor.setHex(highlighted ? CURATOR_HOVER_COLOR : color),
+      );
     });
 
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, [
     cells,
     cellPitch,
     centerOnTerrain,
+    color,
     count,
     debugZone,
+    dnaLookup,
+    hoverRef,
     markersMoveWithBelt,
     meshRef,
+    sphereRadiusRatio,
+    useCrossingCurator,
     waveRef,
   ]);
 
@@ -143,17 +231,27 @@ function MarkerSpheres({
 function ScrolledDnaMarkerSpheres({
   cells,
   cellPitch,
+  sphereRadiusRatio,
+  restColor,
+  featuredColor,
   meshRef,
   waveRef,
   debugZone,
   dnaBlendsRef,
+  hoverRef,
+  dnaLookup,
 }: {
   cells: TerrainCell[];
   cellPitch: number;
+  sphereRadiusRatio: number;
+  restColor: number;
+  featuredColor: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   debugZone: DebugZone;
   dnaBlendsRef: RefObject<Float32Array>;
+  hoverRef: RefObject<CuratorHoverState>;
+  dnaLookup: (TerrainCell | undefined)[][];
 }) {
   const count = cells.length;
 
@@ -164,12 +262,14 @@ function ScrolledDnaMarkerSpheres({
 
   const write = useCallback(() => {
     const mesh = meshRef.current;
-    const { prepared } = waveRef.current;
+    const { prepared, elapsed } = waveRef.current;
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
 
     const blends = dnaBlendsRef.current;
+    const hover = hoverRef.current;
+    const hoverCurator = hover.curator;
 
     cells.forEach((cell, i) => {
       const blend = blends[i] ?? 0;
@@ -178,18 +278,50 @@ function ScrolledDnaMarkerSpheres({
         prepared,
         blend,
         debugZone,
+        sphereRadiusRatio,
       );
+      const highlighted =
+        hoverCurator !== null &&
+        getSphereHoverStyle(cell, hover, elapsed, {
+          useCrossingCurator: true,
+          dnaLookup,
+        });
       dummy.position.set(x, y, z);
-      dummy.scale.setScalar(cellPitch * SPHERE_RADIUS_RATIO * zoneScale);
+      dummy.scale.setScalar(
+        cellPitch *
+          sphereRadiusRatio *
+          zoneScale *
+          (highlighted ? CURATOR_HOVER_SCALE : 1),
+      );
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      mesh.setColorAt(i, _instanceColor.setHex(colorFromFeaturedBlend(blend)));
+      mesh.setColorAt(
+        i,
+        _instanceColor.setHex(
+          highlighted
+            ? CURATOR_HOVER_COLOR
+            : colorFromFeaturedBlend(blend, restColor, featuredColor),
+        ),
+      );
     });
 
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [cells, cellPitch, count, debugZone, dnaBlendsRef, meshRef, waveRef]);
+  }, [
+    cells,
+    cellPitch,
+    count,
+    debugZone,
+    dnaBlendsRef,
+    dnaLookup,
+    featuredColor,
+    hoverRef,
+    meshRef,
+    restColor,
+    sphereRadiusRatio,
+    waveRef,
+  ]);
 
   useLayoutEffect(() => {
     write();
@@ -212,135 +344,234 @@ function ScrolledDnaMarkerSpheres({
   );
 }
 
-function cellFromHit(
-  hit: THREE.Intersection,
-  dnaMesh: THREE.InstancedMesh | null,
-  restMesh: THREE.InstancedMesh | null,
-  featuredMesh: THREE.InstancedMesh | null,
-  stickLines: LineSegments2 | null,
-  topMesh: THREE.InstancedMesh | null,
-  allCells: TerrainCell[],
-  rest: TerrainCell[],
-  featured: TerrainCell[],
-  flagCells: TerrainCell[],
+type SpherePickPose = { x: number; y: number; z: number; radius: number };
+
+function pickSphereCellNearRay(
+  ray: THREE.Ray,
+  cameraPosition: THREE.Vector3,
+  cells: TerrainCell[],
+  cellPitch: number,
+  getPose: (cell: TerrainCell, index: number) => SpherePickPose,
 ): TerrainCell | null {
-  if (stickLines && hit.object === stickLines) {
-    if (hit.index === undefined) return null;
-    const i = Math.floor(hit.index / 2);
-    return flagCells[i] ?? null;
+  const minPickRadius = cellPitch * SPHERE_PICK_MIN_RATIO;
+  let bestCell: TerrainCell | null = null;
+  let bestDepth = Infinity;
+
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i]!;
+    const { x, y, z, radius } = getPose(cell, i);
+    const pickRadius = Math.max(radius * SPHERE_PICK_RADIUS_MUL, minPickRadius);
+
+    _pickCenter.set(x, y, z);
+    ray.closestPointToPoint(_pickCenter, _pickClosest);
+    if (_pickClosest.distanceTo(_pickCenter) > pickRadius) continue;
+
+    const depth = _pickClosest.distanceTo(cameraPosition);
+    if (depth < bestDepth) {
+      bestDepth = depth;
+      bestCell = cell;
+    }
   }
 
-  if (hit.instanceId === undefined) return null;
-  const i = hit.instanceId;
+  return bestCell;
+}
 
-  if (dnaMesh && hit.object === dnaMesh) {
-    return allCells[i] ?? null;
-  }
-  if (featuredMesh && hit.object === featuredMesh) {
-    return featured[i] ?? null;
-  }
-  if (topMesh && hit.object === topMesh) {
-    return flagCells[i] ?? null;
-  }
-  if (restMesh && hit.object === restMesh) {
-    return rest[i] ?? null;
-  }
-  return null;
+function CuratorHoverLabel({
+  hoverRef,
+  waveRef,
+  markerMotion,
+  debugZone,
+  allCells,
+  cellPitch,
+  sphereRadiusRatio,
+  dnaBlendsRef,
+}: {
+  hoverRef: RefObject<CuratorHoverState>;
+  waveRef: RefObject<TerrainWaveSnapshot>;
+  markerMotion: MarkerMotionMode;
+  debugZone: DebugZone;
+  allCells: TerrainCell[];
+  cellPitch: number;
+  sphereRadiusRatio: number;
+  dnaBlendsRef: RefObject<Float32Array>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const moveWithBelt = markersMoveWithBelt(markerMotion);
+  const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
+  const [label, setLabel] = useState<string | null>(null);
+
+  useFrame(() => {
+    const g = groupRef.current;
+    const { curator, anchorCell } = hoverRef.current;
+    const { prepared, elapsed } = waveRef.current;
+    if (!g || !prepared) return;
+
+    if (!curator || !anchorCell) {
+      if (label !== null) setLabel(null);
+      return;
+    }
+
+    if (label !== curator) setLabel(curator);
+
+    const gap = cellPitch * LABEL_GAP_RATIO;
+    const cellIndex = allCells.findIndex((c) => c.id === anchorCell.id);
+    let x: number;
+    let y: number;
+    let z: number;
+    let radius: number;
+
+    if (useScrolledDna) {
+      const blend =
+        cellIndex >= 0 ? (dnaBlendsRef.current[cellIndex] ?? 0) : 0;
+      const pose = getScrolledDnaSpherePose(
+        anchorCell,
+        prepared,
+        blend,
+        debugZone,
+        sphereRadiusRatio,
+      );
+      x = pose.x;
+      y = pose.y;
+      z = pose.z;
+      radius =
+        cellPitch * sphereRadiusRatio * pose.zoneScale * CURATOR_HOVER_SCALE;
+    } else {
+      const pose = getSphereMarkerPose(
+        anchorCell,
+        prepared,
+        elapsed,
+        anchorCell.featured,
+        moveWithBelt,
+        debugZone,
+        sphereRadiusRatio,
+      );
+      x = pose.x;
+      y = pose.y;
+      z = pose.z;
+      radius =
+        cellPitch * sphereRadiusRatio * pose.zoneScale * CURATOR_HOVER_SCALE;
+    }
+
+    g.position.set(x, y + radius + gap, z);
+  });
+
+  if (!label) return <group ref={groupRef} />;
+
+  return (
+    <group ref={groupRef}>
+      <Html
+        occlude={false}
+        pointerEvents="none"
+        distanceFactor={10}
+        zIndexRange={[30, 40]}
+        style={curatorLabelWrap}
+      >
+        <span title={label}>{label}</span>
+      </Html>
+    </group>
+  );
 }
 
 function MarkerHover({
   markerMotion,
   waveRef,
-  dnaMeshRef,
-  restMeshRef,
-  featuredMeshRef,
-  stickRef,
-  topRef,
+  hoverRef,
   allCells,
   layout,
+  debugZone,
   cellPitch,
-  rest,
-  featured,
-  flagCells,
+  sphereRadiusRatio,
+  dnaBlendsRef,
 }: {
   markerMotion: MarkerMotionMode;
   waveRef: RefObject<TerrainWaveSnapshot>;
-  dnaMeshRef: RefObject<THREE.InstancedMesh | null>;
-  restMeshRef: RefObject<THREE.InstancedMesh | null>;
-  featuredMeshRef: RefObject<THREE.InstancedMesh | null>;
-  stickRef: RefObject<LineSegments2 | null>;
-  topRef: RefObject<THREE.InstancedMesh | null>;
+  hoverRef: RefObject<CuratorHoverState>;
   allCells: TerrainCell[];
   layout: GridLayout;
+  debugZone: DebugZone;
   cellPitch: number;
-  rest: TerrainCell[];
-  featured: TerrainCell[];
-  flagCells: TerrainCell[];
+  sphereRadiusRatio: number;
+  dnaBlendsRef: RefObject<Float32Array>;
 }) {
   const { raycaster, pointer, camera, gl } = useThree();
-  const lastIdRef = useRef<string | null>(null);
+  const moveWithBelt = markersMoveWithBelt(markerMotion);
   const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
   const lookup = useMemo(
     () => buildCellLookup(allCells, layout.cols, layout.rows),
     [allCells, layout.cols, layout.rows],
   );
+  const pickFrameRef = useRef(0);
 
   useFrame(() => {
-    const dnaMesh = dnaMeshRef.current;
-    const restMesh = restMeshRef.current;
-    const featuredMesh = featuredMeshRef.current;
-    const stickLines = stickRef.current;
-    const topMesh = topRef.current;
-    if (!dnaMesh && !restMesh && !featuredMesh && !stickLines && !topMesh) {
-      return;
-    }
-
-    raycaster.setFromCamera(pointer, camera);
-    raycaster.params.Line.threshold = cellPitch * 0.14;
-    const hits: THREE.Intersection[] = [];
-    if (dnaMesh) hits.push(...raycaster.intersectObject(dnaMesh, false));
-    if (restMesh) hits.push(...raycaster.intersectObject(restMesh, false));
-    if (featuredMesh) hits.push(...raycaster.intersectObject(featuredMesh, false));
-    if (stickLines) hits.push(...raycaster.intersectObject(stickLines, false));
-    if (topMesh) hits.push(...raycaster.intersectObject(topMesh, false));
-    hits.sort((a, b) => a.distance - b.distance);
-
-    const peg =
-      hits.length > 0
-        ? cellFromHit(
-            hits[0]!,
-            dnaMesh,
-            restMesh,
-            featuredMesh,
-            stickLines,
-            topMesh,
-            allCells,
-            rest,
-            featured,
-            flagCells,
-          )
-        : null;
+    pickFrameRef.current += 1;
+    if (pickFrameRef.current % 2 !== 0) return;
 
     const { prepared, elapsed } = waveRef.current;
+    if (!prepared || allCells.length === 0) return;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const getPose = (cell: TerrainCell, index: number): SpherePickPose => {
+      if (useScrolledDna) {
+        const blend = dnaBlendsRef.current[index] ?? 0;
+        const { x, y, z, zoneScale } = getScrolledDnaSpherePose(
+          cell,
+          prepared,
+          blend,
+          debugZone,
+          sphereRadiusRatio,
+        );
+        return {
+          x,
+          y,
+          z,
+          radius: cellPitch * sphereRadiusRatio * zoneScale,
+        };
+      }
+      const { x, y, z, zoneScale } = getSphereMarkerPose(
+        cell,
+        prepared,
+        elapsed,
+        cell.featured,
+        moveWithBelt,
+        debugZone,
+        sphereRadiusRatio,
+      );
+      return {
+        x,
+        y,
+        z,
+        radius: cellPitch * sphereRadiusRatio * zoneScale,
+      };
+    };
+
+    const peg = pickSphereCellNearRay(
+      raycaster.ray,
+      camera.position,
+      allCells,
+      cellPitch,
+      getPose,
+    );
     const cell =
       peg && useScrolledDna && prepared
         ? (sourceCellAtCrossing(peg, elapsed, lookup) ?? peg)
         : peg;
 
-    const nextId = cell?.id ?? null;
     gl.domElement.style.cursor = cell ? "pointer" : "";
 
-    if (nextId === lastIdRef.current) return;
-    lastIdRef.current = nextId;
+    const nextCurator = cell?.curator ?? null;
+    const prev = hoverRef.current;
+    if (
+      prev.curator === nextCurator &&
+      prev.anchorCell?.id === peg?.id
+    ) {
+      return;
+    }
 
-    if (!cell) return;
-
-    console.log({
-      name: cell.name,
-      curator: cell.curator,
-      apr: cell.apr,
-      featured: cell.featured,
-    });
+    hoverRef.current = {
+      curator: nextCurator,
+      anchorCell: peg,
+    };
   });
 
   useEffect(() => {
@@ -357,6 +588,7 @@ export function OpportunityMarkers({
   waveRef,
   markerMotion,
   debugZone,
+  visuals,
 }: OpportunityMarkersProps) {
   const { cells, cellPitch } = layout;
   const moveWithBelt = markersMoveWithBelt(markerMotion);
@@ -376,6 +608,10 @@ export function OpportunityMarkers({
   );
 
   const dnaBlendsRef = useRef<Float32Array>(new Float32Array(0));
+  const hoverRef = useRef<CuratorHoverState>({
+    curator: null,
+    anchorCell: null,
+  });
 
   useLayoutEffect(() => {
     dnaBlendsRef.current = new Float32Array(cells.length);
@@ -406,61 +642,93 @@ export function OpportunityMarkers({
         <ScrolledDnaMarkerSpheres
           cells={cells}
           cellPitch={cellPitch}
+          sphereRadiusRatio={visuals.sphereRadiusRatio}
+          restColor={visuals.sphereRestColor}
+          featuredColor={visuals.stickColor}
           meshRef={dnaMeshRef}
           waveRef={waveRef}
           debugZone={debugZone}
           dnaBlendsRef={dnaBlendsRef}
+          hoverRef={hoverRef}
+          dnaLookup={dnaLookup}
         />
       ) : (
         <>
           <MarkerSpheres
             cells={rest}
-            color={COLOR_REST}
+            color={visuals.sphereRestColor}
             cellPitch={cellPitch}
+            sphereRadiusRatio={visuals.sphereRadiusRatio}
             meshRef={restMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
             debugZone={debugZone}
+            hoverRef={hoverRef}
+            useCrossingCurator={false}
+            dnaLookup={null}
           />
           <MarkerSpheres
             cells={featured}
-            color={COLOR_FEATURED}
+            color={visuals.stickColor}
             cellPitch={cellPitch}
+            sphereRadiusRatio={visuals.sphereRadiusRatio}
             meshRef={featuredMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
             debugZone={debugZone}
+            hoverRef={hoverRef}
+            useCrossingCurator={false}
+            dnaLookup={null}
             centerOnTerrain
           />
         </>
       )}
       {hasFeaturedOpps ? (
-        <FeaturedFlagMarkers
-          featured={flagCells}
-          cellPitch={cellPitch}
-          stickRef={stickRef}
-          topRef={topRef}
-          waveRef={waveRef}
-          markersMoveWithBelt={moveWithBelt}
-          debugZone={debugZone}
-          dnaLookup={useScrolledDna ? dnaLookup : undefined}
-          dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
-        />
+        <>
+          <FeaturedFlagMarkers
+            featured={flagCells}
+            cellPitch={cellPitch}
+            visuals={visuals}
+            stickRef={stickRef}
+            topRef={topRef}
+            waveRef={waveRef}
+            markersMoveWithBelt={moveWithBelt}
+            debugZone={debugZone}
+            dnaLookup={useScrolledDna ? dnaLookup : undefined}
+            dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
+          />
+          <FeaturedPinLabels
+            featured={flagCells}
+            cellPitch={cellPitch}
+            waveRef={waveRef}
+            markersMoveWithBelt={moveWithBelt}
+            debugZone={debugZone}
+            sphereRadiusRatio={visuals.sphereRadiusRatio}
+            dnaLookup={useScrolledDna ? dnaLookup : undefined}
+            dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
+          />
+        </>
       ) : null}
+      <CuratorHoverLabel
+        hoverRef={hoverRef}
+        waveRef={waveRef}
+        markerMotion={markerMotion}
+        debugZone={debugZone}
+        allCells={cells}
+        cellPitch={cellPitch}
+        sphereRadiusRatio={visuals.sphereRadiusRatio}
+        dnaBlendsRef={dnaBlendsRef}
+      />
       <MarkerHover
         markerMotion={markerMotion}
         waveRef={waveRef}
-        dnaMeshRef={dnaMeshRef}
-        restMeshRef={restMeshRef}
-        featuredMeshRef={featuredMeshRef}
-        stickRef={stickRef}
-        topRef={topRef}
+        hoverRef={hoverRef}
         allCells={cells}
         layout={layout}
+        debugZone={debugZone}
         cellPitch={cellPitch}
-        rest={rest}
-        featured={featured}
-        flagCells={flagCells}
+        sphereRadiusRatio={visuals.sphereRadiusRatio}
+        dnaBlendsRef={dnaBlendsRef}
       />
     </>
   );

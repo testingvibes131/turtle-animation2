@@ -6,12 +6,18 @@ import {
   smoothHeightField,
 } from "@/app/v2/lib/heightField";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
+import {
+  DEFAULT_TERRAIN_VISUALS,
+  type TerrainVisualParams,
+} from "@/app/v2/lib/terrainVisuals";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
 
 export type TerrainGeometryOptions = {
   smoothPasses?: number;
   /** Samples along each grid edge (smoother draped lines). */
   edgeSubdivisions?: number;
+  /** Conveyor-aligned cell diagonals (belt marker motion only). */
+  beltDiagonals?: boolean;
 };
 
 export const DEFAULT_SMOOTH_PASSES = 2;
@@ -100,6 +106,20 @@ function appendDrapedSegment(
   }
 }
 
+/** One draped diagonal per cell, aligned with conveyor (+col, +row). */
+function forEachBeltCellDiagonal(
+  cols: number,
+  rows: number,
+  fn: (u0: number, v0: number, u1: number, v1: number) => void,
+): void {
+  if (cols < 2 || rows < 2) return;
+  for (let c = 0; c < cols - 1; c++) {
+    for (let r = 0; r < rows - 1; r++) {
+      fn(c, r, c + 1, r + 1);
+    }
+  }
+}
+
 /**
  * Vaporwave-style draped grid: lines follow APR height along cell lattice.
  */
@@ -109,6 +129,7 @@ export function buildTerrainWireframeGeometry(
 ): THREE.BufferGeometry {
   const { field, cols, rows, cellPitch } = prepared;
   const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const beltDiagonals = options.beltDiagonals ?? false;
   const positions: number[] = [];
 
   // Lines along columns (v increases)
@@ -145,6 +166,24 @@ export function buildTerrainWireframeGeometry(
     );
   }
 
+  if (beltDiagonals) {
+    forEachBeltCellDiagonal(cols, rows, (u0, v0, u1, v1) => {
+      appendDrapedSegment(
+        positions,
+        field,
+        cols,
+        rows,
+        cellPitch,
+        u0,
+        v0,
+        u1,
+        v1,
+        steps,
+        false,
+      );
+    });
+  }
+
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
     "position",
@@ -159,6 +198,7 @@ export function buildTerrainWireframeGeometry(
 export function computeTerrainWireframeVertexColors(
   geometry: THREE.BufferGeometry,
   prepared: PreparedTerrain,
+  fade: Pick<TerrainVisualParams, "gridFadeStart" | "gridFadeEnd"> = DEFAULT_TERRAIN_VISUALS,
 ): void {
   const pos = geometry.getAttribute("position");
   if (!pos) return;
@@ -166,8 +206,7 @@ export function computeTerrainWireframeVertexColors(
   const { cols, rows, cellPitch } = prepared;
   const halfX = Math.max(((cols - 1) * cellPitch) * 0.5, 1e-6);
   const halfZ = Math.max(((rows - 1) * cellPitch) * 0.5, 1e-6);
-  const fadeStart = 0.48;
-  const fadeEnd = 1.02;
+  const { gridFadeStart: fadeStart, gridFadeEnd: fadeEnd } = fade;
 
   const colors = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
@@ -220,6 +259,7 @@ export function updateTerrainWireframePositions(
 ): void {
   const { field, cols, rows, cellPitch } = prepared;
   const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const beltDiagonals = options.beltDiagonals ?? false;
   const attr = geometry.getAttribute("position") as
     | THREE.BufferAttribute
     | undefined;
@@ -262,6 +302,11 @@ export function updateTerrainWireframePositions(
   }
   for (let r = 0; r < rows; r++) {
     writeSegment(0, r, cols - 1, r, steps * Math.max(1, cols - 1));
+  }
+  if (beltDiagonals) {
+    forEachBeltCellDiagonal(cols, rows, (u0, v0, u1, v1) => {
+      writeSegment(u0, v0, u1, v1, steps);
+    });
   }
 
   attr.needsUpdate = true;

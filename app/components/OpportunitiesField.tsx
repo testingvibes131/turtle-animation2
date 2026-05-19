@@ -6,6 +6,7 @@ import {
   MARKER_MOTION_OPTIONS,
   type MarkerMotionMode,
 } from "@/app/lib/markerMode";
+import { useTerrainVisualControls } from "@/app/v2/hooks/useTerrainVisualControls";
 
 const MARKER_MOTION_VALUES = MARKER_MOTION_OPTIONS.map((o) => o.mode);
 
@@ -25,6 +26,8 @@ export default function OpportunitiesField() {
     enabled: { value: true, label: "Orbit controls" },
   });
 
+  const visuals = useTerrainVisualControls();
+
   return (
     <>
       <Leva collapsed />
@@ -33,6 +36,7 @@ export default function OpportunitiesField() {
           markerMotion={markerMotion}
           showDebugZone={showDebugZone}
           orbitEnabled={orbitEnabled}
+          visuals={visuals}
         />
       </div>
     </>

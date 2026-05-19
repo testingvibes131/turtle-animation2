@@ -1,21 +1,21 @@
-/** Default sphere tint. */
-export const COLOR_REST = 0x8B8C8B;
+import {
+  DEFAULT_TERRAIN_VISUALS,
+  stickDashSizesFromVisuals,
+} from "@/app/v2/lib/terrainVisuals";
 
-export const COLOR_FEATURED = 0x73f36c;
+/** Default sphere tint (overridden at runtime via Leva). */
+export const COLOR_REST = DEFAULT_TERRAIN_VISUALS.sphereRestColor;
 
-export const COLOR_STICK = 0x4a9a44;
+export const COLOR_FEATURED = DEFAULT_TERRAIN_VISUALS.stickColor;
 
-/** Base sphere radius vs cell pitch (30% smaller than prior 0.035). */
-export const SPHERE_RADIUS_RATIO = 0.0245;
+export const COLOR_STICK = DEFAULT_TERRAIN_VISUALS.stickColor;
+
+export const SPHERE_RADIUS_RATIO = DEFAULT_TERRAIN_VISUALS.sphereRadiusRatio;
 
 export function stickDashSizes(cellPitch: number): {
   dashSize: number;
   gapSize: number;
   lineWidth: number;
 } {
-  return {
-    dashSize: Math.max(0.02, cellPitch * 0.055),
-    gapSize: Math.max(0.012, cellPitch * 0.032),
-    lineWidth: 1,
-  };
+  return stickDashSizesFromVisuals(cellPitch, DEFAULT_TERRAIN_VISUALS);
 }

@@ -1,5 +1,6 @@
 import { getConveyorOffset } from "@/app/v2/lib/conveyor";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
+import { scrolledGridUV } from "@/app/v2/lib/scrolledDnaBlend";
 import { wrapIndex } from "@/app/v2/lib/toroidal";
 
 /** O(1) lookup: grid[col][row] → opportunity at that crossing. */
@@ -49,4 +50,50 @@ export function isFeaturedAtCrossing(
   lookup: (TerrainCell | undefined)[][],
 ): boolean {
   return sourceCellAtCrossing(cell, elapsed, lookup)?.featured ?? false;
+}
+
+/**
+ * Featured opportunity driving the scrolled DNA field at this crossing.
+ * Snapped cell when featured; otherwise the highest-weight featured grid corner
+ * (same bilinear weights as `featuredBlendAtGrid`).
+ */
+export function dominantFeaturedAtCrossing(
+  cell: TerrainCell,
+  elapsed: number,
+  lookup: (TerrainCell | undefined)[][],
+  cols: number,
+  rows: number,
+): TerrainCell | undefined {
+  const snapped = sourceCellAtCrossing(cell, elapsed, lookup);
+  if (snapped?.featured) return snapped;
+  if (cols < 1 || rows < 1) return undefined;
+
+  const { u, v } = scrolledGridUV(cell, elapsed);
+  const uW = ((u % cols) + cols) % cols;
+  const vW = ((v % rows) + rows) % rows;
+  const c0 = Math.floor(uW);
+  const r0 = Math.floor(vW);
+  const c1 = (c0 + 1) % cols;
+  const r1 = (r0 + 1) % rows;
+  const tu = uW - c0;
+  const tv = vW - r0;
+
+  const corners = [
+    { w: (1 - tu) * (1 - tv), col: c0, row: r0 },
+    { w: tu * (1 - tv), col: c1, row: r0 },
+    { w: tu * tv, col: c1, row: r1 },
+    { w: (1 - tu) * tv, col: c0, row: r1 },
+  ] as const;
+
+  let best: TerrainCell | undefined;
+  let bestW = 0;
+  for (const { w, col, row } of corners) {
+    if (w <= bestW) continue;
+    const opp = lookup[wrapIndex(col, cols)]?.[wrapIndex(row, rows)];
+    if (opp?.featured) {
+      bestW = w;
+      best = opp;
+    }
+  }
+  return best;
 }

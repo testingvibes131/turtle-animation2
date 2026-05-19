@@ -12,22 +12,28 @@ import { getAprRange } from "@/app/v2/lib/apr";
 import { layoutOpportunitiesOnGrid } from "@/app/v2/lib/gridLayout";
 import { TerrainSurface } from "@/app/v2/components/TerrainSurface";
 import type { MarkerMotionMode } from "@/app/lib/markerMode";
+import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 
 const CSV_PATH = "/data/turtle-opportunities.csv";
 const FOG_COLOR = "#0a0a0a";
 
-function fogRangeForExtent(extent: number): [number, number] {
-  return [extent * 0.22, extent * 1.45];
+function fogRangeForExtent(
+  extent: number,
+  visuals: TerrainVisualParams,
+): [number, number] {
+  return [extent * visuals.fogNearMul, extent * visuals.fogFarMul];
 }
 
 function SceneContent({
   markerMotion,
   showDebugZone,
   orbitEnabled,
+  visuals,
 }: {
   markerMotion: MarkerMotionMode;
   showDebugZone: boolean;
   orbitEnabled: boolean;
+  visuals: TerrainVisualParams;
 }) {
   const { width, height } = useThree((s) => s.size);
   const [rows, setRows] = useState<ReturnType<typeof parseOpportunityRows> | null>(
@@ -66,13 +72,17 @@ function SceneContent({
   return (
     <>
       <color attach="background" args={[FOG_COLOR]} />
-      <fog attach="fog" args={[FOG_COLOR, ...fogRangeForExtent(layout.extent)]} />
+      <fog
+        attach="fog"
+        args={[FOG_COLOR, ...fogRangeForExtent(layout.extent, visuals)]}
+      />
       <ambientLight intensity={1} />
       <OpportunityCameraRig extent={layout.extent} orbitEnabled={orbitEnabled} />
       <TerrainSurface
         layout={layout}
         markerMotion={markerMotion}
         showDebugZone={showDebugZone}
+        visuals={visuals}
       />
     </>
   );
@@ -82,12 +92,14 @@ type TerrainSceneProps = {
   markerMotion: MarkerMotionMode;
   showDebugZone: boolean;
   orbitEnabled?: boolean;
+  visuals: TerrainVisualParams;
 };
 
 export function TerrainScene({
   markerMotion,
   showDebugZone,
   orbitEnabled = true,
+  visuals,
 }: TerrainSceneProps) {
   return (
     <Canvas
@@ -110,6 +122,7 @@ export function TerrainScene({
         markerMotion={markerMotion}
         showDebugZone={showDebugZone}
         orbitEnabled={orbitEnabled}
+        visuals={visuals}
       />
     </Canvas>
   );
