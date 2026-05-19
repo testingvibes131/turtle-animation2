@@ -41,7 +41,6 @@ type OpportunityMarkersProps = {
   layout: GridLayout;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markerMotion: MarkerMotionMode;
-  /** Wired for future in-zone marker behavior (unused for now). */
   debugZone: DebugZone;
 };
 
@@ -61,6 +60,7 @@ function MarkerSpheres({
   meshRef,
   waveRef,
   markersMoveWithBelt,
+  debugZone,
   centerOnTerrain = false,
 }: {
   cells: TerrainCell[];
@@ -69,6 +69,7 @@ function MarkerSpheres({
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
+  debugZone: DebugZone;
   centerOnTerrain?: boolean;
 }) {
   const count = cells.length;
@@ -84,25 +85,34 @@ function MarkerSpheres({
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
-    const radius = cellPitch * SPHERE_RADIUS_RATIO;
 
     cells.forEach((cell, i) => {
-      const { x, y, z } = getSphereMarkerPose(
+      const { x, y, z, zoneScale } = getSphereMarkerPose(
         cell,
         prepared,
         elapsed,
         centerOnTerrain,
         markersMoveWithBelt,
+        debugZone,
       );
       dummy.position.set(x, y, z);
-      dummy.scale.setScalar(radius);
+      dummy.scale.setScalar(cellPitch * SPHERE_RADIUS_RATIO * zoneScale);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     });
 
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
-  }, [cells, cellPitch, centerOnTerrain, count, markersMoveWithBelt, meshRef, waveRef]);
+  }, [
+    cells,
+    cellPitch,
+    centerOnTerrain,
+    count,
+    debugZone,
+    markersMoveWithBelt,
+    meshRef,
+    waveRef,
+  ]);
 
   useLayoutEffect(() => {
     write();
@@ -133,6 +143,7 @@ function ScrolledDnaMarkerSpheres({
   cellPitch,
   meshRef,
   waveRef,
+  debugZone,
 }: {
   cells: TerrainCell[];
   cols: number;
@@ -140,6 +151,7 @@ function ScrolledDnaMarkerSpheres({
   cellPitch: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
+  debugZone: DebugZone;
 }) {
   const count = cells.length;
   const lookup = useMemo(
@@ -158,17 +170,17 @@ function ScrolledDnaMarkerSpheres({
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
-    const radius = cellPitch * SPHERE_RADIUS_RATIO;
 
     cells.forEach((cell, i) => {
-      const { x, y, z, featured } = getScrolledDnaSpherePose(
+      const { x, y, z, featured, zoneScale } = getScrolledDnaSpherePose(
         cell,
         prepared,
         elapsed,
         lookup,
+        debugZone,
       );
       dummy.position.set(x, y, z);
-      dummy.scale.setScalar(radius);
+      dummy.scale.setScalar(cellPitch * SPHERE_RADIUS_RATIO * zoneScale);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
       mesh.setColorAt(
@@ -180,7 +192,7 @@ function ScrolledDnaMarkerSpheres({
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [cells, cellPitch, count, lookup, meshRef, waveRef]);
+  }, [cells, cellPitch, count, debugZone, lookup, meshRef, waveRef]);
 
   useLayoutEffect(() => {
     write();
@@ -347,9 +359,8 @@ export function OpportunityMarkers({
   layout,
   waveRef,
   markerMotion,
-  debugZone: _debugZone,
+  debugZone,
 }: OpportunityMarkersProps) {
-  void _debugZone;
   const { cells, cellPitch } = layout;
   const moveWithBelt = markersMoveWithBelt(markerMotion);
   const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
@@ -379,6 +390,7 @@ export function OpportunityMarkers({
           cellPitch={cellPitch}
           meshRef={dnaMeshRef}
           waveRef={waveRef}
+          debugZone={debugZone}
         />
       ) : (
         <>
@@ -389,6 +401,7 @@ export function OpportunityMarkers({
             meshRef={restMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
+            debugZone={debugZone}
           />
           <MarkerSpheres
             cells={featured}
@@ -397,6 +410,7 @@ export function OpportunityMarkers({
             meshRef={featuredMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
+            debugZone={debugZone}
             centerOnTerrain
           />
         </>
@@ -409,6 +423,7 @@ export function OpportunityMarkers({
           topRef={topRef}
           waveRef={waveRef}
           markersMoveWithBelt={moveWithBelt}
+          debugZone={debugZone}
           dnaLookup={useScrolledDna ? dnaLookup : undefined}
         />
       ) : null}

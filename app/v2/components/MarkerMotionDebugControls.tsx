@@ -70,8 +70,7 @@ export function MarkerMotionDebugControls({
           Blue circle {showDebugZone ? "on" : "off"}
         </button>
         <p className="max-w-xs text-[11px] leading-snug text-[#555]">
-          Markers inside the circle will use different rules later (not active
-          yet).
+          Full size inside the circle; markers shrink smoothly farther out.
         </p>
       </div>
     </div>

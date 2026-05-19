@@ -15,6 +15,7 @@ import {
   LineSegments2,
   LineSegmentsGeometry,
 } from "three-stdlib";
+import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
@@ -34,6 +35,7 @@ type FeaturedFlagMarkersProps = {
   topRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
+  debugZone: DebugZone;
   /** When set, show a flag on any crossing whose scrolled DNA is featured. */
   dnaLookup?: (TerrainCell | undefined)[][];
 };
@@ -45,6 +47,7 @@ export function FeaturedFlagMarkers({
   topRef,
   waveRef,
   markersMoveWithBelt,
+  debugZone,
   dnaLookup,
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
@@ -141,7 +144,13 @@ export function FeaturedFlagMarkers({
         return;
       }
 
-      const flag = getFeaturedFlagPose(cell, prepared, elapsed, markersMoveWithBelt);
+      const flag = getFeaturedFlagPose(
+        cell,
+        prepared,
+        elapsed,
+        markersMoveWithBelt,
+        debugZone,
+      );
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;
       const yTop = flag.yStickCenter + flag.stickHeight * 0.5;
 
@@ -186,6 +195,7 @@ export function FeaturedFlagMarkers({
   }, [
     count,
     dnaLookup,
+    debugZone,
     featured,
     lineGeo,
     markersMoveWithBelt,

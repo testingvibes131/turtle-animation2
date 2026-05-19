@@ -2,6 +2,8 @@ import { getAnimatedGridUV, getAnimatedWorldXZ } from "@/app/v2/lib/conveyor";
 import { sampleHeightAt } from "@/app/v2/lib/heightField";
 import { sourceCellAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
+import type { DebugZone } from "@/app/v2/lib/debugZone";
+import { markerScaleInDebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import type { PreparedTerrain } from "@/app/v2/lib/terrainGeometry";
 import { SPHERE_RADIUS_RATIO } from "@/app/v2/lib/markerVisuals";
@@ -42,14 +44,16 @@ export function getScrolledDnaSpherePose(
   prepared: PreparedTerrain,
   elapsed: number,
   lookup: (TerrainCell | undefined)[][],
-): MarkerWorldPose & { featured: boolean } {
+  zone: DebugZone,
+): MarkerWorldPose & { featured: boolean; zoneScale: number } {
   const { field, cols, rows, cellPitch } = prepared;
   const source = sourceCellAtCrossing(cell, elapsed, lookup);
   const featured = source?.featured ?? false;
+  const zoneScale = markerScaleInDebugZone(cell.x, cell.z, zone);
   const terrainY = sampleHeightAt(field, cols, rows, cell.col, cell.row);
-  const radius = cellPitch * SPHERE_RADIUS_RATIO;
+  const radius = cellPitch * SPHERE_RADIUS_RATIO * zoneScale;
   const y = featured ? terrainY : terrainY + radius * SURFACE_PAD;
-  return { x: cell.x, y, z: cell.z, featured };
+  return { x: cell.x, y, z: cell.z, featured, zoneScale };
 }
 
 export function getSphereMarkerPose(
@@ -58,7 +62,8 @@ export function getSphereMarkerPose(
   elapsed: number,
   centerOnTerrain: boolean,
   moveWithBelt: boolean,
-): MarkerWorldPose {
+  zone: DebugZone,
+): MarkerWorldPose & { zoneScale: number } {
   const { cols, rows, cellPitch } = prepared;
   let x = cell.x;
   let z = cell.z;
@@ -67,10 +72,11 @@ export function getSphereMarkerPose(
     x = pos.x;
     z = pos.z;
   }
+  const zoneScale = markerScaleInDebugZone(x, z, zone);
   const terrainY = terrainYAtCell(cell, prepared, elapsed, moveWithBelt);
-  const radius = cellPitch * SPHERE_RADIUS_RATIO;
+  const radius = cellPitch * SPHERE_RADIUS_RATIO * zoneScale;
   const y = centerOnTerrain ? terrainY : terrainY + radius * SURFACE_PAD;
-  return { x, y, z };
+  return { x, y, z, zoneScale };
 }
 
 export type FeaturedFlagPose = {
@@ -88,6 +94,7 @@ export function getFeaturedFlagPose(
   prepared: PreparedTerrain,
   elapsed: number,
   moveWithBelt: boolean,
+  zone: DebugZone,
 ): FeaturedFlagPose {
   const { cols, rows, cellPitch } = prepared;
   let x = cell.x;
@@ -97,13 +104,14 @@ export function getFeaturedFlagPose(
     x = pos.x;
     z = pos.z;
   }
+  const zoneScale = markerScaleInDebugZone(x, z, zone);
   const terrainY = terrainYAtCell(cell, prepared, elapsed, moveWithBelt);
-  const baseR = cellPitch * BASE_SPHERE_RADIUS_RATIO;
-  const topR = cellPitch * TOP_SPHERE_RADIUS_RATIO;
-  const stickR = cellPitch * STICK_RADIUS_RATIO;
-  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO;
+  const baseR = cellPitch * BASE_SPHERE_RADIUS_RATIO * zoneScale;
+  const topR = cellPitch * TOP_SPHERE_RADIUS_RATIO * zoneScale;
+  const stickR = cellPitch * STICK_RADIUS_RATIO * zoneScale;
+  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * zoneScale;
   const yBaseTop = terrainY + baseR;
-  const stickHeight = Math.max(STICK_MIN_HEIGHT, poleH);
+  const stickHeight = Math.max(STICK_MIN_HEIGHT * zoneScale, poleH);
   const yStickCenter = yBaseTop + stickHeight * 0.5;
   const yTop = yBaseTop + stickHeight + topR;
   return {
@@ -122,11 +130,12 @@ export function getMarkerLabelPose(
   prepared: PreparedTerrain,
   elapsed: number,
   moveWithBelt: boolean,
+  zone: DebugZone,
 ): MarkerWorldPose {
   const gap = prepared.cellPitch * LABEL_GAP_RATIO;
 
   if (cell.featured) {
-    const flag = getFeaturedFlagPose(cell, prepared, elapsed, moveWithBelt);
+    const flag = getFeaturedFlagPose(cell, prepared, elapsed, moveWithBelt, zone);
     return {
       x: flag.x,
       z: flag.z,
@@ -140,8 +149,9 @@ export function getMarkerLabelPose(
     elapsed,
     false,
     moveWithBelt,
+    zone,
   );
-  const radius = prepared.cellPitch * SPHERE_RADIUS_RATIO;
+  const radius = prepared.cellPitch * SPHERE_RADIUS_RATIO * sphere.zoneScale;
   return {
     x: sphere.x,
     z: sphere.z,

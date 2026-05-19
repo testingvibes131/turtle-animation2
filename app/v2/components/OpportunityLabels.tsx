@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
+import { NO_ZONE_MODIFIER } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getMarkerLabelPose } from "@/app/v2/lib/markerPosition";
 import { buildCellLookup, isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
@@ -69,6 +70,7 @@ function OpportunityLabel({
       prepared,
       elapsed,
       labelsMoveWithBelt,
+      NO_ZONE_MODIFIER,
     );
     g.position.set(x, y, z);
   });
