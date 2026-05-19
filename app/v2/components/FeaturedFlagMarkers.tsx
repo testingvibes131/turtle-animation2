@@ -19,6 +19,7 @@ import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
+import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
 import {
   COLOR_FEATURED,
   COLOR_STICK,
@@ -38,6 +39,8 @@ type FeaturedFlagMarkersProps = {
   debugZone: DebugZone;
   /** When set, show a flag on any crossing whose scrolled DNA is featured. */
   dnaLookup?: (TerrainCell | undefined)[][];
+  /** Smoothed featured blend per flag cell index (fixed-offsetting). */
+  dnaBlendsRef?: RefObject<Float32Array>;
 };
 
 export function FeaturedFlagMarkers({
@@ -49,6 +52,7 @@ export function FeaturedFlagMarkers({
   markersMoveWithBelt,
   debugZone,
   dnaLookup,
+  dnaBlendsRef,
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
   const dummy = useRef(new THREE.Object3D());
@@ -127,8 +131,13 @@ export function FeaturedFlagMarkers({
 
     featured.forEach((cell, i) => {
       const base = i * 6;
+      const blends = dnaBlendsRef?.current;
+      const blend = blends ? (blends[i] ?? 0) : 1;
       const show =
-        !dnaLookup || isFeaturedAtCrossing(cell, elapsed, dnaLookup);
+        !dnaLookup ||
+        (blends
+          ? blend > FLAG_BLEND_SHOW_THRESHOLD
+          : isFeaturedAtCrossing(cell, elapsed, dnaLookup));
 
       if (!show) {
         positions[base] = cell.x;
@@ -150,6 +159,7 @@ export function FeaturedFlagMarkers({
         elapsed,
         markersMoveWithBelt,
         debugZone,
+        blends ? blend : 1,
       );
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;
       const yTop = flag.yStickCenter + flag.stickHeight * 0.5;
@@ -194,6 +204,7 @@ export function FeaturedFlagMarkers({
     topMesh.instanceMatrix.needsUpdate = true;
   }, [
     count,
+    dnaBlendsRef,
     dnaLookup,
     debugZone,
     featured,

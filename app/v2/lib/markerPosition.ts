@@ -1,6 +1,5 @@
 import { getAnimatedGridUV, getAnimatedWorldXZ } from "@/app/v2/lib/conveyor";
 import { sampleHeightAt } from "@/app/v2/lib/heightField";
-import { sourceCellAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
 import type { DebugZone } from "@/app/v2/lib/debugZone";
 import { markerScaleInDebugZone } from "@/app/v2/lib/debugZone";
@@ -38,22 +37,20 @@ function terrainYAtCell(
   return sampleHeightAt(field, cols, rows, cell.col, cell.row);
 }
 
-/** Fixed crossing; DNA at the vertex comes from the scrolled field. */
+/** Fixed crossing; height + lift follow smoothed featured blend (0–1). */
 export function getScrolledDnaSpherePose(
   cell: TerrainCell,
   prepared: PreparedTerrain,
-  elapsed: number,
-  lookup: (TerrainCell | undefined)[][],
+  featuredBlend: number,
   zone: DebugZone,
-): MarkerWorldPose & { featured: boolean; zoneScale: number } {
+): MarkerWorldPose & { featuredBlend: number; zoneScale: number } {
   const { field, cols, rows, cellPitch } = prepared;
-  const source = sourceCellAtCrossing(cell, elapsed, lookup);
-  const featured = source?.featured ?? false;
   const zoneScale = markerScaleInDebugZone(cell.x, cell.z, zone);
   const terrainY = sampleHeightAt(field, cols, rows, cell.col, cell.row);
   const radius = cellPitch * SPHERE_RADIUS_RATIO * zoneScale;
-  const y = featured ? terrainY : terrainY + radius * SURFACE_PAD;
-  return { x: cell.x, y, z: cell.z, featured, zoneScale };
+  const yRest = terrainY + radius * SURFACE_PAD;
+  const y = yRest + (terrainY - yRest) * featuredBlend;
+  return { x: cell.x, y, z: cell.z, featuredBlend, zoneScale };
 }
 
 export function getSphereMarkerPose(
@@ -95,6 +92,7 @@ export function getFeaturedFlagPose(
   elapsed: number,
   moveWithBelt: boolean,
   zone: DebugZone,
+  featuredBlend = 1,
 ): FeaturedFlagPose {
   const { cols, rows, cellPitch } = prepared;
   let x = cell.x;
@@ -106,12 +104,13 @@ export function getFeaturedFlagPose(
   }
   const zoneScale = markerScaleInDebugZone(x, z, zone);
   const terrainY = terrainYAtCell(cell, prepared, elapsed, moveWithBelt);
-  const baseR = cellPitch * BASE_SPHERE_RADIUS_RATIO * zoneScale;
-  const topR = cellPitch * TOP_SPHERE_RADIUS_RATIO * zoneScale;
-  const stickR = cellPitch * STICK_RADIUS_RATIO * zoneScale;
-  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * zoneScale;
+  const b = Math.max(0, Math.min(1, featuredBlend));
+  const baseR = cellPitch * BASE_SPHERE_RADIUS_RATIO * zoneScale * b;
+  const topR = cellPitch * TOP_SPHERE_RADIUS_RATIO * zoneScale * b;
+  const stickR = cellPitch * STICK_RADIUS_RATIO * zoneScale * b;
+  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * zoneScale * b;
   const yBaseTop = terrainY + baseR;
-  const stickHeight = Math.max(STICK_MIN_HEIGHT * zoneScale, poleH);
+  const stickHeight = Math.max(STICK_MIN_HEIGHT * zoneScale * b, poleH);
   const yStickCenter = yBaseTop + stickHeight * 0.5;
   const yTop = yBaseTop + stickHeight + topR;
   return {

@@ -29,6 +29,10 @@ import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { FeaturedFlagMarkers } from "@/app/v2/components/FeaturedFlagMarkers";
 import {
+  colorFromFeaturedBlend,
+  updateScrolledDnaBlends,
+} from "@/app/v2/lib/scrolledDnaBlend";
+import {
   COLOR_FEATURED,
   COLOR_REST,
   SPHERE_RADIUS_RATIO,
@@ -138,61 +142,54 @@ function MarkerSpheres({
 /** Fixed crossing; sphere stays put, scrolled opportunity DNA sets color + height. */
 function ScrolledDnaMarkerSpheres({
   cells,
-  cols,
-  rows,
   cellPitch,
   meshRef,
   waveRef,
   debugZone,
+  dnaBlendsRef,
 }: {
   cells: TerrainCell[];
-  cols: number;
-  rows: number;
   cellPitch: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   debugZone: DebugZone;
+  dnaBlendsRef: RefObject<Float32Array>;
 }) {
   const count = cells.length;
-  const lookup = useMemo(
-    () => buildCellLookup(cells, cols, rows),
-    [cells, cols, rows],
-  );
 
   const material = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: COLOR_REST }),
+    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
     [],
   );
 
   const write = useCallback(() => {
     const mesh = meshRef.current;
-    const { prepared, elapsed } = waveRef.current;
+    const { prepared } = waveRef.current;
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
 
+    const blends = dnaBlendsRef.current;
+
     cells.forEach((cell, i) => {
-      const { x, y, z, featured, zoneScale } = getScrolledDnaSpherePose(
+      const blend = blends[i] ?? 0;
+      const { x, y, z, zoneScale } = getScrolledDnaSpherePose(
         cell,
         prepared,
-        elapsed,
-        lookup,
+        blend,
         debugZone,
       );
       dummy.position.set(x, y, z);
       dummy.scale.setScalar(cellPitch * SPHERE_RADIUS_RATIO * zoneScale);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
-      mesh.setColorAt(
-        i,
-        _instanceColor.setHex(featured ? COLOR_FEATURED : COLOR_REST),
-      );
+      mesh.setColorAt(i, _instanceColor.setHex(colorFromFeaturedBlend(blend)));
     });
 
     mesh.count = count;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [cells, cellPitch, count, debugZone, lookup, meshRef, waveRef]);
+  }, [cells, cellPitch, count, debugZone, dnaBlendsRef, meshRef, waveRef]);
 
   useLayoutEffect(() => {
     write();
@@ -378,6 +375,29 @@ export function OpportunityMarkers({
     [cells, layout.cols, layout.rows],
   );
 
+  const dnaBlendsRef = useRef<Float32Array>(new Float32Array(0));
+
+  useLayoutEffect(() => {
+    dnaBlendsRef.current = new Float32Array(cells.length);
+  }, [cells.length]);
+
+  useFrame((_, delta) => {
+    if (!useScrolledDna || cells.length === 0) return;
+    const { elapsed } = waveRef.current;
+    if (dnaBlendsRef.current.length !== cells.length) {
+      dnaBlendsRef.current = new Float32Array(cells.length);
+    }
+    updateScrolledDnaBlends(
+      dnaBlendsRef.current,
+      cells,
+      elapsed,
+      dnaLookup,
+      layout.cols,
+      layout.rows,
+      delta,
+    );
+  });
+
   if (cells.length === 0) return null;
 
   return (
@@ -385,12 +405,11 @@ export function OpportunityMarkers({
       {useScrolledDna ? (
         <ScrolledDnaMarkerSpheres
           cells={cells}
-          cols={layout.cols}
-          rows={layout.rows}
           cellPitch={cellPitch}
           meshRef={dnaMeshRef}
           waveRef={waveRef}
           debugZone={debugZone}
+          dnaBlendsRef={dnaBlendsRef}
         />
       ) : (
         <>
@@ -425,6 +444,7 @@ export function OpportunityMarkers({
           markersMoveWithBelt={moveWithBelt}
           debugZone={debugZone}
           dnaLookup={useScrolledDna ? dnaLookup : undefined}
+          dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
         />
       ) : null}
       <MarkerHover
