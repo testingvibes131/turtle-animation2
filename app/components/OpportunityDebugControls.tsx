@@ -3,18 +3,23 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { button, useControls } from "leva";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
+import { OpportunityCameraRig } from "@/app/components/OpportunityCameraRig";
+import {
+  DEFAULT_CAMERA_POSITION,
+  DEFAULT_CAMERA_TARGET,
+  DEFAULT_OPPORTUNITY_FOV,
+  getOpportunityCameraFar,
+  getOpportunityOrbitDistanceBounds,
+} from "@/app/lib/opportunityCamera";
 
-/**
- * Wide lens + low perspective across the field (topography-style framing).
- */
-export const DEFAULT_OPPORTUNITY_FOV = 50;
-
-/** Pinned default rig (orbit target = look-at). */
-export const DEFAULT_CAMERA_POSITION = [0, 35, 106] as const;
-export const DEFAULT_CAMERA_TARGET = [0, 20.801777, -24.00205] as const;
+export {
+  DEFAULT_CAMERA_POSITION,
+  DEFAULT_CAMERA_TARGET,
+  DEFAULT_OPPORTUNITY_FOV,
+} from "@/app/lib/opportunityCamera";
 
 export function OpportunityDebugControls({ extent }: { extent: number }) {
   const ref = useRef<OrbitControlsType>(null);
@@ -78,9 +83,13 @@ export function OpportunityDebugControls({ extent }: { extent: number }) {
   camRef.current = { manual: manualCamera, x: camX, y: camY, z: camZ };
 
   const targetVec = useRef(new THREE.Vector3(tx, ty, tz));
+  const { minDistance, maxDistance } = getOpportunityOrbitDistanceBounds(
+    extent,
+    orbitZoom,
+  );
 
   useLayoutEffect(() => {
-    if (camRef.current.manual) return;
+    if (!manualCamera) return;
     const cam = camera;
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.clearViewOffset();
@@ -88,21 +97,15 @@ export function OpportunityDebugControls({ extent }: { extent: number }) {
     }
     cam.up.set(0, 1, 0);
     cam.near = 0.1;
-    cam.far = Math.max(
-      6000,
-      Math.hypot(cx, cy, cz) * 8,
-      Math.hypot(tx, ty, tz) * 6,
-    );
+    cam.far = getOpportunityCameraFar(DEFAULT_CAMERA_POSITION, DEFAULT_CAMERA_TARGET);
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.updateProjectionMatrix();
     }
-    const oc = ref.current;
-    if (oc) {
-      oc.target.set(tx, ty, tz);
-    }
-  }, [camera, size.height, size.width, manualCamera, cx, cy, cz, tx, ty, tz]);
+    ref.current?.target.set(tx, ty, tz);
+  }, [camera, manualCamera, size.height, size.width, tx, ty, tz]);
 
   useFrame(() => {
+    if (!camRef.current.manual) return;
     const p = camRef.current;
     const cam = camera;
     const oc = ref.current;
@@ -111,37 +114,26 @@ export function OpportunityDebugControls({ extent }: { extent: number }) {
       cam.fov = DEFAULT_OPPORTUNITY_FOV;
     }
 
-    if (p.manual) {
-      cam.position.set(p.x, p.y, p.z);
-      cam.up.set(0, 1, 0);
-      cam.lookAt(targetVec.current);
-      cam.near = 0.1;
-      cam.far = Math.max(6000, Math.hypot(p.x, p.y, p.z) * 8, 2000);
-      if (cam instanceof THREE.PerspectiveCamera) {
-        cam.updateProjectionMatrix();
-      }
-      if (oc) {
-        oc.target.copy(targetVec.current);
-      }
-      return;
-    }
-
-    cam.position.set(cx, cy, cz);
+    cam.position.set(p.x, p.y, p.z);
     cam.up.set(0, 1, 0);
     cam.lookAt(targetVec.current);
     cam.near = 0.1;
-    cam.far = Math.max(
-      6000,
-      Math.hypot(cam.position.x, cam.position.y, cam.position.z) * 8,
-      Math.hypot(tx, ty, tz) * 6,
-    );
+    cam.far = Math.max(6000, Math.hypot(p.x, p.y, p.z) * 8, 2000);
     if (cam instanceof THREE.PerspectiveCamera) {
       cam.updateProjectionMatrix();
     }
-    if (oc) {
-      oc.target.copy(targetVec.current);
-    }
+    oc?.target.copy(targetVec.current);
   });
+
+  if (!manualCamera) {
+    return (
+      <OpportunityCameraRig
+        extent={extent}
+        orbitZoom={orbitZoom}
+        controlsRef={ref as RefObject<OrbitControlsType | null>}
+      />
+    );
+  }
 
   return (
     <OrbitControls
@@ -151,8 +143,8 @@ export function OpportunityDebugControls({ extent }: { extent: number }) {
       enableDamping
       dampingFactor={0.06}
       enableRotate={false}
-      minDistance={(extent * 0.18) / Math.max(0.25, orbitZoom)}
-      maxDistance={extent * 8}
+      minDistance={minDistance}
+      maxDistance={maxDistance}
     />
   );
 }

@@ -10,19 +10,27 @@ import {
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
 import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
 import {
-  buildHorizonGridGeometry,
   buildTerrainWireframeGeometry,
+  computeTerrainLineDistancesXZ,
   updateTerrainWireframePositions,
 } from "@/app/v2/lib/terrainGeometry";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
+import { DebugZoneCircle } from "@/app/v2/components/DebugZoneCircle";
 import { OpportunityMarkers } from "@/app/v2/components/OpportunityMarkers";
+import { buildDebugZone } from "@/app/v2/lib/debugZone";
 
 type TerrainSurfaceProps = {
   layout: GridLayout;
   markerMotion: MarkerMotionMode;
+  showDebugZone: boolean;
 };
 
-export function TerrainSurface({ layout, markerMotion }: TerrainSurfaceProps) {
+export function TerrainSurface({
+  layout,
+  markerMotion,
+  showDebugZone,
+}: TerrainSurfaceProps) {
+  const debugZone = useMemo(() => buildDebugZone(layout), [layout]);
   const baseField = useMemo(() => buildBaseSmoothedField(layout), [layout]);
   const waveRef = useRef<TerrainWaveSnapshot>({ prepared: null, elapsed: 0 });
 
@@ -33,45 +41,39 @@ export function TerrainSurface({ layout, markerMotion }: TerrainSurfaceProps) {
     return buildTerrainWireframeGeometry(prepared);
   }, [layout, baseField]);
 
-  const horizonLines = useMemo(
-    () => buildHorizonGridGeometry(layout, 0),
-    [layout],
-  );
+  const { cellPitch } = layout;
 
   const terrainMat = useMemo(
     () =>
-      new THREE.LineBasicMaterial({
-        color: 0xf0f0f0,
+      new THREE.LineDashedMaterial({
+        color: 0xffffff,
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.58,
+        depthWrite: false,
+        dashSize: Math.max(0.04, cellPitch * 0.14),
+        gapSize: Math.max(0.028, cellPitch * 0.09),
       }),
-    [],
+    [cellPitch],
   );
 
   const terrainGlowMat = useMemo(
     () =>
-      new THREE.LineBasicMaterial({
+      new THREE.LineDashedMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.16,
+        depthWrite: false,
+        dashSize: Math.max(0.05, cellPitch * 0.18),
+        gapSize: Math.max(0.032, cellPitch * 0.11),
       }),
-    [],
-  );
-
-  const horizonMat = useMemo(
-    () =>
-      new THREE.LineBasicMaterial({
-        color: 0x3a3a3a,
-        transparent: true,
-        opacity: 0.55,
-      }),
-    [],
+    [cellPitch],
   );
 
   useLayoutEffect(() => {
     const prepared = prepareAnimatedTerrain(layout, 0, baseField);
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared);
+    computeTerrainLineDistancesXZ(terrainLines);
     waveRef.current = { prepared, elapsed: 0 };
   }, [layout, baseField, terrainLines]);
 
@@ -86,24 +88,15 @@ export function TerrainSurface({ layout, markerMotion }: TerrainSurfaceProps) {
   useEffect(() => {
     return () => {
       terrainLines?.dispose();
-      horizonLines?.dispose();
       terrainMat.dispose();
       terrainGlowMat.dispose();
-      horizonMat.dispose();
     };
-  }, [terrainLines, horizonLines, terrainMat, terrainGlowMat, horizonMat]);
+  }, [terrainLines, terrainMat, terrainGlowMat]);
 
   if (!terrainLines) return null;
 
   return (
     <group>
-      {horizonLines ? (
-        <lineSegments
-          geometry={horizonLines}
-          material={horizonMat}
-          frustumCulled={false}
-        />
-      ) : null}
       <lineSegments
         geometry={terrainLines}
         material={terrainGlowMat}
@@ -116,10 +109,12 @@ export function TerrainSurface({ layout, markerMotion }: TerrainSurfaceProps) {
         frustumCulled={false}
         dispose={null}
       />
+      <DebugZoneCircle zone={debugZone} visible={showDebugZone} />
       <OpportunityMarkers
         layout={layout}
         waveRef={waveRef}
         markerMotion={markerMotion}
+        debugZone={debugZone}
       />
     </group>
   );

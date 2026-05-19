@@ -9,11 +9,15 @@ import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
 export function V2TerrainPage() {
   const [markerMotion, setMarkerMotion] =
     useState<MarkerMotionMode>("fixed-offsetting");
+  const [showDebugZone, setShowDebugZone] = useState(false);
 
   return (
     <main className="relative h-screen w-full bg-black text-[#f0f0f0]">
       <div className="absolute inset-0 z-0">
-        <TerrainScene markerMotion={markerMotion} />
+        <TerrainScene
+          markerMotion={markerMotion}
+          showDebugZone={showDebugZone}
+        />
       </div>
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-6">
         <div>
@@ -38,6 +42,8 @@ export function V2TerrainPage() {
       <MarkerMotionDebugControls
         mode={markerMotion}
         onChange={setMarkerMotion}
+        showDebugZone={showDebugZone}
+        onShowDebugZoneChange={setShowDebugZone}
       />
     </main>
   );

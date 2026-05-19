@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
+import type { LineSegments2 } from "three-stdlib";
 import type { GridLayout, TerrainCell } from "@/app/v2/lib/gridLayout";
 import {
   markersMoveWithBelt,
@@ -24,20 +25,24 @@ import {
   buildCellLookup,
   sourceCellAtCrossing,
 } from "@/app/v2/lib/scrolledCell";
+import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { FeaturedFlagMarkers } from "@/app/v2/components/FeaturedFlagMarkers";
+import {
+  COLOR_FEATURED,
+  COLOR_REST,
+  SPHERE_RADIUS_RATIO,
+} from "@/app/v2/lib/markerVisuals";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
-const RADIUS_RATIO = 0.07;
-
-const COLOR_REST = 0xffffff;
-const COLOR_FEATURED = 0x73f36c;
 const _instanceColor = new THREE.Color();
 
 type OpportunityMarkersProps = {
   layout: GridLayout;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markerMotion: MarkerMotionMode;
+  /** Wired for future in-zone marker behavior (unused for now). */
+  debugZone: DebugZone;
 };
 
 function splitByFeatured(cells: TerrainCell[]) {
@@ -79,7 +84,7 @@ function MarkerSpheres({
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
-    const radius = cellPitch * RADIUS_RATIO;
+    const radius = cellPitch * SPHERE_RADIUS_RATIO;
 
     cells.forEach((cell, i) => {
       const { x, y, z } = getSphereMarkerPose(
@@ -143,7 +148,7 @@ function ScrolledDnaMarkerSpheres({
   );
 
   const material = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    () => new THREE.MeshBasicMaterial({ color: COLOR_REST }),
     [],
   );
 
@@ -153,7 +158,7 @@ function ScrolledDnaMarkerSpheres({
     if (!mesh || !prepared || count === 0) return;
 
     const dummy = new THREE.Object3D();
-    const radius = cellPitch * RADIUS_RATIO;
+    const radius = cellPitch * SPHERE_RADIUS_RATIO;
 
     cells.forEach((cell, i) => {
       const { x, y, z, featured } = getScrolledDnaSpherePose(
@@ -203,23 +208,27 @@ function cellFromHit(
   dnaMesh: THREE.InstancedMesh | null,
   restMesh: THREE.InstancedMesh | null,
   featuredMesh: THREE.InstancedMesh | null,
-  stickMesh: THREE.InstancedMesh | null,
+  stickLines: LineSegments2 | null,
   topMesh: THREE.InstancedMesh | null,
   allCells: TerrainCell[],
   rest: TerrainCell[],
   featured: TerrainCell[],
   flagCells: TerrainCell[],
 ): TerrainCell | null {
+  if (stickLines && hit.object === stickLines) {
+    if (hit.index === undefined) return null;
+    const i = Math.floor(hit.index / 2);
+    return flagCells[i] ?? null;
+  }
+
   if (hit.instanceId === undefined) return null;
   const i = hit.instanceId;
+
   if (dnaMesh && hit.object === dnaMesh) {
     return allCells[i] ?? null;
   }
   if (featuredMesh && hit.object === featuredMesh) {
     return featured[i] ?? null;
-  }
-  if (stickMesh && hit.object === stickMesh) {
-    return flagCells[i] ?? null;
   }
   if (topMesh && hit.object === topMesh) {
     return flagCells[i] ?? null;
@@ -240,6 +249,7 @@ function MarkerHover({
   topRef,
   allCells,
   layout,
+  cellPitch,
   rest,
   featured,
   flagCells,
@@ -249,10 +259,11 @@ function MarkerHover({
   dnaMeshRef: RefObject<THREE.InstancedMesh | null>;
   restMeshRef: RefObject<THREE.InstancedMesh | null>;
   featuredMeshRef: RefObject<THREE.InstancedMesh | null>;
-  stickRef: RefObject<THREE.InstancedMesh | null>;
+  stickRef: RefObject<LineSegments2 | null>;
   topRef: RefObject<THREE.InstancedMesh | null>;
   allCells: TerrainCell[];
   layout: GridLayout;
+  cellPitch: number;
   rest: TerrainCell[];
   featured: TerrainCell[];
   flagCells: TerrainCell[];
@@ -269,18 +280,19 @@ function MarkerHover({
     const dnaMesh = dnaMeshRef.current;
     const restMesh = restMeshRef.current;
     const featuredMesh = featuredMeshRef.current;
-    const stickMesh = stickRef.current;
+    const stickLines = stickRef.current;
     const topMesh = topRef.current;
-    if (!dnaMesh && !restMesh && !featuredMesh && !stickMesh && !topMesh) {
+    if (!dnaMesh && !restMesh && !featuredMesh && !stickLines && !topMesh) {
       return;
     }
 
     raycaster.setFromCamera(pointer, camera);
+    raycaster.params.Line.threshold = cellPitch * 0.14;
     const hits: THREE.Intersection[] = [];
     if (dnaMesh) hits.push(...raycaster.intersectObject(dnaMesh, false));
     if (restMesh) hits.push(...raycaster.intersectObject(restMesh, false));
     if (featuredMesh) hits.push(...raycaster.intersectObject(featuredMesh, false));
-    if (stickMesh) hits.push(...raycaster.intersectObject(stickMesh, false));
+    if (stickLines) hits.push(...raycaster.intersectObject(stickLines, false));
     if (topMesh) hits.push(...raycaster.intersectObject(topMesh, false));
     hits.sort((a, b) => a.distance - b.distance);
 
@@ -291,7 +303,7 @@ function MarkerHover({
             dnaMesh,
             restMesh,
             featuredMesh,
-            stickMesh,
+            stickLines,
             topMesh,
             allCells,
             rest,
@@ -335,7 +347,9 @@ export function OpportunityMarkers({
   layout,
   waveRef,
   markerMotion,
+  debugZone: _debugZone,
 }: OpportunityMarkersProps) {
+  void _debugZone;
   const { cells, cellPitch } = layout;
   const moveWithBelt = markersMoveWithBelt(markerMotion);
   const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
@@ -346,7 +360,7 @@ export function OpportunityMarkers({
   const dnaMeshRef = useRef<THREE.InstancedMesh>(null);
   const restMeshRef = useRef<THREE.InstancedMesh>(null);
   const featuredMeshRef = useRef<THREE.InstancedMesh>(null);
-  const stickRef = useRef<THREE.InstancedMesh>(null);
+  const stickRef = useRef<LineSegments2>(null);
   const topRef = useRef<THREE.InstancedMesh>(null);
   const dnaLookup = useMemo(
     () => buildCellLookup(cells, layout.cols, layout.rows),
@@ -408,6 +422,7 @@ export function OpportunityMarkers({
         topRef={topRef}
         allCells={cells}
         layout={layout}
+        cellPitch={cellPitch}
         rest={rest}
         featured={featured}
         flagCells={flagCells}

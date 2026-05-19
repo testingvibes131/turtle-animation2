@@ -1,51 +1,32 @@
 "use client";
 
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import * as THREE from "three";
+import { useEffect, useMemo, useState } from "react";
+import { OpportunityCameraRig } from "@/app/components/OpportunityCameraRig";
 import { parseOpportunityRows } from "@/app/lib/opportunitiesCsv";
-import { getAprRange } from "@/app/v2/lib/apr";
-import { layoutOpportunitiesOnGrid, type GridLayout } from "@/app/v2/lib/gridLayout";
 import {
-  DEFAULT_SMOOTH_PASSES,
-  getTerrainMaxHeight,
-} from "@/app/v2/lib/terrainGeometry";
+  DEFAULT_CAMERA_POSITION,
+  DEFAULT_OPPORTUNITY_FOV,
+} from "@/app/lib/opportunityCamera";
+import { getAprRange } from "@/app/v2/lib/apr";
+import { layoutOpportunitiesOnGrid } from "@/app/v2/lib/gridLayout";
 import { TerrainSurface } from "@/app/v2/components/TerrainSurface";
 import type { MarkerMotionMode } from "@/app/v2/lib/markerMode";
 
 const CSV_PATH = "/data/turtle-opportunities.csv";
+const FOG_COLOR = "#0a0a0a";
 
-function CameraRig({ layout }: { layout: GridLayout }) {
-  const { camera } = useThree();
-  const maxH = useMemo(
-    () => getTerrainMaxHeight(layout, DEFAULT_SMOOTH_PASSES),
-    [layout],
-  );
-  const targetY = maxH * 0.35;
-  const { extent } = layout;
-
-  useLayoutEffect(() => {
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    camera.position.set(0, extent * 0.55, extent * 1.05);
-    camera.fov = 50;
-    camera.near = 0.1;
-    camera.far = extent * 20;
-    camera.lookAt(0, targetY * 0.65, 0);
-    camera.updateProjectionMatrix();
-  }, [camera, extent, targetY]);
-
-  return (
-    <OrbitControls
-      makeDefault
-      target={[0, targetY, 0]}
-      minDistance={extent * 0.3}
-      maxDistance={extent * 4}
-    />
-  );
+function fogRangeForExtent(extent: number): [number, number] {
+  return [extent * 0.22, extent * 1.45];
 }
 
-function SceneContent({ markerMotion }: { markerMotion: MarkerMotionMode }) {
+function SceneContent({
+  markerMotion,
+  showDebugZone,
+}: {
+  markerMotion: MarkerMotionMode;
+  showDebugZone: boolean;
+}) {
   const { width, height } = useThree((s) => s.size);
   const [rows, setRows] = useState<ReturnType<typeof parseOpportunityRows> | null>(
     null,
@@ -82,26 +63,46 @@ function SceneContent({ markerMotion }: { markerMotion: MarkerMotionMode }) {
 
   return (
     <>
-      <color attach="background" args={["#0a0a0a"]} />
+      <color attach="background" args={[FOG_COLOR]} />
+      <fog attach="fog" args={[FOG_COLOR, ...fogRangeForExtent(layout.extent)]} />
       <ambientLight intensity={1} />
-      <CameraRig layout={layout} />
-      <TerrainSurface layout={layout} markerMotion={markerMotion} />
+      <OpportunityCameraRig extent={layout.extent} />
+      <TerrainSurface
+        layout={layout}
+        markerMotion={markerMotion}
+        showDebugZone={showDebugZone}
+      />
     </>
   );
 }
 
 type TerrainSceneProps = {
   markerMotion: MarkerMotionMode;
+  showDebugZone: boolean;
 };
 
-export function TerrainScene({ markerMotion }: TerrainSceneProps) {
+export function TerrainScene({ markerMotion, showDebugZone }: TerrainSceneProps) {
   return (
     <Canvas
       className="h-full w-full touch-none"
+      camera={{
+        position: DEFAULT_CAMERA_POSITION,
+        fov: DEFAULT_OPPORTUNITY_FOV,
+        near: 0.1,
+        far: 12000,
+      }}
       dpr={[1, 1.5]}
-      gl={{ antialias: true, alpha: false }}
+      gl={{
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance",
+        preserveDrawingBuffer: false,
+      }}
     >
-      <SceneContent markerMotion={markerMotion} />
+      <SceneContent
+        markerMotion={markerMotion}
+        showDebugZone={showDebugZone}
+      />
     </Canvas>
   );
 }

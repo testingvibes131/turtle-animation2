@@ -4,11 +4,11 @@ import { sourceCellAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import type { PreparedTerrain } from "@/app/v2/lib/terrainGeometry";
+import { SPHERE_RADIUS_RATIO } from "@/app/v2/lib/markerVisuals";
 
-const SPHERE_RADIUS_RATIO = 0.07;
 const SURFACE_PAD = 1.04;
-const BASE_SPHERE_RADIUS_RATIO = 0.07;
-const TOP_SPHERE_RADIUS_RATIO = 0.045;
+const BASE_SPHERE_RADIUS_RATIO = SPHERE_RADIUS_RATIO;
+const TOP_SPHERE_RADIUS_RATIO = SPHERE_RADIUS_RATIO * (0.045 / 0.07);
 const FLAG_POLE_HEIGHT_RATIO = 0.95;
 const STICK_RADIUS_RATIO = 0.014;
 const STICK_MIN_HEIGHT = 0.15;

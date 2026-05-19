@@ -150,7 +150,32 @@ export function buildTerrainWireframeGeometry(
     "position",
     new THREE.Float32BufferAttribute(new Float32Array(positions), 3),
   );
+  computeTerrainLineDistancesXZ(geom);
   return geom;
+}
+
+/**
+ * Dash phase from XZ edge length only (not 3D arc length).
+ * Keeps dashes fixed on the lattice while APR height animates.
+ */
+export function computeTerrainLineDistancesXZ(
+  geometry: THREE.BufferGeometry,
+): void {
+  const pos = geometry.getAttribute("position");
+  if (!pos) return;
+
+  const lineDistances = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i += 2) {
+    const dx = pos.getX(i + 1) - pos.getX(i);
+    const dz = pos.getZ(i + 1) - pos.getZ(i);
+    lineDistances[i] = 0;
+    lineDistances[i + 1] = Math.hypot(dx, dz);
+  }
+
+  geometry.setAttribute(
+    "lineDistance",
+    new THREE.Float32BufferAttribute(lineDistances, 1),
+  );
 }
 
 /** Rewrite line vertex Y in place (fixed XZ lattice). */
