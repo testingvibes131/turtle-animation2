@@ -2,7 +2,7 @@
 
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 import {
@@ -11,7 +11,12 @@ import {
   getOpportunityCameraFar,
   getOpportunityCameraPose,
   getOpportunityOrbitDistanceBounds,
+  OPPORTUNITY_CAMERA_REFERENCE_EXTENT,
 } from "@/app/lib/opportunityCamera";
+
+function formatVec3([x, y, z]: [number, number, number]) {
+  return `[${x.toFixed(6)}, ${y.toFixed(6)}, ${z.toFixed(6)}]`;
+}
 
 type OpportunityCameraRigProps = {
   extent: number;
@@ -35,6 +40,46 @@ export function OpportunityCameraRig({
     () => getOpportunityOrbitDistanceBounds(extent, orbitZoom),
     [extent, orbitZoom],
   );
+
+  const logOrbitPose = useCallback(() => {
+    if (!orbitEnabled) return;
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const position: [number, number, number] = [
+      camera.position.x,
+      camera.position.y,
+      camera.position.z,
+    ];
+    const target: [number, number, number] = [
+      controls.target.x,
+      controls.target.y,
+      controls.target.z,
+    ];
+
+    console.log("[OpportunityCamera] scene (current extent):");
+    console.log(`  position: ${formatVec3(position)}`);
+    console.log(`  target:   ${formatVec3(target)}`);
+
+    const scale = extent / OPPORTUNITY_CAMERA_REFERENCE_EXTENT;
+    if (scale !== 1) {
+      const unscaledPosition: [number, number, number] = [
+        position[0] / scale,
+        position[1] / scale,
+        position[2] / scale,
+      ];
+      const unscaledTarget: [number, number, number] = [
+        target[0] / scale,
+        target[1] / scale,
+        target[2] / scale,
+      ];
+      console.log(
+        `[OpportunityCamera] paste into opportunityCamera.ts (reference extent ${OPPORTUNITY_CAMERA_REFERENCE_EXTENT}):`,
+      );
+      console.log(`  DEFAULT_CAMERA_POSITION = ${formatVec3(unscaledPosition)}`);
+      console.log(`  DEFAULT_CAMERA_TARGET = ${formatVec3(unscaledTarget)}`);
+    }
+  }, [camera, controlsRef, extent, orbitEnabled]);
 
   useLayoutEffect(() => {
     const [tx, ty, tz] = pose.target;
@@ -92,6 +137,7 @@ export function OpportunityCameraRig({
       enableRotate={orbitEnabled}
       minDistance={minDistance}
       maxDistance={maxDistance}
+      onEnd={logOrbitPose}
     />
   );
 }

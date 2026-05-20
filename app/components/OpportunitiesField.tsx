@@ -13,7 +13,7 @@ const MARKER_MOTION_VALUES = MARKER_MOTION_OPTIONS.map((o) => o.mode);
 export default function OpportunitiesField() {
   const { mode: markerMotion } = useControls("Marker motion (debug)", {
     mode: {
-      value: "fixed-offsetting" as MarkerMotionMode,
+      value: "belt" as MarkerMotionMode,
       options: MARKER_MOTION_VALUES,
     },
   });
