@@ -30,7 +30,10 @@ import {
   type MarkerDepthFadeRange,
   type MarkerDepthFadeUniforms,
 } from "@/app/v2/lib/markerDepthFade";
-import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
+import {
+  sphereRadiusRatioFromVisuals,
+  type TerrainVisualParams,
+} from "@/app/v2/lib/terrainVisuals";
 import { stickDashSizesFromVisuals } from "@/app/v2/lib/terrainVisuals";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import {
@@ -85,6 +88,7 @@ function FeaturedFlagMarkersInner({
   dnaBlendsRef,
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
+  const sphereRadius = sphereRadiusRatioFromVisuals(visuals);
   const dummy = useRef(new THREE.Object3D());
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -227,7 +231,7 @@ function FeaturedFlagMarkersInner({
         markersMoveWithBelt,
         debugZone,
         blends ? blend : 1,
-        visuals.sphereRadiusRatio,
+        sphereRadius,
       );
 
       if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
@@ -302,7 +306,7 @@ function FeaturedFlagMarkersInner({
     stickLines,
     camera,
     topRef,
-    visuals.sphereRadiusRatio,
+    sphereRadius,
     waveRef,
   ]);
 

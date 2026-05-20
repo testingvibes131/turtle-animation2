@@ -16,7 +16,10 @@ export function getAprRange(
   return { min, max };
 }
 
-/** Map APR (% points) into [0, maxHeight]. */
+/**
+ * Map APR into terrain height with smooth rolling relief.
+ * Smoothstep keeps transitions gradual; a touch of linear preserves contrast.
+ */
 export function aprToHeight(
   apr: number,
   range: AprRange,
@@ -24,7 +27,10 @@ export function aprToHeight(
 ): number {
   const span = range.max - range.min;
   const t = span > 0 ? (apr - range.min) / span : 0;
-  return Math.max(0, Math.min(1, t)) * maxHeight;
+  const clamped = Math.max(0, Math.min(1, t));
+  const smooth = clamped * clamped * (3 - 2 * clamped);
+  const blended = clamped * 0.38 + smooth * 0.62;
+  return blended * maxHeight;
 }
 
 /** Grayscale 0–1 from normalized APR (for B&W shading). */

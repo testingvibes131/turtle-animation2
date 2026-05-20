@@ -27,6 +27,16 @@ export type TerrainGeometryOptions = {
 
 export const DEFAULT_SMOOTH_PASSES = 2;
 const DEFAULT_EDGE_SUBDIV = 6;
+const MIN_EDGE_SUBDIV = 2;
+
+/** Fewer edge samples on large lattices (wireframe + floor). */
+export function resolveEdgeSubdivisions(cols: number, rows: number): number {
+  const cells = cols * rows;
+  if (cells > 12_000) return MIN_EDGE_SUBDIV;
+  if (cells > 6_000) return 3;
+  if (cells > 2_500) return 4;
+  return DEFAULT_EDGE_SUBDIV;
+}
 
 export type PreparedTerrain = {
   field: number[][];
@@ -133,7 +143,8 @@ export function buildTerrainWireframeGeometry(
   options: TerrainGeometryOptions = {},
 ): THREE.BufferGeometry {
   const { field, cols, rows, cellPitch } = prepared;
-  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const steps =
+    options.edgeSubdivisions ?? resolveEdgeSubdivisions(cols, rows);
   const beltDiagonals = options.beltDiagonals ?? false;
   const positions: number[] = [];
 
@@ -271,7 +282,8 @@ export function updateTerrainWireframePositions(
   options: TerrainGeometryOptions = {},
 ): void {
   const { field, cols, rows, cellPitch } = prepared;
-  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const steps =
+    options.edgeSubdivisions ?? resolveEdgeSubdivisions(cols, rows);
   const beltDiagonals = options.beltDiagonals ?? false;
   const attr = geometry.getAttribute("position") as
     | THREE.BufferAttribute
@@ -364,7 +376,8 @@ export function buildTerrainFloorGeometry(
   options: TerrainGeometryOptions = {},
 ): THREE.BufferGeometry {
   const { field, cols, rows, cellPitch } = prepared;
-  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const steps =
+    options.edgeSubdivisions ?? resolveEdgeSubdivisions(cols, rows);
   const { uVerts, vVerts } = floorLatticeSize(cols, rows, steps);
   const positions = new Float32Array(uVerts * vVerts * 3);
   const indices: number[] = [];
@@ -439,10 +452,11 @@ export function computeTerrainFloorVertexColors(
 export function updateTerrainFloorPositions(
   geometry: THREE.BufferGeometry,
   prepared: PreparedTerrain,
-  options: TerrainGeometryOptions = {},
+  options: TerrainGeometryOptions & { refreshColors?: boolean } = {},
 ): void {
   const { field, cols, rows, cellPitch } = prepared;
-  const steps = options.edgeSubdivisions ?? DEFAULT_EDGE_SUBDIV;
+  const steps =
+    options.edgeSubdivisions ?? resolveEdgeSubdivisions(cols, rows);
   const { uVerts, vVerts } = floorLatticeSize(cols, rows, steps);
   const attr = geometry.getAttribute("position") as
     | THREE.BufferAttribute
@@ -465,9 +479,11 @@ export function updateTerrainFloorPositions(
   }
 
   attr.needsUpdate = true;
-  geometry.computeVertexNormals();
-  computeTerrainFloorVertexColors(geometry);
-  geometry.computeBoundingSphere();
+  if (options.refreshColors !== false) {
+    geometry.computeVertexNormals();
+    computeTerrainFloorVertexColors(geometry);
+    geometry.computeBoundingSphere();
+  }
 }
 
 /** Flat reference grid under the terrain (vaporwave horizon). */

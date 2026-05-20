@@ -58,11 +58,14 @@ export function TerrainSurface({
     return buildTerrainWireframeGeometry(prepared, wireframeOptions);
   }, [layout, baseField, wireframeOptions]);
 
+  const showFloor = layout.cols * layout.rows <= 10_000;
+
   const terrainFloor = useMemo(() => {
+    if (!showFloor) return null;
     const prepared = prepareAnimatedTerrain(layout, 0, baseField);
     if (!prepared) return null;
     return buildTerrainFloorGeometry(prepared, wireframeOptions);
-  }, [layout, baseField, wireframeOptions]);
+  }, [layout, baseField, wireframeOptions, showFloor]);
 
   const { cellPitch } = layout;
 
@@ -151,14 +154,11 @@ export function TerrainSurface({
     const prepared = prepareAnimatedTerrain(layout, elapsed, baseField);
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared, wireframeOptions);
-    computeTerrainWireframeVertexColors(
-      terrainLines,
-      prepared,
-      visualsRef.current,
-      debugZone,
-    );
     if (terrainFloor) {
-      updateTerrainFloorPositions(terrainFloor, prepared, wireframeOptions);
+      updateTerrainFloorPositions(terrainFloor, prepared, {
+        ...wireframeOptions,
+        refreshColors: false,
+      });
     }
     waveRef.current = { prepared, elapsed };
   });

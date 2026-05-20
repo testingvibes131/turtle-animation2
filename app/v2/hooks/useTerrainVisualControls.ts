@@ -17,12 +17,44 @@ export function useTerrainVisualControls(): TerrainVisualParams {
 
   const spheres = useControls("Spheres", {
     restColor: colorControl(`#${d.sphereRestColor.toString(16).padStart(6, "0")}`),
+    emptyColor: colorControl(
+      `#${d.emptySphereColor.toString(16).padStart(6, "0")}`,
+    ),
     radiusRatio: {
       value: d.sphereRadiusRatio,
       min: 0.005,
       max: 0.12,
       step: 0.001,
       label: "radius ratio",
+    },
+    shadeEnabled: { value: d.sphereShadeEnabled, label: "slope shade" },
+    shadeAzimuth: {
+      value: d.sphereShadeAzimuthDeg,
+      min: 0,
+      max: 360,
+      step: 1,
+      label: "light azimuth°",
+    },
+    shadeElevation: {
+      value: d.sphereShadeElevationDeg,
+      min: 5,
+      max: 89,
+      step: 1,
+      label: "light elevation°",
+    },
+    shadeAmbient: {
+      value: d.sphereShadeAmbient,
+      min: 0,
+      max: 0.85,
+      step: 0.02,
+      label: "ambient",
+    },
+    shadeContrast: {
+      value: d.sphereShadeContrast,
+      min: 0.4,
+      max: 4,
+      step: 0.05,
+      label: "contrast",
     },
   });
 
@@ -42,6 +74,13 @@ export function useTerrainVisualControls(): TerrainVisualParams {
   });
 
   const grid = useControls("Grid", {
+    subdiv: {
+      value: d.gridSubdiv,
+      min: 1,
+      max: 12,
+      step: 1,
+      label: "subdiv (K×K)",
+    },
     dashMin: { value: d.gridDashMin, min: 0, max: 0.2, step: 0.005 },
     dashMul: { value: d.gridDashMul, min: 0, max: 0.4, step: 0.005 },
     gapMin: { value: d.gridGapMin, min: 0, max: 0.2, step: 0.005 },
@@ -76,6 +115,9 @@ export function useTerrainVisualControls(): TerrainVisualParams {
   return useMemo(
     (): TerrainVisualParams => ({
       sphereRestColor: hexToColorNumber(spheres.restColor),
+      emptySphereColor: hexToColorNumber(spheres.emptyColor),
+      emptySphereRadiusMul: d.emptySphereRadiusMul,
+      gridSubdiv: grid.subdiv,
       stickColor: hexToColorNumber(sticks.color),
       stickLineWidth: sticks.lineWidth,
       sphereRadiusRatio: spheres.radiusRatio,
@@ -97,6 +139,11 @@ export function useTerrainVisualControls(): TerrainVisualParams {
       gridFadeEnd: grid.fadeEnd,
       fogNearMul: fog.nearMul,
       fogFarMul: fog.farMul,
+      sphereShadeEnabled: spheres.shadeEnabled,
+      sphereShadeAzimuthDeg: spheres.shadeAzimuth,
+      sphereShadeElevationDeg: spheres.shadeElevation,
+      sphereShadeAmbient: spheres.shadeAmbient,
+      sphereShadeContrast: spheres.shadeContrast,
     }),
     [spheres, sticks, grid, fog],
   );

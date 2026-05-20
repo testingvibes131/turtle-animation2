@@ -63,8 +63,13 @@ function SceneContent({
   const aspect = width > 1 && height > 1 ? width / height : 16 / 9;
   const layout = useMemo(
     () =>
-      rows ? layoutOpportunitiesOnGrid(rows, aprRange, { aspect }) : null,
-    [rows, aprRange, aspect],
+      rows
+        ? layoutOpportunitiesOnGrid(rows, aprRange, {
+            aspect,
+            subdiv: visuals.gridSubdiv,
+          })
+        : null,
+    [rows, aprRange, aspect, visuals.gridSubdiv],
   );
 
   if (!layout || layout.cells.length === 0) return null;
