@@ -119,6 +119,147 @@ function layoutExtent(
   return Math.max(halfW, halfD, 4) + maxHeight * 0.15;
 }
 
+type MacroSlot = { col: number; row: number };
+
+function buildMacroSlots(count: number, macroCols: number): MacroSlot[] {
+  return Array.from({ length: count }, (_, i) => ({
+    col: i % macroCols,
+    row: Math.floor(i / macroCols),
+  }));
+}
+
+function stableHash32(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function manhattanSlot(a: MacroSlot, b: MacroSlot): number {
+  return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+}
+
+function countAligned(
+  slot: MacroSlot,
+  placed: MacroSlot[],
+  kind: "row" | "col" | "diag1" | "diag2",
+): number {
+  let n = 0;
+  for (const p of placed) {
+    if (kind === "row" && p.row === slot.row) n++;
+    else if (kind === "col" && p.col === slot.col) n++;
+    else if (kind === "diag1" && p.col - p.row === slot.col - slot.row) n++;
+    else if (kind === "diag2" && p.col + p.row === slot.col + slot.row) n++;
+  }
+  return n;
+}
+
+/** Spacing + anti-line penalty so featured pins avoid rows, columns, and diagonals. */
+function featuredPlacementScore(
+  slot: MacroSlot,
+  placed: MacroSlot[],
+  center: MacroSlot,
+): number {
+  if (placed.length === 0) {
+    return -manhattanSlot(slot, center);
+  }
+
+  const minDist = Math.min(...placed.map((p) => manhattanSlot(slot, p)));
+  let penalty = 0;
+
+  for (const kind of ["row", "col", "diag1", "diag2"] as const) {
+    const onLine = countAligned(slot, placed, kind);
+    if (onLine >= 1) penalty += 6 * onLine;
+    if (onLine >= 2) penalty += 200;
+  }
+
+  for (const p of placed) {
+    const dc = Math.abs(p.col - slot.col);
+    const dr = Math.abs(p.row - slot.row);
+    if (dc === 1 && dr === 1) penalty += 3;
+  }
+
+  return minDist - penalty;
+}
+
+function pickFeaturedSpreadSlots(
+  slots: MacroSlot[],
+  count: number,
+  tieBreakerIds: string[],
+): MacroSlot[] {
+  if (count <= 0) return [];
+
+  const available = slots.slice();
+  const placed: MacroSlot[] = [];
+  let centerCol = 0;
+  let centerRow = 0;
+  for (const s of slots) {
+    centerCol += s.col;
+    centerRow += s.row;
+  }
+  const center: MacroSlot = {
+    col: centerCol / slots.length,
+    row: centerRow / slots.length,
+  };
+
+  for (let f = 0; f < count; f++) {
+    const id = tieBreakerIds[f] ?? String(f);
+    let bestScore = -Infinity;
+    let bestTie = -1;
+    let bestIdx = 0;
+
+    for (let i = 0; i < available.length; i++) {
+      const slot = available[i]!;
+      const score = featuredPlacementScore(slot, placed, center);
+      const tie = stableHash32(`${id}:${slot.col},${slot.row}`);
+      if (score > bestScore || (score === bestScore && tie > bestTie)) {
+        bestScore = score;
+        bestTie = tie;
+        bestIdx = i;
+      }
+    }
+
+    const chosen = available.splice(bestIdx, 1)[0]!;
+    placed.push(chosen);
+  }
+
+  return placed;
+}
+
+function slotKey(slot: MacroSlot): string {
+  return `${slot.col},${slot.row}`;
+}
+
+function assignSpreadSlots(
+  opportunities: OpportunityRow[],
+  macroCols: number,
+): Map<string, MacroSlot> {
+  const n = opportunities.length;
+  const allSlots = buildMacroSlots(n, macroCols);
+  const featured = opportunities.filter((o) => o.featured);
+  if (featured.length === 0) {
+    return new Map(
+      opportunities.map((opp, i) => [opp.id, allSlots[i]!] as const),
+    );
+  }
+
+  const featuredSlots = pickFeaturedSpreadSlots(
+    allSlots,
+    featured.length,
+    featured.map((o) => o.id),
+  );
+  const usedFeatured = new Set(featuredSlots.map(slotKey));
+  const remainingSlots = allSlots.filter((s) => !usedFeatured.has(slotKey(s)));
+  const rest = opportunities.filter((o) => !o.featured);
+
+  const byId = new Map<string, MacroSlot>();
+  featured.forEach((opp, i) => byId.set(opp.id, featuredSlots[i]!));
+  rest.forEach((opp, i) => byId.set(opp.id, remainingSlots[i]!));
+  return byId;
+}
+
 function subdivideMacroLayout(
   macroCols: number,
   macroRows: number,
@@ -200,12 +341,12 @@ export function layoutOpportunitiesOnGrid(
     };
   }
 
+  const slotById = assignSpreadSlots(opportunities, macroCols);
   const macroCells: TerrainCell[] = [];
 
   for (let i = 0; i < n; i++) {
     const opp = opportunities[i]!;
-    const col = i % macroCols;
-    const row = Math.floor(i / macroCols);
+    const { col, row } = slotById.get(opp.id)!;
     const x = (col - (macroCols - 1) * 0.5) * cellPitch;
     const z = (row - (macroRows - 1) * 0.5) * cellPitch;
     const apr = Number.isFinite(opp.estAprPercent) ? opp.estAprPercent : aprRange.min;
