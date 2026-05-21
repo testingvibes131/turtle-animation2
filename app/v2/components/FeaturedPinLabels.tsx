@@ -35,9 +35,12 @@ import {
   type MarkerDepthFadeRange,
 } from "@/app/v2/lib/markerDepthFade";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
-import { dmSansFontFamily } from "@/app/fonts";
+import { dmSansFontFamily, r3fHtmlFontClassName } from "@/app/fonts";
 
-const LABEL_MAX_WIDTH = "70px";
+/** Fixed layout width (px) — do not use tiny max-width + word-break or min-content collapses to 1 char/line. */
+const LABEL_WIDTH_PX = 112;
+/** Base px before drei screen `scale` (non-transform Html: lower distanceFactor = smaller). */
+const LABEL_BASE_FONT_PX = 5;
 const OPACITY_EPSILON = 0.02;
 const OPACITY_WRITE_EPSILON = 0.004;
 /** Hysteresis so blend lerp around the show threshold does not flicker. */
@@ -48,30 +51,50 @@ const BLEND_IDLE_EPSILON = 0.05;
 const labelWrap: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
+  margin: 0,
+  padding: 0,
   fontFamily: dmSansFontFamily,
   textAlign: "left",
-  lineHeight: 1.25,
-  textShadow: "0 1px 8px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
-  color: "#73f36c",
-  whiteSpace: "nowrap",
+  lineHeight: 1.15,
+  textShadow: "0 1px 6px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
+  color: "#f9f9f9",
+  whiteSpace: "normal",
 };
 
-const fadeWrapStyle: CSSProperties = { opacity: 0 };
+const fadeWrapStyle: CSSProperties = {
+  opacity: 0,
+  fontSize: LABEL_BASE_FONT_PX,
+  transform: "translateY(-50%)",
+  width: LABEL_WIDTH_PX,
+  boxSizing: "border-box",
+  whiteSpace: "normal",
+  overflowWrap: "break-word",
+};
 
 const nameStyle: CSSProperties = {
-  fontSize: 7,
+  fontSize: "1.15em",
   fontWeight: 600,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  maxWidth: LABEL_MAX_WIDTH,
   display: FEATURED_PIN_SHOW_NAME_LABEL ? undefined : "none",
 };
 
-const aprStyle: CSSProperties = {
-  fontSize: 6,
-  fontWeight: 500,
-  opacity: 0.92,
+const aprRowStyle: CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "baseline",
+  gap: 2,
+  lineHeight: 1.1,
   marginTop: FEATURED_PIN_SHOW_NAME_LABEL ? 1 : 0,
+};
+
+const aprValueStyle: CSSProperties = {
+  fontSize: "1em",
+  fontWeight: 600,
+};
+
+const aprSuffixStyle: CSSProperties = {
+  fontSize: "0.82em",
+  fontWeight: 500,
+  opacity: 0.88,
 };
 
 type SlotState = {
@@ -85,7 +108,8 @@ type SlotState = {
 type LabelDom = {
   fade: HTMLDivElement;
   name: HTMLDivElement;
-  apr: HTMLDivElement;
+  aprValue: HTMLDivElement;
+  aprSuffix: HTMLDivElement;
 };
 
 function pinVisibleWithHysteresis(slot: SlotState, blend: number): boolean {
@@ -163,17 +187,21 @@ function FeaturedPinLabel({
   const groupRef = useRef<THREE.Group>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLDivElement>(null);
-  const aprRef = useRef<HTMLDivElement>(null);
+  const aprValueRef = useRef<HTMLDivElement>(null);
+  const aprSuffixRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
 
   const tryRegister = useCallback(() => {
     const g = groupRef.current;
     const fade = fadeRef.current;
     const name = nameRef.current;
-    const apr = aprRef.current;
-    if (!g || !fade || !name || !apr || mountedRef.current) return;
+    const aprValue = aprValueRef.current;
+    const aprSuffix = aprSuffixRef.current;
+    if (!g || !fade || !name || !aprValue || !aprSuffix || mountedRef.current) {
+      return;
+    }
     mountedRef.current = true;
-    onMount(index, { fade, name, apr }, g);
+    onMount(index, { fade, name, aprValue, aprSuffix }, g);
   }, [index, onMount]);
 
   useEffect(() => {
@@ -191,6 +219,7 @@ function FeaturedPinLabel({
       }}
     >
       <Html
+        className={r3fHtmlFontClassName}
         center={false}
         occlude={false}
         pointerEvents="none"
@@ -212,13 +241,22 @@ function FeaturedPinLabel({
             }}
             style={nameStyle}
           />
-          <div
-            ref={(node) => {
-              aprRef.current = node;
-              tryRegister();
-            }}
-            style={aprStyle}
-          />
+          <div style={aprRowStyle}>
+            <div
+              ref={(node) => {
+                aprValueRef.current = node;
+                tryRegister();
+              }}
+              style={aprValueStyle}
+            />
+            <div
+              ref={(node) => {
+                aprSuffixRef.current = node;
+                tryRegister();
+              }}
+              style={aprSuffixStyle}
+            />
+          </div>
         </div>
       </Html>
     </group>
@@ -248,8 +286,9 @@ export function FeaturedPinLabels({
   dnaLookup,
   dnaBlendsRef,
 }: FeaturedPinLabelsProps) {
+  /** Non-transform Html scales as `objectScale * distanceFactor` — lower = smaller on screen. */
   const distanceFactor = useMemo(
-    () => Math.max(14, cellPitch * 16),
+    () => Math.max(3.5, cellPitch * 3.5),
     [cellPitch],
   );
   const camera = useThree((s) => s.camera);
@@ -384,13 +423,16 @@ export function FeaturedPinLabels({
           slot.lastOpacityWrite = displayOpacity;
         }
 
-        const { name, aprLine } = slot.text;
+        const { name, aprValue, aprSuffix } = slot.text;
         if (dom.name.textContent !== name) {
           dom.name.textContent = name;
           dom.name.title = name;
         }
-        if (dom.apr.textContent !== aprLine) {
-          dom.apr.textContent = aprLine;
+        if (dom.aprValue.textContent !== aprValue) {
+          dom.aprValue.textContent = aprValue;
+        }
+        if (dom.aprSuffix.textContent !== aprSuffix) {
+          dom.aprSuffix.textContent = aprSuffix;
         }
 
         getFeaturedPinLabelPosition(flag, camera, cellPitch, labelPos.current);
@@ -433,7 +475,8 @@ export function FeaturedPinLabels({
 
         dom.name.textContent = slot.text.name;
         dom.name.title = slot.text.name;
-        dom.apr.textContent = slot.text.aprLine;
+        dom.aprValue.textContent = slot.text.aprValue;
+        dom.aprSuffix.textContent = slot.text.aprSuffix;
 
         const flag = getFeaturedFlagPose(
           cell,

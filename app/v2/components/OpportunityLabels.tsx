@@ -14,20 +14,21 @@ import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getMarkerLabelPose } from "@/app/v2/lib/markerPosition";
 import { buildCellLookup, isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
-import { dmSansFontFamily } from "@/app/fonts";
+import { dmSansFontFamily, r3fHtmlFontClassName } from "@/app/fonts";
 
-const LABEL_MAX_WIDTH = "120px";
+const LABEL_WIDTH_PX = 120;
 
 const labelWrapBase: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
   fontFamily: dmSansFontFamily,
   textAlign: "center",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  maxWidth: LABEL_MAX_WIDTH,
+  width: LABEL_WIDTH_PX,
+  boxSizing: "border-box",
+  whiteSpace: "normal",
+  overflowWrap: "break-word",
   lineHeight: 1.2,
+  color: "#f9f9f9",
   textShadow: "0 1px 8px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
 };
 
@@ -78,17 +79,17 @@ function OpportunityLabel({
   return (
     <group ref={groupRef}>
       <Html
+        className={r3fHtmlFontClassName}
         transform
         sprite
         center
         occlude={false}
         pointerEvents="none"
-        distanceFactor={7}
+        distanceFactor={10}
         zIndexRange={[10, 20]}
         style={{
           ...labelWrapBase,
-          color: isFeatured ? "#73f36c" : "#f0f0f0",
-          fontSize: isFeatured ? 11 : 10,
+          fontSize: isFeatured ? 8 : 7,
           fontWeight: isFeatured ? 600 : 500,
         }}
       >

@@ -5,12 +5,17 @@ import type { FeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import * as THREE from "three";
 
 /** Plane diameter is 2× topRadius; multiply for art legibility. */
-export const FEATURED_PIN_SIZE_MUL = 12;
+export const FEATURED_PIN_SIZE_MUL = 6;
 
-/** Vertical nudge so pin art sits on the stick tip. */
-export const FEATURED_PIN_Y_OFFSET = 0.075;
+/** Vertical nudge so pin art sits on the stick tip (world Y; lower = smaller value). */
+export const FEATURED_PIN_Y_OFFSET = 0.02;
 
-const LABEL_GAP_RATIO = 0.06;
+/** Gap from pin art edge to label (world units ∝ cellPitch). */
+const LABEL_EDGE_GAP_RATIO = 0.035;
+/** Pin PNG does not fill the billboard plane; shrink radius used for label offset. */
+const LABEL_PIN_ART_RADIUS_MUL = 0.88;
+/** Extra push along camera-right beyond pin edge + gap. */
+const LABEL_CAMERA_RIGHT_MUL = 1.2;
 const _cameraRight = new THREE.Vector3();
 
 /** Hide opportunity name in pin labels; name copy still resolves for held/swap logic. */
@@ -50,9 +55,10 @@ export function getFeaturedPinLabelPosition(
   target: THREE.Vector3,
 ): THREE.Vector3 {
   _cameraRight.set(1, 0, 0).transformDirection(camera.matrixWorld);
-  const pinHalf = flag.topRadius * FEATURED_PIN_SIZE_MUL * 0.5;
-  const gap = cellPitch * LABEL_GAP_RATIO;
-  const offset = pinHalf + gap;
+  const pinRadius = flag.topRadius * FEATURED_PIN_SIZE_MUL * 0.5;
+  const artRadius = pinRadius * LABEL_PIN_ART_RADIUS_MUL;
+  const gap = cellPitch * LABEL_EDGE_GAP_RATIO;
+  const offset = (artRadius + gap) * LABEL_CAMERA_RIGHT_MUL;
   return target.set(
     flag.x + _cameraRight.x * offset,
     flag.yTop + FEATURED_PIN_Y_OFFSET,
@@ -60,10 +66,20 @@ export function getFeaturedPinLabelPosition(
   );
 }
 
-export function formatFeaturedApr(apr: number): string {
-  if (!Number.isFinite(apr)) return "—";
+export type FeaturedAprParts = {
+  value: string;
+  suffix: string;
+};
+
+export function formatFeaturedAprParts(apr: number): FeaturedAprParts {
+  if (!Number.isFinite(apr)) return { value: "—", suffix: "" };
   const rounded = Math.round(apr * 100) / 100;
-  return `${rounded}% APR`;
+  return { value: `${rounded}%`, suffix: "APR" };
+}
+
+export function formatFeaturedApr(apr: number): string {
+  const { value, suffix } = formatFeaturedAprParts(apr);
+  return suffix ? `${value} ${suffix}` : value;
 }
 
 /** Featured strength 0–1 above the pin show threshold (stick height proxy). */
@@ -97,12 +113,14 @@ export function featuredLabelOpacity(blend: number): number {
 export type LockedLabelContent = {
   id: string;
   name: string;
-  aprLine: string;
+  aprValue: string;
+  aprSuffix: string;
 };
 
 export function cellToLabelContent(cell: TerrainCell): LockedLabelContent {
   const name = cell.name.trim() || "—";
-  return { id: cell.id, name, aprLine: formatFeaturedApr(cell.apr) };
+  const { value, suffix } = formatFeaturedAprParts(cell.apr);
+  return { id: cell.id, name, aprValue: value, aprSuffix: suffix };
 }
 
 /**

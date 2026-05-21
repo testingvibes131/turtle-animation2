@@ -51,7 +51,7 @@ export type GridLayoutOptions = {
 
 const DEFAULT_CELL_PITCH = 1;
 /** Peak APR relief (world Y). */
-const DEFAULT_MAX_HEIGHT = 10;
+const DEFAULT_MAX_HEIGHT = 8;
 const DEFAULT_SUBDIV = 3;
 const MAX_SUBDIV = 12;
 

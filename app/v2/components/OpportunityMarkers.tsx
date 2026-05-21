@@ -58,7 +58,7 @@ import {
   sphereTerrainShadeFromVisuals,
   type TerrainVisualParams,
 } from "@/app/v2/lib/terrainVisuals";
-import { dmSansFontFamily } from "@/app/fonts";
+import { dmSansFontFamily, r3fHtmlFontClassName } from "@/app/fonts";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 6, 4);
 const _sphereDummy = new THREE.Object3D();
@@ -79,10 +79,13 @@ const curatorLabelWrap: CSSProperties = {
   userSelect: "none",
   fontFamily: dmSansFontFamily,
   textAlign: "center",
-  whiteSpace: "nowrap",
+  width: 120,
+  boxSizing: "border-box",
+  whiteSpace: "normal",
+  overflowWrap: "break-word",
   lineHeight: 1.2,
-  color: "#5b9cf5",
-  fontSize: 18,
+  color: "#f9f9f9",
+  fontSize: 10,
   fontWeight: 600,
   transform: "translate(-50%, -100%)",
   textShadow: "0 1px 10px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.95)",
@@ -509,9 +512,10 @@ function CuratorHoverLabel({
   return (
     <group ref={groupRef}>
       <Html
+        className={r3fHtmlFontClassName}
         occlude={false}
         pointerEvents="none"
-        distanceFactor={10}
+        distanceFactor={5}
         zIndexRange={[30, 40]}
         style={curatorLabelWrap}
       >
