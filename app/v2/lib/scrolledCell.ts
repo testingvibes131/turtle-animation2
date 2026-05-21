@@ -44,6 +44,15 @@ export function sourceCellAtCrossing(
   return cellAtGrid(cell.col - offsetU, cell.row - offsetV, lookup);
 }
 
+/** True when this peg's fixed crossing currently shows its own opportunity DNA. */
+export function ownsMarkerCrossing(
+  cell: TerrainCell,
+  elapsed: number,
+  lookup: (TerrainCell | undefined)[][],
+): boolean {
+  return sourceCellAtCrossing(cell, elapsed, lookup)?.id === cell.id;
+}
+
 export function isFeaturedAtCrossing(
   cell: TerrainCell,
   elapsed: number,

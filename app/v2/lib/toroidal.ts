@@ -8,6 +8,67 @@ export function wrapIndex(index: number, size: number): number {
   return wrapToroidal(index, size);
 }
 
+type BeltQuadrantCorner = {
+  col: number;
+  row: number;
+  /** +1 steps along the diagonal into the field from this corner. */
+  colStep: number;
+  rowStep: number;
+};
+
+function isNearGridCenter(
+  homeCol: number,
+  homeRow: number,
+  cols: number,
+  rows: number,
+): boolean {
+  const midCol = (cols - 1) * 0.5;
+  const midRow = (rows - 1) * 0.5;
+  return (
+    Math.abs(homeCol - midCol) < 1.5 && Math.abs(homeRow - midRow) < 1.5
+  );
+}
+
+function beltQuadrantCorner(
+  homeCol: number,
+  homeRow: number,
+  cols: number,
+  rows: number,
+): BeltQuadrantCorner | null {
+  if (!isNearGridCenter(homeCol, homeRow, cols, rows)) return null;
+
+  const midCol = (cols - 1) * 0.5;
+  const midRow = (rows - 1) * 0.5;
+  const east = homeCol >= midCol;
+  const south = homeRow >= midRow;
+
+  if (east && south) {
+    return { col: 0, row: 0, colStep: 1, rowStep: 1 };
+  }
+  if (!east && south) {
+    return { col: cols - 1, row: 0, colStep: -1, rowStep: 1 };
+  }
+  if (east && !south) {
+    return { col: 0, row: rows - 1, colStep: 1, rowStep: -1 };
+  }
+  return { col: cols - 1, row: rows - 1, colStep: -1, rowStep: -1 };
+}
+
+/** Stagger along the corner diagonal so center-cluster homes do not share belt UV. */
+function beltOppositeStagger(
+  homeCol: number,
+  homeRow: number,
+  cols: number,
+  rows: number,
+): number {
+  const midCol = Math.floor((cols - 1) * 0.5);
+  const midRow = Math.floor((rows - 1) * 0.5);
+  const max = Math.max(0, Math.min(midCol, midRow) - 1);
+  if (max === 0) return 0;
+  const key = homeCol * (rows + 1) + homeRow;
+  return key % (max + 1);
+}
+
 /** Far torus corner for belt respawn (center cells mirror to themselves otherwise). */
 function beltOppositeCorner(
   homeCol: number,
@@ -15,15 +76,12 @@ function beltOppositeCorner(
   cols: number,
   rows: number,
 ): { col: number; row: number } {
-  const midCol = (cols - 1) * 0.5;
-  const midRow = (rows - 1) * 0.5;
-  const nearCenter =
-    Math.abs(homeCol - midCol) < 1.5 && Math.abs(homeRow - midRow) < 1.5;
-
-  if (nearCenter) {
+  const corner = beltQuadrantCorner(homeCol, homeRow, cols, rows);
+  if (corner) {
+    const stagger = beltOppositeStagger(homeCol, homeRow, cols, rows);
     return {
-      col: homeCol >= midCol ? 0 : cols - 1,
-      row: homeRow >= midRow ? 0 : rows - 1,
+      col: corner.col + corner.colStep * stagger,
+      row: corner.row + corner.rowStep * stagger,
     };
   }
 
@@ -41,13 +99,20 @@ export function wrapDiagonalToroidalUV(
   rows: number,
   homeCol: number,
   homeRow: number,
+  opposite?: { col: number; row: number },
 ): { u: number; v: number } {
   if (cols <= 0 || rows <= 0) return { u: 0, v: 0 };
 
   const offset = u - homeCol;
-  const opp = beltOppositeCorner(homeCol, homeRow, cols, rows);
+  const opp =
+    opposite ?? beltOppositeCorner(homeCol, homeRow, cols, rows);
   const legHome = Math.min(cols - homeCol, rows - homeRow);
   const legOpp = Math.min(cols - opp.col, rows - opp.row);
+
+  const oppositeUV = (along: number) => ({
+    u: wrapToroidal(opp.col + along, cols),
+    v: wrapToroidal(opp.row + along, rows),
+  });
 
   let rem = offset;
   let onOpposite = false;
@@ -66,17 +131,14 @@ export function wrapDiagonalToroidalUV(
     }
 
     if (rem < legOpp) {
-      return {
-        u: wrapToroidal(opp.col + rem, cols),
-        v: wrapToroidal(opp.row + rem, rows),
-      };
+      return oppositeUV(rem);
     }
     rem -= legOpp;
     onOpposite = false;
   }
 
   if (onOpposite) {
-    return { u: wrapToroidal(opp.col, cols), v: wrapToroidal(opp.row, rows) };
+    return oppositeUV(0);
   }
   return { u: wrapToroidal(homeCol, cols), v: wrapToroidal(homeRow, rows) };
 }

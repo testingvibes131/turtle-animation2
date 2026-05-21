@@ -39,6 +39,11 @@ export function getAnimatedGridUV(
   rows: number,
 ): { u: number; v: number } {
   const { offsetU, offsetV } = getConveyorOffset(elapsed);
+  const opposite =
+    cell.beltOppositeCol !== undefined && cell.beltOppositeRow !== undefined
+      ? { col: cell.beltOppositeCol, row: cell.beltOppositeRow }
+      : undefined;
+
   return wrapDiagonalToroidalUV(
     cell.col + offsetU,
     cell.row + offsetV,
@@ -46,6 +51,7 @@ export function getAnimatedGridUV(
     rows,
     cell.col,
     cell.row,
+    opposite,
   );
 }
 

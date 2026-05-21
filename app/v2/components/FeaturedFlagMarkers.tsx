@@ -20,8 +20,7 @@ import {
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { updateFeaturedStickLineDistances } from "@/app/v2/lib/stickLineDistances";
-import { isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
-import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
+import { isFeaturedFlagVisible } from "@/app/v2/lib/featuredPinVisuals";
 import {
   attachLineMaterialDepthFade,
   attachMeshBasicDepthFade,
@@ -204,11 +203,13 @@ function FeaturedFlagMarkersInner({
       const base = i * 6;
       const blends = dnaBlendsRef?.current;
       const blend = blends ? (blends[i] ?? 0) : 1;
-      const show =
-        !dnaLookup ||
-        (blends
-          ? blend > FLAG_BLEND_SHOW_THRESHOLD
-          : isFeaturedAtCrossing(cell, elapsed, dnaLookup));
+      const show = isFeaturedFlagVisible(
+        cell,
+        i,
+        elapsed,
+        dnaLookup,
+        blends ?? null,
+      );
 
       if (!show) {
         positions[base] = cell.x;

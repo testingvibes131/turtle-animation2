@@ -1,5 +1,6 @@
 import type { OpportunityRow } from "@/app/lib/opportunitiesCsv";
 import { aprToHeight, type AprRange } from "@/app/v2/lib/apr";
+import { applyBeltOppositeToCells } from "@/app/v2/lib/beltLayout";
 
 export type TerrainCellKind = "data" | "empty";
 
@@ -18,6 +19,9 @@ export type TerrainCell = {
   /** Parent macro crossing when subdivided (same as col/row when subdiv = 1). */
   macroCol: number;
   macroRow: number;
+  /** Unique respawn cell for diagonal belt wrap (one per opportunity). */
+  beltOppositeCol?: number;
+  beltOppositeRow?: number;
 };
 
 export type GridLayout = {
@@ -281,6 +285,8 @@ function subdivideMacroLayout(
     });
   }
 
+  applyBeltOppositeToCells(cells, cols, rows);
+
   return {
     cols,
     rows,
@@ -357,6 +363,7 @@ export function layoutOpportunitiesOnGrid(
   }
 
   if (subdiv <= 1) {
+    applyBeltOppositeToCells(macroCells, macroCols, macroRows);
     return {
       cols: macroCols,
       rows: macroRows,

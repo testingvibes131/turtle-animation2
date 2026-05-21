@@ -15,6 +15,7 @@ import {
 import * as THREE from "three";
 import type { LineSegments2 } from "three-stdlib";
 import { getAprRangeFromAprValues } from "@/app/v2/lib/apr";
+import { claimBeltGridCell } from "@/app/v2/lib/beltLayout";
 import {
   buildEmptyDisplayCells,
   getDataCells,
@@ -154,6 +155,7 @@ function MarkerSpheres({
   centerOnTerrain = false,
   depthFadeUniforms,
   visuals,
+  beltOccupancyRef,
 }: {
   cells: TerrainCell[];
   color: number;
@@ -168,6 +170,7 @@ function MarkerSpheres({
   centerOnTerrain?: boolean;
   depthFadeUniforms: MarkerDepthFadeUniforms;
   visuals: TerrainVisualParams;
+  beltOccupancyRef?: RefObject<Set<string>>;
 }) {
   const count = cells.length;
   const terrainShade = useMemo(
@@ -189,7 +192,14 @@ function MarkerSpheres({
     const hover = hoverRef.current;
     const dummy = _sphereDummy;
 
+    const occupancy = beltOccupancyRef?.current;
+
     cells.forEach((cell, i) => {
+      const visible =
+        !markersMoveWithBelt ||
+        !occupancy ||
+        claimBeltGridCell(occupancy, cell, elapsed, prepared.cols, prepared.rows);
+
       const { x, y, z } = getSphereMarkerPose(
         cell,
         prepared,
@@ -198,17 +208,19 @@ function MarkerSpheres({
         markersMoveWithBelt,
         sphereRadiusRatio,
       );
-      const highlighted = getSphereHoverStyle(
-        cell,
-        hover,
-        elapsed,
-        { useCrossingCurator, dnaLookup },
-      );
+      const highlighted =
+        visible &&
+        getSphereHoverStyle(cell, hover, elapsed, {
+          useCrossingCurator,
+          dnaLookup,
+        });
       dummy.position.set(x, y, z);
       dummy.scale.setScalar(
-        cellPitch *
-          sphereRadiusRatio *
-          (highlighted ? CURATOR_HOVER_SCALE : 1),
+        visible
+          ? cellPitch *
+              sphereRadiusRatio *
+              (highlighted ? CURATOR_HOVER_SCALE : 1)
+          : 0,
       );
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
@@ -245,6 +257,7 @@ function MarkerSpheres({
     markersMoveWithBelt,
     meshRef,
     sphereRadiusRatio,
+    beltOccupancyRef,
     terrainShade,
     useCrossingCurator,
     waveRef,
@@ -663,8 +676,8 @@ export function OpportunityMarkers({
     [dataCells],
   );
   const hasFeaturedOpps = featured.length > 0;
-  /** Fixed-offsetting: one flag slot per crossing; visibility follows scrolled DNA. */
-  const flagCells = useScrolledDna ? dataCells : featured;
+  /** Featured flags only; fixed-offsetting shows a flag when this peg owns its crossing. */
+  const flagCells = featured;
   const dnaMeshRef = useRef<THREE.InstancedMesh>(null);
   const restMeshRef = useRef<THREE.InstancedMesh>(null);
   const featuredMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -677,6 +690,7 @@ export function OpportunityMarkers({
   );
 
   const dnaBlendsRef = useRef<Float32Array>(new Float32Array(0));
+  const beltOccupancyRef = useRef(new Set<string>());
   const hoverRef = useRef<CuratorHoverState>({
     curator: null,
     anchorCell: null,
@@ -693,6 +707,8 @@ export function OpportunityMarkers({
       depthFadeRange,
       visuals.depthFadeMinOpacity,
     );
+
+    if (moveWithBelt) beltOccupancyRef.current.clear();
 
     if (!useScrolledDna || dataCells.length === 0) return;
     const { elapsed } = waveRef.current;
@@ -716,22 +732,6 @@ export function OpportunityMarkers({
 
   return (
     <>
-      {emptyCells.length > 0 ? (
-        <MarkerSpheres
-          cells={emptyCells}
-          color={visuals.emptySphereColor}
-          cellPitch={cellPitch}
-          sphereRadiusRatio={sphereRadius}
-          meshRef={emptyMeshRef}
-          waveRef={waveRef}
-          markersMoveWithBelt={moveWithBelt}
-          hoverRef={hoverRef}
-          useCrossingCurator={false}
-          dnaLookup={null}
-          depthFadeUniforms={depthFadeUniforms}
-          visuals={visuals}
-        />
-      ) : null}
       {useScrolledDna ? (
         <ScrolledDnaMarkerSpheres
           cells={dataCells}
@@ -750,20 +750,6 @@ export function OpportunityMarkers({
       ) : (
         <>
           <MarkerSpheres
-            cells={rest}
-            color={visuals.sphereRestColor}
-            cellPitch={cellPitch}
-            sphereRadiusRatio={sphereRadius}
-            meshRef={restMeshRef}
-            waveRef={waveRef}
-            markersMoveWithBelt={moveWithBelt}
-            hoverRef={hoverRef}
-            useCrossingCurator={false}
-            dnaLookup={null}
-            depthFadeUniforms={depthFadeUniforms}
-            visuals={visuals}
-          />
-          <MarkerSpheres
             cells={featured}
             color={visuals.stickColor}
             cellPitch={cellPitch}
@@ -777,9 +763,42 @@ export function OpportunityMarkers({
             centerOnTerrain
             depthFadeUniforms={depthFadeUniforms}
             visuals={visuals}
+            beltOccupancyRef={beltOccupancyRef}
+          />
+          <MarkerSpheres
+            cells={rest}
+            color={visuals.sphereRestColor}
+            cellPitch={cellPitch}
+            sphereRadiusRatio={sphereRadius}
+            meshRef={restMeshRef}
+            waveRef={waveRef}
+            markersMoveWithBelt={moveWithBelt}
+            hoverRef={hoverRef}
+            useCrossingCurator={false}
+            dnaLookup={null}
+            depthFadeUniforms={depthFadeUniforms}
+            visuals={visuals}
+            beltOccupancyRef={beltOccupancyRef}
           />
         </>
       )}
+      {emptyCells.length > 0 ? (
+        <MarkerSpheres
+          cells={emptyCells}
+          color={visuals.emptySphereColor}
+          cellPitch={cellPitch}
+          sphereRadiusRatio={sphereRadius}
+          meshRef={emptyMeshRef}
+          waveRef={waveRef}
+          markersMoveWithBelt={moveWithBelt}
+          hoverRef={hoverRef}
+          useCrossingCurator={false}
+          dnaLookup={null}
+          depthFadeUniforms={depthFadeUniforms}
+          visuals={visuals}
+          beltOccupancyRef={beltOccupancyRef}
+        />
+      ) : null}
       {hasFeaturedOpps ? (
         <>
           <FeaturedFlagMarkers

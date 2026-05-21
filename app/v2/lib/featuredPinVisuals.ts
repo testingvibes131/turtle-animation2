@@ -4,7 +4,10 @@ import {
   type AprRange,
 } from "@/app/v2/lib/apr";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
-import { isFeaturedAtCrossing, sourceCellAtCrossing } from "@/app/v2/lib/scrolledCell";
+import {
+  ownsMarkerCrossing,
+  sourceCellAtCrossing,
+} from "@/app/v2/lib/scrolledCell";
 import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
 import type { FeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import * as THREE from "three";
@@ -41,9 +44,11 @@ export function isFeaturedFlagVisible(
   dnaLookup?: (TerrainCell | undefined)[][],
   blends?: Float32Array | null,
 ): boolean {
+  if (!cell.featured) return false;
   if (!dnaLookup) return true;
+  if (!ownsMarkerCrossing(cell, elapsed, dnaLookup)) return false;
   if (blends) return isPinVisibleFromBlend(blends[index] ?? 0);
-  return isFeaturedAtCrossing(cell, elapsed, dnaLookup);
+  return true;
 }
 
 export function featuredFlagDisplayCell(
