@@ -35,9 +35,11 @@ import {
 } from "@/app/v2/lib/terrainVisuals";
 import { stickDashSizesFromVisuals } from "@/app/v2/lib/terrainVisuals";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
+import type { AprRange } from "@/app/v2/lib/apr";
 import {
   FEATURED_PIN_SIZE_MUL,
   FEATURED_PIN_Y_OFFSET,
+  featuredStickApr,
 } from "@/app/v2/lib/featuredPinVisuals";
 
 const FEATURED_PIN_PATH = "/featured-pin.png";
@@ -59,6 +61,7 @@ type FeaturedFlagMarkersProps = {
   dnaLookup?: (TerrainCell | undefined)[][];
   /** Smoothed featured blend per flag cell index (fixed-offsetting). */
   dnaBlendsRef?: RefObject<Float32Array>;
+  aprRange: AprRange;
 };
 
 export function FeaturedFlagMarkers(props: FeaturedFlagMarkersProps) {
@@ -83,6 +86,7 @@ function FeaturedFlagMarkersInner({
   depthFadeRange,
   dnaLookup,
   dnaBlendsRef,
+  aprRange,
 }: FeaturedFlagMarkersProps) {
   const count = featured.length;
   const sphereRadius = sphereRadiusRatioFromVisuals(visuals);
@@ -228,6 +232,10 @@ function FeaturedFlagMarkersInner({
         markersMoveWithBelt,
         blends ? blend : 1,
         sphereRadius,
+        {
+          aprRange,
+          stickApr: featuredStickApr(cell, elapsed, dnaLookup),
+        },
       );
 
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;

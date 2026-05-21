@@ -1,11 +1,19 @@
+import {
+  aprToStickHeightT,
+  featuredStickAprRange,
+  type AprRange,
+} from "@/app/v2/lib/apr";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { isFeaturedAtCrossing, sourceCellAtCrossing } from "@/app/v2/lib/scrolledCell";
 import { FLAG_BLEND_SHOW_THRESHOLD } from "@/app/v2/lib/scrolledDnaBlend";
 import type { FeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import * as THREE from "three";
 
+/** Pole height at max APR (× cellPitch); 0% APR → ~0 height. */
+export const FEATURED_STICK_MAX_HEIGHT_RATIO = 1.05;
+
 /** Plane diameter is 2× topRadius; multiply for art legibility. */
-export const FEATURED_PIN_SIZE_MUL = 6;
+export const FEATURED_PIN_SIZE_MUL = 9;
 
 /** Vertical nudge so pin art sits on the stick tip (world Y; lower = smaller value). */
 export const FEATURED_PIN_Y_OFFSET = 0.02;
@@ -45,6 +53,26 @@ export function featuredFlagDisplayCell(
 ): TerrainCell {
   if (!dnaLookup) return cell;
   return sourceCellAtCrossing(cell, elapsed, dnaLookup) ?? cell;
+}
+
+/** APR for stick height (matches label copy at scrolled crossings). */
+export function featuredStickApr(
+  cell: TerrainCell,
+  elapsed: number,
+  dnaLookup?: (TerrainCell | undefined)[][],
+): number {
+  return featuredFlagDisplayCell(cell, elapsed, dnaLookup).apr;
+}
+
+/** Full stick height at featured blend = 1 (0% ≈ none; max APR = full pole). */
+export function featuredStickNominalHeight(
+  apr: number,
+  aprRange: AprRange,
+  cellPitch: number,
+): number {
+  const t = aprToStickHeightT(apr, featuredStickAprRange(aprRange));
+  if (t <= 0) return 0;
+  return cellPitch * FEATURED_STICK_MAX_HEIGHT_RATIO * t;
 }
 
 /** World position for name/APR label beside the pin (camera-right of tip). */

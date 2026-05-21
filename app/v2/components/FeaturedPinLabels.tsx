@@ -12,12 +12,14 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
+import type { AprRange } from "@/app/v2/lib/apr";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import {
   cellToLabelContent,
   FEATURED_PIN_SHOW_NAME_LABEL,
   FEATURED_PIN_Y_OFFSET,
   featuredFlagDisplayCell,
+  featuredStickApr,
   featuredLabelOpacity,
   getFeaturedPinLabelPosition,
   isFeaturedFlagVisible,
@@ -273,6 +275,7 @@ type FeaturedPinLabelsProps = {
   depthFadeMinOpacity: number;
   dnaLookup?: (TerrainCell | undefined)[][];
   dnaBlendsRef?: RefObject<Float32Array>;
+  aprRange: AprRange;
 };
 
 export function FeaturedPinLabels({
@@ -285,6 +288,7 @@ export function FeaturedPinLabels({
   depthFadeMinOpacity,
   dnaLookup,
   dnaBlendsRef,
+  aprRange,
 }: FeaturedPinLabelsProps) {
   /** Non-transform Html scales as `objectScale * distanceFactor` — lower = smaller on screen. */
   const distanceFactor = useMemo(
@@ -405,6 +409,10 @@ export function FeaturedPinLabels({
           markersMoveWithBelt,
           slot.blend,
           sphereRadiusRatio,
+          {
+            aprRange,
+            stickApr: featuredStickApr(cell, elapsed, dnaLookup),
+          },
         );
 
         const depthOpacity = markerDepthOpacity(
@@ -485,6 +493,10 @@ export function FeaturedPinLabels({
           markersMoveWithBelt,
           slot.blend,
           sphereRadiusRatio,
+          {
+            aprRange,
+            stickApr: featuredStickApr(cell, elapsed, dnaLookup),
+          },
         );
 
         const depthOpacity = markerDepthOpacity(

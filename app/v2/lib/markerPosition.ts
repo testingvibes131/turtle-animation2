@@ -1,6 +1,8 @@
 import { getAnimatedGridUV, getAnimatedWorldXZ } from "@/app/v2/lib/conveyor";
 import { sampleHeightAt } from "@/app/v2/lib/heightField";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
+import type { AprRange } from "@/app/v2/lib/apr";
+import { featuredStickNominalHeight } from "@/app/v2/lib/featuredPinVisuals";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import type { PreparedTerrain } from "@/app/v2/lib/terrainGeometry";
 import { SPHERE_RADIUS_RATIO } from "@/app/v2/lib/markerVisuals";
@@ -88,6 +90,11 @@ export function getStickDashSpan(cellPitch: number): number {
   return Math.max(STICK_MIN_HEIGHT, cellPitch * FLAG_POLE_HEIGHT_RATIO);
 }
 
+export type FeaturedFlagPoseOptions = {
+  aprRange: AprRange;
+  stickApr?: number;
+};
+
 export function getFeaturedFlagPose(
   cell: TerrainCell,
   prepared: PreparedTerrain,
@@ -95,6 +102,7 @@ export function getFeaturedFlagPose(
   moveWithBelt: boolean,
   featuredBlend = 1,
   sphereRadiusRatio = SPHERE_RADIUS_RATIO,
+  options?: FeaturedFlagPoseOptions,
 ): FeaturedFlagPose {
   const { cols, rows, cellPitch } = prepared;
   let x = cell.x;
@@ -109,9 +117,15 @@ export function getFeaturedFlagPose(
   const baseR = cellPitch * sphereRadiusRatio * b;
   const topR = cellPitch * sphereRadiusRatio * TOP_SPHERE_TO_BASE * b;
   const stickR = cellPitch * STICK_RADIUS_RATIO * b;
-  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * b;
+  const stickApr = options?.stickApr ?? cell.apr;
+  const nominalH = options?.aprRange
+    ? featuredStickNominalHeight(stickApr, options.aprRange, cellPitch)
+    : getStickDashSpan(cellPitch);
+  const poleH = nominalH * b;
   const yBaseTop = terrainY + baseR;
-  const stickHeight = Math.max(STICK_MIN_HEIGHT * b, poleH);
+  const stickHeight = options?.aprRange
+    ? poleH
+    : Math.max(STICK_MIN_HEIGHT * b, poleH);
   const yStickCenter = yBaseTop + stickHeight * 0.5;
   const yTop = yBaseTop + stickHeight + topR;
   return {
@@ -120,7 +134,7 @@ export function getFeaturedFlagPose(
     yStickCenter,
     yTop,
     stickHeight,
-    stickDashSpan: getStickDashSpan(cellPitch),
+    stickDashSpan: nominalH,
     stickRadius: stickR,
     topRadius: topR,
   };

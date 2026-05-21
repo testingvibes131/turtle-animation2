@@ -14,6 +14,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import type { LineSegments2 } from "three-stdlib";
+import { getAprRangeFromAprValues } from "@/app/v2/lib/apr";
 import {
   buildEmptyDisplayCells,
   getDataCells,
@@ -641,6 +642,10 @@ export function OpportunityMarkers({
   const { cellPitch, extent } = layout;
   const terrainPeak = useMemo(() => layoutTerrainPeak(layout), [layout]);
   const dataCells = useMemo(() => getDataCells(layout), [layout]);
+  const aprRange = useMemo(
+    () => getAprRangeFromAprValues(dataCells.map((c) => c.apr)),
+    [dataCells],
+  );
   const emptyCells = useMemo(
     () => buildEmptyDisplayCells(layout),
     [layout],
@@ -789,6 +794,7 @@ export function OpportunityMarkers({
             depthFadeRange={depthFadeRange}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
             dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
+            aprRange={aprRange}
           />
           <FeaturedPinLabels
             featured={flagCells}
@@ -800,6 +806,7 @@ export function OpportunityMarkers({
             depthFadeMinOpacity={visuals.depthFadeMinOpacity}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
             dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
+            aprRange={aprRange}
           />
         </>
       ) : null}
