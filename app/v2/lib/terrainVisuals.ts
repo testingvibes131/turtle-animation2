@@ -26,10 +26,14 @@ export type TerrainVisualParams = {
   gridOpacity: number;
   fogNearMul: number;
   fogFarMul: number;
-  /** × extent × fogNearMul for marker depth fade start. */
+  /** × reach for marker far depth fade start (full opacity closer than this). */
   depthFadeNearScale: number;
-  /** × extent × fogFarMul for marker depth fade end. */
+  /** × reach for marker far depth fade end. */
   depthFadeFarScale: number;
+  /** × orbit min distance: full close fade when camera is closer. */
+  depthFadeCloseNearScale: number;
+  /** × orbit min distance: close fade starts beyond this distance. */
+  depthFadeCloseFarScale: number;
   /** × extent × fogNearMul for grid wireframe depth fade start. */
   gridDepthFadeNearScale: number;
   /** × extent × fogFarMul for grid wireframe depth fade end. */
@@ -64,6 +68,8 @@ export const DEFAULT_TERRAIN_VISUALS: TerrainVisualParams = {
   fogFarMul: 1.1,
   depthFadeNearScale: 0.05,
   depthFadeFarScale: 0.31,
+  depthFadeCloseNearScale: 0.65,
+  depthFadeCloseFarScale: 2.4,
   gridDepthFadeNearScale: 0.02,
   gridDepthFadeFarScale: 0.5,
   depthFadeMinOpacity: 0.02,

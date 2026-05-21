@@ -1,16 +1,29 @@
 import * as THREE from "three";
+import { getOpportunityOrbitDistanceBounds } from "@/app/lib/opportunityCamera";
 import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 
-export type MarkerDepthFadeRange = { near: number; far: number };
+export type MarkerDepthFadeRange = {
+  near: number;
+  far: number;
+  closeNear: number;
+  closeFar: number;
+};
 
 const _world = new THREE.Vector3();
 
-const DEPTH_FADE_UNIFORM_DECL = /* glsl */ `
+const DEPTH_FADE_VERTEX_PREAMBLE = /* glsl */ `
 uniform float uFadeNear;
 uniform float uFadeFar;
+uniform float uFadeCloseNear;
+uniform float uFadeCloseFar;
 uniform float uFadeMin;
 uniform vec3 uCameraPos;
 varying float vDepthFade;
+float depthFadeSteep( float t ) {
+	t = clamp( t, 0.0, 1.0 );
+	t = t * t * ( 3.0 - 2.0 * t );
+	return t * t * t * t * t;
+}
 `;
 
 const MESH_DEPTH_FADE_VERTEX = /* glsl */ `
@@ -21,10 +34,11 @@ const MESH_DEPTH_FADE_VERTEX = /* glsl */ `
 	#endif
 	worldPos4 = modelMatrix * worldPos4;
 	float dist = distance( worldPos4.xyz, uCameraPos );
-	float t = clamp( ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 ), 0.0, 1.0 );
-	t = t * t * ( 3.0 - 2.0 * t );
-	t = t * t * t * t * t;
-	vDepthFade = mix( 1.0, uFadeMin, t );
+	float tFar = ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 );
+	float farFade = mix( 1.0, uFadeMin, depthFadeSteep( tFar ) );
+	float tClose = ( uFadeCloseFar - dist ) / max( uFadeCloseFar - uFadeCloseNear, 0.0001 );
+	float closeFade = mix( 1.0, uFadeMin, depthFadeSteep( tClose ) );
+	vDepthFade = farFade * closeFade;
 }
 `;
 
@@ -34,23 +48,28 @@ const LINE_DEPTH_FADE_VERTEX = /* glsl */ `
 	vec4 worldEnd4 = modelMatrix * vec4( instanceEnd, 1.0 );
 	vec3 worldMid = mix( worldStart4.xyz, worldEnd4.xyz, 0.5 );
 	float dist = distance( worldMid, uCameraPos );
-	float t = clamp( ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 ), 0.0, 1.0 );
-	t = t * t * ( 3.0 - 2.0 * t );
-	t = t * t * t * t * t;
-	vDepthFade = mix( 1.0, uFadeMin, t );
+	float tFar = ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 );
+	float farFade = mix( 1.0, uFadeMin, depthFadeSteep( tFar ) );
+	float tClose = ( uFadeCloseFar - dist ) / max( uFadeCloseFar - uFadeCloseNear, 0.0001 );
+	float closeFade = mix( 1.0, uFadeMin, depthFadeSteep( tClose ) );
+	vDepthFade = farFade * closeFade;
 }
 `;
 
 export type MarkerDepthFadeUniforms = {
   uFadeNear: { value: number };
   uFadeFar: { value: number };
+  uFadeCloseNear: { value: number };
+  uFadeCloseFar: { value: number };
   uFadeMin: { value: number };
   uCameraPos: { value: THREE.Vector3 };
 };
 
-type DepthFadeScaleKeys =
+type MarkerDepthFadeScaleKeys =
   | "depthFadeNearScale"
-  | "depthFadeFarScale";
+  | "depthFadeFarScale"
+  | "depthFadeCloseNearScale"
+  | "depthFadeCloseFarScale";
 
 type GridDepthFadeScaleKeys =
   | "gridDepthFadeNearScale"
@@ -61,15 +80,44 @@ export function depthFadeViewReach(extent: number, terrainPeak: number): number 
   return Math.max(extent * 0.75, terrainPeak * 0.42, 12);
 }
 
+function depthFadeSteep(t: number): number {
+  const clamped = Math.min(1, Math.max(0, t));
+  const smooth = clamped * clamped * (3 - 2 * clamped);
+  return smooth * smooth * smooth * smooth * smooth;
+}
+
+/** Close fade band in world units; scales are × orbit min distance (see opportunityCamera). */
+function closeFadeDistances(
+  extent: number,
+  reach: number,
+  closeNearScale: number,
+  closeFarScale: number,
+): { closeNear: number; closeFar: number } {
+  const { minDistance: orbitMin } = getOpportunityOrbitDistanceBounds(extent);
+  let closeFar = Math.max(orbitMin * closeFarScale, reach * closeFarScale * 0.12);
+  let closeNear = Math.min(orbitMin * closeNearScale, closeFar * 0.92);
+  if (closeNear < 0.25) closeNear = closeFar * 0.28;
+  if (closeFar <= closeNear) closeFar = closeNear + orbitMin * 0.2;
+  return { closeNear, closeFar };
+}
+
 export function markerDepthFadeRange(
   extent: number,
   terrainPeak: number,
-  visuals: Pick<TerrainVisualParams, DepthFadeScaleKeys>,
+  visuals: Pick<TerrainVisualParams, MarkerDepthFadeScaleKeys>,
 ): MarkerDepthFadeRange {
   const reach = depthFadeViewReach(extent, terrainPeak);
+  const { closeNear, closeFar } = closeFadeDistances(
+    extent,
+    reach,
+    visuals.depthFadeCloseNearScale,
+    visuals.depthFadeCloseFarScale,
+  );
   return {
     near: reach * visuals.depthFadeNearScale,
     far: reach * visuals.depthFadeFarScale,
+    closeNear,
+    closeFar,
   };
 }
 
@@ -82,10 +130,37 @@ export function gridDepthFadeRange(
   return {
     near: reach * visuals.gridDepthFadeNearScale,
     far: reach * visuals.gridDepthFadeFarScale,
+    closeNear: 0,
+    closeFar: 0,
   };
 }
 
-/** Opacity 1 at `near`, ramps to `minOpacity` at `far` and beyond. */
+function farDepthFadeOpacity(
+  d: number,
+  near: number,
+  far: number,
+  minOpacity: number,
+): number {
+  if (d <= near) return 1;
+  if (d >= far) return minOpacity;
+  const t = (d - near) / (far - near);
+  return 1 - depthFadeSteep(t) * (1 - minOpacity);
+}
+
+function closeDepthFadeOpacity(
+  d: number,
+  closeNear: number,
+  closeFar: number,
+  minOpacity: number,
+): number {
+  if (closeFar <= closeNear) return 1;
+  if (d >= closeFar) return 1;
+  if (d <= closeNear) return minOpacity;
+  const t = (closeFar - d) / (closeFar - closeNear);
+  return 1 - depthFadeSteep(t) * (1 - minOpacity);
+}
+
+/** Far + close camera fade; opacity 1 in the comfort band between bands. */
 export function depthFadeOpacity(
   x: number,
   y: number,
@@ -96,12 +171,14 @@ export function depthFadeOpacity(
 ): number {
   _world.set(x, y, z);
   const d = cameraPosition.distanceTo(_world);
-  if (d <= range.near) return 1;
-  if (d >= range.far) return minOpacity;
-  const t = (d - range.near) / (range.far - range.near);
-  const smooth = t * t * (3 - 2 * t);
-  const steep = smooth * smooth * smooth * smooth * smooth;
-  return 1 - steep * (1 - minOpacity);
+  const farFade = farDepthFadeOpacity(d, range.near, range.far, minOpacity);
+  const closeFade = closeDepthFadeOpacity(
+    d,
+    range.closeNear,
+    range.closeFar,
+    minOpacity,
+  );
+  return farFade * closeFade;
 }
 
 /** @deprecated Use depthFadeOpacity */
@@ -127,6 +204,8 @@ export function createMarkerDepthFadeUniforms(): MarkerDepthFadeUniforms {
   return {
     uFadeNear: { value: 0 },
     uFadeFar: { value: 1 },
+    uFadeCloseNear: { value: 0 },
+    uFadeCloseFar: { value: 1 },
     uFadeMin: { value: 0 },
     uCameraPos: { value: new THREE.Vector3() },
   };
@@ -140,6 +219,8 @@ export function updateMarkerDepthFadeUniforms(
 ): void {
   uniforms.uFadeNear.value = range.near;
   uniforms.uFadeFar.value = range.far;
+  uniforms.uFadeCloseNear.value = range.closeNear;
+  uniforms.uFadeCloseFar.value = range.closeFar;
   uniforms.uFadeMin.value = minOpacity;
   uniforms.uCameraPos.value.copy(camera.position);
 }
@@ -154,12 +235,12 @@ export function attachMeshBasicDepthFade(
 
   material.transparent = true;
   material.depthWrite = false;
-  material.customProgramCacheKey = () => "markerDepthFadeV2";
+  material.customProgramCacheKey = () => "markerDepthFadeV5";
 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${DEPTH_FADE_UNIFORM_DECL}`)
+      .replace("#include <common>", `#include <common>\n${DEPTH_FADE_VERTEX_PREAMBLE}`)
       .replace(
         "#include <skinning_vertex>",
         `#include <skinning_vertex>\n${MESH_DEPTH_FADE_VERTEX}`,
@@ -199,7 +280,7 @@ export function attachLineMaterialDepthFade(
 
   material.transparent = true;
   material.depthWrite = false;
-  material.customProgramCacheKey = () => "markerDepthFadeV3";
+  material.customProgramCacheKey = () => "markerDepthFadeV5";
 
   const previousOnBeforeCompile = material.onBeforeCompile;
 
@@ -207,7 +288,7 @@ export function attachLineMaterialDepthFade(
     previousOnBeforeCompile?.call(material, shader, renderer);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${DEPTH_FADE_UNIFORM_DECL}`)
+      .replace("#include <common>", `#include <common>\n${DEPTH_FADE_VERTEX_PREAMBLE}`)
       .replace(
         "vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );",
         `vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );\n${LINE_DEPTH_FADE_VERTEX}`,
