@@ -1,14 +1,8 @@
 "use client";
 
-import { DM_Sans } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["500"],
-});
 
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
@@ -29,7 +23,6 @@ export function SiteHeader({ className }: { className?: string }) {
     <header
       className={[
         "pointer-events-none absolute inset-x-0 top-0 z-30 w-full pt-[60px]",
-        dmSans.className,
         className ?? "",
       ]
         .filter(Boolean)

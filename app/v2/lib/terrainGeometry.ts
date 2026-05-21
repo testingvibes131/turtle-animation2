@@ -5,11 +5,11 @@ import {
   sampleHeightAt,
   smoothHeightField,
 } from "@/app/v2/lib/heightField";
-import type { DebugZone } from "@/app/v2/lib/debugZone";
 import {
-  buildDebugZoneWithExtent,
-  gridVertexFadeInDebugZone,
-} from "@/app/v2/lib/debugZone";
+  depthFadeOpacity,
+  gridDepthFadeRange,
+  type MarkerDepthFadeRange,
+} from "@/app/v2/lib/markerDepthFade";
 import type { GridLayout } from "@/app/v2/lib/gridLayout";
 import {
   DEFAULT_TERRAIN_VISUALS,
@@ -209,40 +209,37 @@ export function buildTerrainWireframeGeometry(
   const halfW = prepared.cols * prepared.cellPitch * 0.5;
   const halfD = prepared.rows * prepared.cellPitch * 0.5;
   const extent = Math.max(halfW, halfD, 4) + prepared.maxH * 0.15;
-  const zone = buildDebugZoneWithExtent(extent);
-  computeTerrainWireframeVertexColors(geom, prepared, DEFAULT_TERRAIN_VISUALS, zone);
+  const cameraPos = new THREE.Vector3();
+  const range = gridDepthFadeRange(extent, prepared.maxH, DEFAULT_TERRAIN_VISUALS);
+  computeTerrainWireframeVertexColors(
+    geom,
+    cameraPos,
+    range,
+    DEFAULT_TERRAIN_VISUALS.depthFadeMinOpacity,
+  );
   return geom;
 }
 
-/** Fade grid lines toward the layout perimeter and outside the debug zone circle. */
+/** Fade grid line vertices by distance to the camera (matches marker depth fade). */
 export function computeTerrainWireframeVertexColors(
   geometry: THREE.BufferGeometry,
-  prepared: PreparedTerrain,
-  fade: Pick<TerrainVisualParams, "gridFadeStart" | "gridFadeEnd"> = DEFAULT_TERRAIN_VISUALS,
-  zone?: DebugZone,
+  cameraPosition: THREE.Vector3,
+  range: MarkerDepthFadeRange,
+  minOpacity = DEFAULT_TERRAIN_VISUALS.depthFadeMinOpacity,
 ): void {
   const pos = geometry.getAttribute("position");
   if (!pos) return;
 
-  const { cols, rows, cellPitch } = prepared;
-  const halfX = Math.max(((cols - 1) * cellPitch) * 0.5, 1e-6);
-  const halfZ = Math.max(((rows - 1) * cellPitch) * 0.5, 1e-6);
-  const { gridFadeStart: fadeStart, gridFadeEnd: fadeEnd } = fade;
-
   const colors = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const t = Math.max(Math.abs(x) / halfX, Math.abs(z) / halfZ);
-    let opacity = 1;
-    if (t > fadeStart) {
-      const u = Math.min(1, (t - fadeStart) / (fadeEnd - fadeStart));
-      const smooth = u * u * (3 - 2 * u);
-      opacity = 1 - smooth;
-    }
-    if (zone) {
-      opacity *= gridVertexFadeInDebugZone(x, z, zone);
-    }
+    const opacity = depthFadeOpacity(
+      pos.getX(i),
+      pos.getY(i),
+      pos.getZ(i),
+      cameraPosition,
+      range,
+      minOpacity,
+    );
     colors[i * 3] = opacity;
     colors[i * 3 + 1] = opacity;
     colors[i * 3 + 2] = opacity;
@@ -251,9 +248,12 @@ export function computeTerrainWireframeVertexColors(
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 }
 
+const LINE_DISTANCE_XZ_EPS = 1e-4;
+
 /**
- * Dash phase from XZ edge length only (not 3D arc length).
- * Keeps dashes fixed on the lattice while APR height animates.
+ * Cumulative XZ arc length per polyline (not per sub-segment).
+ * LineDashedMaterial then repeats a dot pattern along whole grid edges.
+ * Y-only terrain animation keeps these distances valid.
  */
 export function computeTerrainLineDistancesXZ(
   geometry: THREE.BufferGeometry,
@@ -262,11 +262,27 @@ export function computeTerrainLineDistancesXZ(
   if (!pos) return;
 
   const lineDistances = new Float32Array(pos.count);
+  let cumulative = 0;
+
   for (let i = 0; i < pos.count; i += 2) {
-    const dx = pos.getX(i + 1) - pos.getX(i);
-    const dz = pos.getZ(i + 1) - pos.getZ(i);
-    lineDistances[i] = 0;
-    lineDistances[i + 1] = Math.hypot(dx, dz);
+    const x0 = pos.getX(i);
+    const z0 = pos.getZ(i);
+
+    if (i > 0) {
+      const prevX = pos.getX(i - 1);
+      const prevZ = pos.getZ(i - 1);
+      if (Math.hypot(x0 - prevX, z0 - prevZ) > LINE_DISTANCE_XZ_EPS) {
+        cumulative = 0;
+      }
+    }
+
+    const x1 = pos.getX(i + 1);
+    const z1 = pos.getZ(i + 1);
+    const segLen = Math.hypot(x1 - x0, z1 - z0);
+
+    lineDistances[i] = cumulative;
+    cumulative += segLen;
+    lineDistances[i + 1] = cumulative;
   }
 
   geometry.setAttribute(

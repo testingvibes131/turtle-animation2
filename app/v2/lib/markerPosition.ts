@@ -1,8 +1,6 @@
 import { getAnimatedGridUV, getAnimatedWorldXZ } from "@/app/v2/lib/conveyor";
 import { sampleHeightAt } from "@/app/v2/lib/heightField";
 import { sampleFieldToroidal } from "@/app/v2/lib/toroidal";
-import type { DebugZone } from "@/app/v2/lib/debugZone";
-import { markerScaleInDebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import type { PreparedTerrain } from "@/app/v2/lib/terrainGeometry";
 import { SPHERE_RADIUS_RATIO } from "@/app/v2/lib/markerVisuals";
@@ -41,16 +39,14 @@ export function getScrolledDnaSpherePose(
   cell: TerrainCell,
   prepared: PreparedTerrain,
   featuredBlend: number,
-  zone: DebugZone,
   sphereRadiusRatio = SPHERE_RADIUS_RATIO,
-): MarkerWorldPose & { featuredBlend: number; zoneScale: number } {
+): MarkerWorldPose & { featuredBlend: number } {
   const { field, cols, rows, cellPitch } = prepared;
-  const zoneScale = markerScaleInDebugZone(cell.x, cell.z, zone);
   const terrainY = sampleHeightAt(field, cols, rows, cell.col, cell.row);
-  const radius = cellPitch * sphereRadiusRatio * zoneScale;
+  const radius = cellPitch * sphereRadiusRatio;
   const yRest = terrainY + radius * SURFACE_PAD;
   const y = yRest + (terrainY - yRest) * featuredBlend;
-  return { x: cell.x, y, z: cell.z, featuredBlend, zoneScale };
+  return { x: cell.x, y, z: cell.z, featuredBlend };
 }
 
 export function getSphereMarkerPose(
@@ -59,9 +55,8 @@ export function getSphereMarkerPose(
   elapsed: number,
   centerOnTerrain: boolean,
   moveWithBelt: boolean,
-  zone: DebugZone,
   sphereRadiusRatio = SPHERE_RADIUS_RATIO,
-): MarkerWorldPose & { zoneScale: number } {
+): MarkerWorldPose {
   const { cols, rows, cellPitch } = prepared;
   let x = cell.x;
   let z = cell.z;
@@ -70,11 +65,10 @@ export function getSphereMarkerPose(
     x = pos.x;
     z = pos.z;
   }
-  const zoneScale = markerScaleInDebugZone(x, z, zone);
   const terrainY = terrainYAtCell(cell, prepared, elapsed, moveWithBelt);
-  const radius = cellPitch * sphereRadiusRatio * zoneScale;
+  const radius = cellPitch * sphereRadiusRatio;
   const y = centerOnTerrain ? terrainY : terrainY + radius * SURFACE_PAD;
-  return { x, y, z, zoneScale };
+  return { x, y, z };
 }
 
 export type FeaturedFlagPose = {
@@ -90,11 +84,8 @@ export type FeaturedFlagPose = {
 };
 
 /** Nominal pole height for stick dash phase (independent of featured blend). */
-export function getStickDashSpan(cellPitch: number, zoneScale: number): number {
-  return Math.max(
-    STICK_MIN_HEIGHT * zoneScale,
-    cellPitch * FLAG_POLE_HEIGHT_RATIO * zoneScale,
-  );
+export function getStickDashSpan(cellPitch: number): number {
+  return Math.max(STICK_MIN_HEIGHT, cellPitch * FLAG_POLE_HEIGHT_RATIO);
 }
 
 export function getFeaturedFlagPose(
@@ -102,7 +93,6 @@ export function getFeaturedFlagPose(
   prepared: PreparedTerrain,
   elapsed: number,
   moveWithBelt: boolean,
-  zone: DebugZone,
   featuredBlend = 1,
   sphereRadiusRatio = SPHERE_RADIUS_RATIO,
 ): FeaturedFlagPose {
@@ -114,15 +104,14 @@ export function getFeaturedFlagPose(
     x = pos.x;
     z = pos.z;
   }
-  const zoneScale = markerScaleInDebugZone(x, z, zone);
   const terrainY = terrainYAtCell(cell, prepared, elapsed, moveWithBelt);
   const b = Math.max(0, Math.min(1, featuredBlend));
-  const baseR = cellPitch * sphereRadiusRatio * zoneScale * b;
-  const topR = cellPitch * sphereRadiusRatio * TOP_SPHERE_TO_BASE * zoneScale * b;
-  const stickR = cellPitch * STICK_RADIUS_RATIO * zoneScale * b;
-  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * zoneScale * b;
+  const baseR = cellPitch * sphereRadiusRatio * b;
+  const topR = cellPitch * sphereRadiusRatio * TOP_SPHERE_TO_BASE * b;
+  const stickR = cellPitch * STICK_RADIUS_RATIO * b;
+  const poleH = cellPitch * FLAG_POLE_HEIGHT_RATIO * b;
   const yBaseTop = terrainY + baseR;
-  const stickHeight = Math.max(STICK_MIN_HEIGHT * zoneScale * b, poleH);
+  const stickHeight = Math.max(STICK_MIN_HEIGHT * b, poleH);
   const yStickCenter = yBaseTop + stickHeight * 0.5;
   const yTop = yBaseTop + stickHeight + topR;
   return {
@@ -131,7 +120,7 @@ export function getFeaturedFlagPose(
     yStickCenter,
     yTop,
     stickHeight,
-    stickDashSpan: getStickDashSpan(cellPitch, zoneScale),
+    stickDashSpan: getStickDashSpan(cellPitch),
     stickRadius: stickR,
     topRadius: topR,
   };
@@ -142,13 +131,12 @@ export function getMarkerLabelPose(
   prepared: PreparedTerrain,
   elapsed: number,
   moveWithBelt: boolean,
-  zone: DebugZone,
   sphereRadiusRatio = SPHERE_RADIUS_RATIO,
 ): MarkerWorldPose {
   const gap = prepared.cellPitch * LABEL_GAP_RATIO;
 
   if (cell.featured) {
-    const flag = getFeaturedFlagPose(cell, prepared, elapsed, moveWithBelt, zone);
+    const flag = getFeaturedFlagPose(cell, prepared, elapsed, moveWithBelt);
     return {
       x: flag.x,
       z: flag.z,
@@ -162,10 +150,9 @@ export function getMarkerLabelPose(
     elapsed,
     false,
     moveWithBelt,
-    zone,
     sphereRadiusRatio,
   );
-  const radius = prepared.cellPitch * sphereRadiusRatio * sphere.zoneScale;
+  const radius = prepared.cellPitch * sphereRadiusRatio;
   return {
     x: sphere.x,
     z: sphere.z,

@@ -8,6 +8,79 @@ export function wrapIndex(index: number, size: number): number {
   return wrapToroidal(index, size);
 }
 
+/** Far torus corner for belt respawn (center cells mirror to themselves otherwise). */
+function beltOppositeCorner(
+  homeCol: number,
+  homeRow: number,
+  cols: number,
+  rows: number,
+): { col: number; row: number } {
+  const midCol = (cols - 1) * 0.5;
+  const midRow = (rows - 1) * 0.5;
+  const nearCenter =
+    Math.abs(homeCol - midCol) < 1.5 && Math.abs(homeRow - midRow) < 1.5;
+
+  if (nearCenter) {
+    return {
+      col: homeCol >= midCol ? 0 : cols - 1,
+      row: homeRow >= midRow ? 0 : rows - 1,
+    };
+  }
+
+  return { col: cols - 1 - homeCol, row: rows - 1 - homeRow };
+}
+
+/**
+ * (+col, +row) belt: first boundary crossing jumps to the opposite field corner,
+ * then continues diagonally; full lap returns to home.
+ */
+export function wrapDiagonalToroidalUV(
+  u: number,
+  v: number,
+  cols: number,
+  rows: number,
+  homeCol: number,
+  homeRow: number,
+): { u: number; v: number } {
+  if (cols <= 0 || rows <= 0) return { u: 0, v: 0 };
+
+  const offset = u - homeCol;
+  const opp = beltOppositeCorner(homeCol, homeRow, cols, rows);
+  const legHome = Math.min(cols - homeCol, rows - homeRow);
+  const legOpp = Math.min(cols - opp.col, rows - opp.row);
+
+  let rem = offset;
+  let onOpposite = false;
+
+  for (let guard = 0; guard < 32 && rem > 1e-9; guard++) {
+    if (!onOpposite) {
+      if (rem < legHome) {
+        return {
+          u: wrapToroidal(homeCol + rem, cols),
+          v: wrapToroidal(homeRow + rem, rows),
+        };
+      }
+      rem -= legHome;
+      onOpposite = true;
+      continue;
+    }
+
+    if (rem < legOpp) {
+      return {
+        u: wrapToroidal(opp.col + rem, cols),
+        v: wrapToroidal(opp.row + rem, rows),
+      };
+    }
+    rem -= legOpp;
+    onOpposite = false;
+  }
+
+  if (onOpposite) {
+    return { u: wrapToroidal(opp.col, cols), v: wrapToroidal(opp.row, rows) };
+  }
+  return { u: wrapToroidal(homeCol, cols), v: wrapToroidal(homeRow, rows) };
+}
+
 function fieldDims(field: number[][]): { cols: number; rows: number } {
   const cols = field.length;
   const rows = cols > 0 ? (field[0]?.length ?? 0) : 0;

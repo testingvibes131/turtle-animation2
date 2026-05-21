@@ -10,19 +10,18 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
-import { NO_ZONE_MODIFIER } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getMarkerLabelPose } from "@/app/v2/lib/markerPosition";
 import { buildCellLookup, isFeaturedAtCrossing } from "@/app/v2/lib/scrolledCell";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
+import { dmSansFontFamily } from "@/app/fonts";
 
 const LABEL_MAX_WIDTH = "120px";
 
 const labelWrapBase: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
-  fontFamily:
-    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  fontFamily: dmSansFontFamily,
   textAlign: "center",
   whiteSpace: "nowrap",
   overflow: "hidden",
@@ -70,7 +69,6 @@ function OpportunityLabel({
       prepared,
       elapsed,
       labelsMoveWithBelt,
-      NO_ZONE_MODIFIER,
     );
     g.position.set(x, y, z);
   });

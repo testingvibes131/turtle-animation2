@@ -5,9 +5,11 @@
 
 export const DEFAULT_OPPORTUNITY_FOV = 50;
 
-/** Pinned default rig (orbit target = look-at), tuned on the home route. */
-export const DEFAULT_CAMERA_POSITION = [54.154529, 10.010108, 48.737926] as const;
-export const DEFAULT_CAMERA_TARGET = [0, 20.801777, -24.00205] as const;
+/** Pinned default rig (orbit target = look-at). */
+export const DEFAULT_CAMERA_POSITION = [
+  97.327774, 57.164428, 62.757912,
+] as const;
+export const DEFAULT_CAMERA_TARGET = [33.121009, 26.416500, -8.932741] as const;
 
 /** Typical `layout.extent` when the pose above was authored (~887 rows, 16:9). */
 export const OPPORTUNITY_CAMERA_REFERENCE_EXTENT = 176;

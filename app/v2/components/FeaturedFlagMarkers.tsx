@@ -17,7 +17,6 @@ import {
   LineSegments2,
   LineSegmentsGeometry,
 } from "three-stdlib";
-import { isInsideDebugZone, type DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import { getFeaturedFlagPose } from "@/app/v2/lib/markerPosition";
 import { updateFeaturedStickLineDistances } from "@/app/v2/lib/stickLineDistances";
@@ -54,7 +53,6 @@ type FeaturedFlagMarkersProps = {
   topRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
-  debugZone: DebugZone;
   depthFadeUniforms: MarkerDepthFadeUniforms;
   depthFadeRange: MarkerDepthFadeRange;
   /** When set, show a flag on any crossing whose scrolled DNA is featured. */
@@ -81,7 +79,6 @@ function FeaturedFlagMarkersInner({
   topRef,
   waveRef,
   markersMoveWithBelt,
-  debugZone,
   depthFadeUniforms,
   depthFadeRange,
   dnaLookup,
@@ -229,25 +226,9 @@ function FeaturedFlagMarkersInner({
         prepared,
         elapsed,
         markersMoveWithBelt,
-        debugZone,
         blends ? blend : 1,
         sphereRadius,
       );
-
-      if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
-        positions[base] = flag.x;
-        positions[base + 1] = 0;
-        positions[base + 2] = flag.z;
-        positions[base + 3] = flag.x;
-        positions[base + 4] = 0;
-        positions[base + 5] = flag.z;
-        dashSpans[i] = 0;
-        d.position.set(flag.x, 0, flag.z);
-        d.scale.setScalar(0);
-        d.updateMatrix();
-        topMesh.setMatrixAt(i, d.matrix);
-        return;
-      }
 
       const yBottom = flag.yStickCenter - flag.stickHeight * 0.5;
       const yTop = flag.yStickCenter + flag.stickHeight * 0.5;
@@ -298,7 +279,6 @@ function FeaturedFlagMarkersInner({
     dashSpans,
     dnaBlendsRef,
     dnaLookup,
-    debugZone,
     featured,
     lineGeo,
     markersMoveWithBelt,
@@ -315,7 +295,12 @@ function FeaturedFlagMarkersInner({
   }, [write]);
 
   useFrame(() => {
-    updateMarkerDepthFadeUniforms(depthFadeUniforms, camera, depthFadeRange);
+    updateMarkerDepthFadeUniforms(
+      depthFadeUniforms,
+      camera,
+      depthFadeRange,
+      visuals.depthFadeMinOpacity,
+    );
     write();
   });
 

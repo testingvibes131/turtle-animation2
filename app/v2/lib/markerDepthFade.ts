@@ -3,14 +3,6 @@ import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
 
 export type MarkerDepthFadeRange = { near: number; far: number };
 
-/** Opacity at/ beyond the far fade distance (near-invisible at distance). */
-export const MARKER_DEPTH_FADE_MIN_OPACITY = 0.04;
-
-/** Start fading sooner than scene fog. */
-const MARKER_FADE_NEAR_SCALE = 0.5;
-/** Reach min opacity well before fog fully blankets the field. */
-const MARKER_FADE_FAR_SCALE = 0.68;
-
 const _world = new THREE.Vector3();
 
 const DEPTH_FADE_UNIFORM_DECL = /* glsl */ `
@@ -31,7 +23,7 @@ const MESH_DEPTH_FADE_VERTEX = /* glsl */ `
 	float dist = distance( worldPos4.xyz, uCameraPos );
 	float t = clamp( ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 ), 0.0, 1.0 );
 	t = t * t * ( 3.0 - 2.0 * t );
-	t = t * t;
+	t = t * t * t * t * t;
 	vDepthFade = mix( 1.0, uFadeMin, t );
 }
 `;
@@ -44,7 +36,7 @@ const LINE_DEPTH_FADE_VERTEX = /* glsl */ `
 	float dist = distance( worldMid, uCameraPos );
 	float t = clamp( ( dist - uFadeNear ) / max( uFadeFar - uFadeNear, 0.0001 ), 0.0, 1.0 );
 	t = t * t * ( 3.0 - 2.0 * t );
-	t = t * t;
+	t = t * t * t * t * t;
 	vDepthFade = mix( 1.0, uFadeMin, t );
 }
 `;
@@ -56,40 +48,86 @@ export type MarkerDepthFadeUniforms = {
   uCameraPos: { value: THREE.Vector3 };
 };
 
+type DepthFadeScaleKeys =
+  | "depthFadeNearScale"
+  | "depthFadeFarScale";
+
+type GridDepthFadeScaleKeys =
+  | "gridDepthFadeNearScale"
+  | "gridDepthFadeFarScale";
+
+/** Fade distances scale with scene span (tight band = only items near camera). */
+export function depthFadeViewReach(extent: number, terrainPeak: number): number {
+  return Math.max(extent * 0.75, terrainPeak * 0.42, 12);
+}
+
 export function markerDepthFadeRange(
   extent: number,
-  visuals: Pick<TerrainVisualParams, "fogNearMul" | "fogFarMul">,
+  terrainPeak: number,
+  visuals: Pick<TerrainVisualParams, DepthFadeScaleKeys>,
 ): MarkerDepthFadeRange {
+  const reach = depthFadeViewReach(extent, terrainPeak);
   return {
-    near: extent * visuals.fogNearMul * MARKER_FADE_NEAR_SCALE,
-    far: extent * visuals.fogFarMul * MARKER_FADE_FAR_SCALE,
+    near: reach * visuals.depthFadeNearScale,
+    far: reach * visuals.depthFadeFarScale,
+  };
+}
+
+export function gridDepthFadeRange(
+  extent: number,
+  terrainPeak: number,
+  visuals: Pick<TerrainVisualParams, GridDepthFadeScaleKeys>,
+): MarkerDepthFadeRange {
+  const reach = depthFadeViewReach(extent, terrainPeak);
+  return {
+    near: reach * visuals.gridDepthFadeNearScale,
+    far: reach * visuals.gridDepthFadeFarScale,
   };
 }
 
 /** Opacity 1 at `near`, ramps to `minOpacity` at `far` and beyond. */
+export function depthFadeOpacity(
+  x: number,
+  y: number,
+  z: number,
+  cameraPosition: THREE.Vector3,
+  range: MarkerDepthFadeRange,
+  minOpacity: number,
+): number {
+  _world.set(x, y, z);
+  const d = cameraPosition.distanceTo(_world);
+  if (d <= range.near) return 1;
+  if (d >= range.far) return minOpacity;
+  const t = (d - range.near) / (range.far - range.near);
+  const smooth = t * t * (3 - 2 * t);
+  const steep = smooth * smooth * smooth * smooth * smooth;
+  return 1 - steep * (1 - minOpacity);
+}
+
+/** @deprecated Use depthFadeOpacity */
 export function markerDepthOpacity(
   x: number,
   y: number,
   z: number,
   camera: THREE.Camera,
   range: MarkerDepthFadeRange,
-  minOpacity = MARKER_DEPTH_FADE_MIN_OPACITY,
+  minOpacity?: number,
 ): number {
-  _world.set(x, y, z);
-  const d = camera.position.distanceTo(_world);
-  if (d <= range.near) return 1;
-  if (d >= range.far) return minOpacity;
-  const t = (d - range.near) / (range.far - range.near);
-  const smooth = t * t * (3 - 2 * t);
-  const steep = smooth * smooth;
-  return 1 - steep * (1 - minOpacity);
+  return depthFadeOpacity(
+    x,
+    y,
+    z,
+    camera.position,
+    range,
+    minOpacity ?? 0,
+  );
 }
 
 export function createMarkerDepthFadeUniforms(): MarkerDepthFadeUniforms {
   return {
     uFadeNear: { value: 0 },
     uFadeFar: { value: 1 },
-    uFadeMin: { value: MARKER_DEPTH_FADE_MIN_OPACITY },
+    uFadeMin: { value: 0 },
     uCameraPos: { value: new THREE.Vector3() },
   };
 }
@@ -98,7 +136,7 @@ export function updateMarkerDepthFadeUniforms(
   uniforms: MarkerDepthFadeUniforms,
   camera: THREE.Camera,
   range: MarkerDepthFadeRange,
-  minOpacity = MARKER_DEPTH_FADE_MIN_OPACITY,
+  minOpacity = 0,
 ): void {
   uniforms.uFadeNear.value = range.near;
   uniforms.uFadeFar.value = range.far;

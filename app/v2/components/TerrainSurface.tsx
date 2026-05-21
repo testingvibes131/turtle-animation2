@@ -1,6 +1,6 @@
 "use client";
 
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -20,26 +20,27 @@ import {
   updateTerrainFloorPositions,
   updateTerrainWireframePositions,
 } from "@/app/v2/lib/terrainGeometry";
+import { gridDepthFadeRange } from "@/app/v2/lib/markerDepthFade";
+import { layoutTerrainPeak } from "@/app/v2/lib/terrainHeightSample";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
-import type { TerrainVisualParams } from "@/app/v2/lib/terrainVisuals";
-import { DebugZoneCircle } from "@/app/v2/components/DebugZoneCircle";
+import {
+  gridDotSizesFromVisuals,
+  type TerrainVisualParams,
+} from "@/app/v2/lib/terrainVisuals";
 import { OpportunityMarkers } from "@/app/v2/components/OpportunityMarkers";
-import { buildDebugZone } from "@/app/v2/lib/debugZone";
 
 type TerrainSurfaceProps = {
   layout: GridLayout;
   markerMotion: MarkerMotionMode;
-  showDebugZone: boolean;
   visuals: TerrainVisualParams;
 };
 
 export function TerrainSurface({
   layout,
   markerMotion,
-  showDebugZone,
   visuals,
 }: TerrainSurfaceProps) {
-  const debugZone = useMemo(() => buildDebugZone(layout), [layout]);
+  const camera = useThree((s) => s.camera);
   const baseField = useMemo(() => buildBaseSmoothedField(layout), [layout]);
   const waveRef = useRef<TerrainWaveSnapshot>({ prepared: null, elapsed: 0 });
   const visualsRef = useRef(visuals);
@@ -79,80 +80,68 @@ export function TerrainSurface({
     [],
   );
 
-  const terrainMat = useMemo(
-    () =>
-      new THREE.LineDashedMaterial({
-        color: 0xffffff,
-        vertexColors: true,
-        transparent: true,
-        opacity: visuals.gridOpacity,
-        depthWrite: false,
-        dashSize: Math.max(visuals.gridDashMin, cellPitch * visuals.gridDashMul),
-        gapSize: Math.max(visuals.gridGapMin, cellPitch * visuals.gridGapMul),
-      }),
-    [cellPitch],
-  );
-
-  const terrainGlowMat = useMemo(
-    () =>
-      new THREE.LineDashedMaterial({
-        color: 0xffffff,
-        vertexColors: true,
-        transparent: true,
-        opacity: visuals.gridGlowOpacity,
-        depthWrite: false,
-        dashSize: Math.max(
-          visuals.gridGlowDashMin,
-          cellPitch * visuals.gridGlowDashMul,
-        ),
-        gapSize: Math.max(
-          visuals.gridGlowGapMin,
-          cellPitch * visuals.gridGlowGapMul,
-        ),
-      }),
-    [cellPitch],
-  );
+  const terrainMat = useMemo(() => {
+    const { dotSize, dotGap } = gridDotSizesFromVisuals(cellPitch, visuals);
+    return new THREE.LineDashedMaterial({
+      color: 0xffffff,
+      vertexColors: true,
+      transparent: true,
+      opacity: visuals.gridOpacity,
+      depthWrite: false,
+      dashSize: dotSize,
+      gapSize: dotGap,
+    });
+  }, [cellPitch, visuals]);
 
   useEffect(() => {
     const v = visuals;
+    const { dotSize, dotGap } = gridDotSizesFromVisuals(cellPitch, v);
     terrainMat.opacity = v.gridOpacity;
-    terrainMat.dashSize = Math.max(v.gridDashMin, cellPitch * v.gridDashMul);
-    terrainMat.gapSize = Math.max(v.gridGapMin, cellPitch * v.gridGapMul);
+    terrainMat.dashSize = dotSize;
+    terrainMat.gapSize = dotGap;
     terrainMat.needsUpdate = true;
+  }, [visuals, cellPitch, terrainMat]);
 
-    terrainGlowMat.opacity = v.gridGlowOpacity;
-    terrainGlowMat.dashSize = Math.max(
-      v.gridGlowDashMin,
-      cellPitch * v.gridGlowDashMul,
+  const terrainPeak = useMemo(() => layoutTerrainPeak(layout), [layout]);
+
+  const refreshGridColors = (
+    geometry: THREE.BufferGeometry,
+    camera: THREE.Camera,
+    v: TerrainVisualParams,
+  ) => {
+    computeTerrainWireframeVertexColors(
+      geometry,
+      camera.position,
+      gridDepthFadeRange(layout.extent, terrainPeak, v),
+      v.depthFadeMinOpacity,
     );
-    terrainGlowMat.gapSize = Math.max(
-      v.gridGlowGapMin,
-      cellPitch * v.gridGlowGapMul,
-    );
-    terrainGlowMat.needsUpdate = true;
-  }, [visuals, cellPitch, terrainMat, terrainGlowMat]);
+  };
 
   useLayoutEffect(() => {
     const prepared = prepareAnimatedTerrain(layout, 0, baseField);
     if (!prepared || !terrainLines) return;
     updateTerrainWireframePositions(terrainLines, prepared, wireframeOptions);
     computeTerrainLineDistancesXZ(terrainLines);
-    computeTerrainWireframeVertexColors(
-      terrainLines,
-      prepared,
-      visualsRef.current,
-      debugZone,
-    );
     if (terrainFloor) {
       updateTerrainFloorPositions(terrainFloor, prepared, wireframeOptions);
     }
+    refreshGridColors(terrainLines, camera, visualsRef.current);
     waveRef.current = { prepared, elapsed: 0 };
-  }, [layout, baseField, terrainLines, terrainFloor, wireframeOptions, debugZone]);
+  }, [
+    layout,
+    baseField,
+    terrainLines,
+    terrainFloor,
+    wireframeOptions,
+    camera,
+    layout.extent,
+  ]);
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
     const prepared = prepareAnimatedTerrain(layout, elapsed, baseField);
     if (!prepared || !terrainLines) return;
+
     updateTerrainWireframePositions(terrainLines, prepared, wireframeOptions);
     if (terrainFloor) {
       updateTerrainFloorPositions(terrainFloor, prepared, {
@@ -160,6 +149,7 @@ export function TerrainSurface({
         refreshColors: false,
       });
     }
+    refreshGridColors(terrainLines, state.camera, visualsRef.current);
     waveRef.current = { prepared, elapsed };
   });
 
@@ -168,10 +158,9 @@ export function TerrainSurface({
       terrainLines?.dispose();
       terrainFloor?.dispose();
       terrainMat.dispose();
-      terrainGlowMat.dispose();
       floorMat.dispose();
     };
-  }, [terrainLines, terrainFloor, terrainMat, terrainGlowMat, floorMat]);
+  }, [terrainLines, terrainFloor, terrainMat, floorMat]);
 
   if (!terrainLines) return null;
 
@@ -185,24 +174,16 @@ export function TerrainSurface({
           renderOrder={0}
         />
       ) : null}
-      {/* <lineSegments
-        geometry={terrainLines}
-        material={terrainGlowMat}
-        frustumCulled={false}
-        dispose={null}
-      /> */}
       <lineSegments
         geometry={terrainLines}
         material={terrainMat}
         frustumCulled={false}
         dispose={null}
       />
-      <DebugZoneCircle zone={debugZone} visible={showDebugZone} />
       <OpportunityMarkers
         layout={layout}
         waveRef={waveRef}
         markerMotion={markerMotion}
-        debugZone={debugZone}
         visuals={visuals}
       />
     </group>

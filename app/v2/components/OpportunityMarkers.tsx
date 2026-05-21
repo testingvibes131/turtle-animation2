@@ -20,6 +20,7 @@ import {
   type GridLayout,
   type TerrainCell,
 } from "@/app/v2/lib/gridLayout";
+import { layoutTerrainPeak } from "@/app/v2/lib/terrainHeightSample";
 import {
   markersMoveWithBelt,
   usesScrolledDnaAtCrossing,
@@ -33,7 +34,6 @@ import {
   buildCellLookup,
   sourceCellAtCrossing,
 } from "@/app/v2/lib/scrolledCell";
-import type { DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
 import { FeaturedFlagMarkers } from "@/app/v2/components/FeaturedFlagMarkers";
 import { FeaturedPinLabels } from "@/app/v2/components/FeaturedPinLabels";
@@ -58,6 +58,7 @@ import {
   sphereTerrainShadeFromVisuals,
   type TerrainVisualParams,
 } from "@/app/v2/lib/terrainVisuals";
+import { dmSansFontFamily } from "@/app/fonts";
 
 const SPHERE_GEO = new THREE.SphereGeometry(1, 6, 4);
 const _sphereDummy = new THREE.Object3D();
@@ -76,8 +77,7 @@ const _pickClosest = new THREE.Vector3();
 const curatorLabelWrap: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
-  fontFamily:
-    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  fontFamily: dmSansFontFamily,
   textAlign: "center",
   whiteSpace: "nowrap",
   lineHeight: 1.2,
@@ -124,7 +124,6 @@ type OpportunityMarkersProps = {
   layout: GridLayout;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markerMotion: MarkerMotionMode;
-  debugZone: DebugZone;
   visuals: TerrainVisualParams;
 };
 
@@ -145,7 +144,6 @@ function MarkerSpheres({
   meshRef,
   waveRef,
   markersMoveWithBelt,
-  debugZone,
   hoverRef,
   useCrossingCurator,
   dnaLookup,
@@ -160,7 +158,6 @@ function MarkerSpheres({
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
-  debugZone: DebugZone;
   hoverRef: RefObject<CuratorHoverState>;
   useCrossingCurator: boolean;
   dnaLookup: (TerrainCell | undefined)[][] | null;
@@ -189,13 +186,12 @@ function MarkerSpheres({
     const dummy = _sphereDummy;
 
     cells.forEach((cell, i) => {
-      const { x, y, z, zoneScale } = getSphereMarkerPose(
+      const { x, y, z } = getSphereMarkerPose(
         cell,
         prepared,
         elapsed,
         centerOnTerrain,
         markersMoveWithBelt,
-        debugZone,
         sphereRadiusRatio,
       );
       const highlighted = getSphereHoverStyle(
@@ -208,7 +204,6 @@ function MarkerSpheres({
       dummy.scale.setScalar(
         cellPitch *
           sphereRadiusRatio *
-          zoneScale *
           (highlighted ? CURATOR_HOVER_SCALE : 1),
       );
       dummy.updateMatrix();
@@ -241,7 +236,6 @@ function MarkerSpheres({
     centerOnTerrain,
     color,
     count,
-    debugZone,
     dnaLookup,
     hoverRef,
     markersMoveWithBelt,
@@ -282,7 +276,6 @@ function ScrolledDnaMarkerSpheres({
   featuredColor,
   meshRef,
   waveRef,
-  debugZone,
   dnaBlendsRef,
   hoverRef,
   dnaLookup,
@@ -296,7 +289,6 @@ function ScrolledDnaMarkerSpheres({
   featuredColor: number;
   meshRef: RefObject<THREE.InstancedMesh | null>;
   waveRef: RefObject<TerrainWaveSnapshot>;
-  debugZone: DebugZone;
   dnaBlendsRef: RefObject<Float32Array>;
   hoverRef: RefObject<CuratorHoverState>;
   dnaLookup: (TerrainCell | undefined)[][];
@@ -328,11 +320,10 @@ function ScrolledDnaMarkerSpheres({
 
     cells.forEach((cell, i) => {
       const blend = blends[i] ?? 0;
-      const { x, y, z, zoneScale } = getScrolledDnaSpherePose(
+      const { x, y, z } = getScrolledDnaSpherePose(
         cell,
         prepared,
         blend,
-        debugZone,
         sphereRadiusRatio,
       );
       const highlighted =
@@ -345,7 +336,6 @@ function ScrolledDnaMarkerSpheres({
       dummy.scale.setScalar(
         cellPitch *
           sphereRadiusRatio *
-          zoneScale *
           (highlighted ? CURATOR_HOVER_SCALE : 1),
       );
       dummy.updateMatrix();
@@ -377,7 +367,6 @@ function ScrolledDnaMarkerSpheres({
     cells,
     cellPitch,
     count,
-    debugZone,
     dnaBlendsRef,
     dnaLookup,
     featuredColor,
@@ -446,7 +435,6 @@ function CuratorHoverLabel({
   hoverRef,
   waveRef,
   markerMotion,
-  debugZone,
   allCells,
   cellPitch,
   sphereRadiusRatio,
@@ -455,7 +443,6 @@ function CuratorHoverLabel({
   hoverRef: RefObject<CuratorHoverState>;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markerMotion: MarkerMotionMode;
-  debugZone: DebugZone;
   allCells: TerrainCell[];
   cellPitch: number;
   sphereRadiusRatio: number;
@@ -493,14 +480,12 @@ function CuratorHoverLabel({
         anchorCell,
         prepared,
         blend,
-        debugZone,
         sphereRadiusRatio,
       );
       x = pose.x;
       y = pose.y;
       z = pose.z;
-      radius =
-        cellPitch * sphereRadiusRatio * pose.zoneScale * CURATOR_HOVER_SCALE;
+      radius = cellPitch * sphereRadiusRatio * CURATOR_HOVER_SCALE;
     } else {
       const pose = getSphereMarkerPose(
         anchorCell,
@@ -508,14 +493,12 @@ function CuratorHoverLabel({
         elapsed,
         anchorCell.featured,
         moveWithBelt,
-        debugZone,
         sphereRadiusRatio,
       );
       x = pose.x;
       y = pose.y;
       z = pose.z;
-      radius =
-        cellPitch * sphereRadiusRatio * pose.zoneScale * CURATOR_HOVER_SCALE;
+      radius = cellPitch * sphereRadiusRatio * CURATOR_HOVER_SCALE;
     }
 
     g.position.set(x, y + radius + gap, z);
@@ -544,7 +527,6 @@ function MarkerHover({
   hoverRef,
   allCells,
   layout,
-  debugZone,
   cellPitch,
   sphereRadiusRatio,
   dnaBlendsRef,
@@ -554,7 +536,6 @@ function MarkerHover({
   hoverRef: RefObject<CuratorHoverState>;
   allCells: TerrainCell[];
   layout: GridLayout;
-  debugZone: DebugZone;
   cellPitch: number;
   sphereRadiusRatio: number;
   dnaBlendsRef: RefObject<Float32Array>;
@@ -580,34 +561,32 @@ function MarkerHover({
     const getPose = (cell: TerrainCell, index: number): SpherePickPose => {
       if (useScrolledDna) {
         const blend = dnaBlendsRef.current[index] ?? 0;
-        const { x, y, z, zoneScale } = getScrolledDnaSpherePose(
+        const { x, y, z } = getScrolledDnaSpherePose(
           cell,
           prepared,
           blend,
-          debugZone,
           sphereRadiusRatio,
         );
         return {
           x,
           y,
           z,
-          radius: cellPitch * sphereRadiusRatio * zoneScale,
+          radius: cellPitch * sphereRadiusRatio,
         };
       }
-      const { x, y, z, zoneScale } = getSphereMarkerPose(
+      const { x, y, z } = getSphereMarkerPose(
         cell,
         prepared,
         elapsed,
         cell.featured,
         moveWithBelt,
-        debugZone,
         sphereRadiusRatio,
       );
       return {
         x,
         y,
         z,
-        radius: cellPitch * sphereRadiusRatio * zoneScale,
+        radius: cellPitch * sphereRadiusRatio,
       };
     };
 
@@ -653,10 +632,10 @@ export function OpportunityMarkers({
   layout,
   waveRef,
   markerMotion,
-  debugZone,
   visuals,
 }: OpportunityMarkersProps) {
   const { cellPitch, extent } = layout;
+  const terrainPeak = useMemo(() => layoutTerrainPeak(layout), [layout]);
   const dataCells = useMemo(() => getDataCells(layout), [layout]);
   const emptyCells = useMemo(
     () => buildEmptyDisplayCells(layout),
@@ -665,8 +644,8 @@ export function OpportunityMarkers({
   const camera = useThree((s) => s.camera);
   const depthFadeUniforms = useMemo(() => createMarkerDepthFadeUniforms(), []);
   const depthFadeRange = useMemo(
-    () => markerDepthFadeRange(extent, visuals),
-    [extent, visuals],
+    () => markerDepthFadeRange(extent, terrainPeak, visuals),
+    [extent, terrainPeak, visuals],
   );
   const moveWithBelt = markersMoveWithBelt(markerMotion);
   const useScrolledDna = usesScrolledDnaAtCrossing(markerMotion);
@@ -699,7 +678,12 @@ export function OpportunityMarkers({
   }, [dataCells.length]);
 
   useFrame((_, delta) => {
-    updateMarkerDepthFadeUniforms(depthFadeUniforms, camera, depthFadeRange);
+    updateMarkerDepthFadeUniforms(
+      depthFadeUniforms,
+      camera,
+      depthFadeRange,
+      visuals.depthFadeMinOpacity,
+    );
 
     if (!useScrolledDna || dataCells.length === 0) return;
     const { elapsed } = waveRef.current;
@@ -732,7 +716,6 @@ export function OpportunityMarkers({
           meshRef={emptyMeshRef}
           waveRef={waveRef}
           markersMoveWithBelt={moveWithBelt}
-          debugZone={debugZone}
           hoverRef={hoverRef}
           useCrossingCurator={false}
           dnaLookup={null}
@@ -749,7 +732,6 @@ export function OpportunityMarkers({
           featuredColor={visuals.stickColor}
           meshRef={dnaMeshRef}
           waveRef={waveRef}
-          debugZone={debugZone}
           dnaBlendsRef={dnaBlendsRef}
           hoverRef={hoverRef}
           dnaLookup={dnaLookup}
@@ -766,7 +748,6 @@ export function OpportunityMarkers({
             meshRef={restMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
-            debugZone={debugZone}
             hoverRef={hoverRef}
             useCrossingCurator={false}
             dnaLookup={null}
@@ -781,7 +762,6 @@ export function OpportunityMarkers({
             meshRef={featuredMeshRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
-            debugZone={debugZone}
             hoverRef={hoverRef}
             useCrossingCurator={false}
             dnaLookup={null}
@@ -801,7 +781,6 @@ export function OpportunityMarkers({
             topRef={topRef}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
-            debugZone={debugZone}
             depthFadeUniforms={depthFadeUniforms}
             depthFadeRange={depthFadeRange}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
@@ -812,9 +791,9 @@ export function OpportunityMarkers({
             cellPitch={cellPitch}
             waveRef={waveRef}
             markersMoveWithBelt={moveWithBelt}
-            debugZone={debugZone}
             sphereRadiusRatio={sphereRadius}
             depthFadeRange={depthFadeRange}
+            depthFadeMinOpacity={visuals.depthFadeMinOpacity}
             dnaLookup={useScrolledDna ? dnaLookup : undefined}
             dnaBlendsRef={useScrolledDna ? dnaBlendsRef : undefined}
           />
@@ -824,7 +803,6 @@ export function OpportunityMarkers({
         hoverRef={hoverRef}
         waveRef={waveRef}
         markerMotion={markerMotion}
-        debugZone={debugZone}
         allCells={dataCells}
         cellPitch={cellPitch}
         sphereRadiusRatio={sphereRadius}
@@ -836,7 +814,6 @@ export function OpportunityMarkers({
         hoverRef={hoverRef}
         allCells={dataCells}
         layout={layout}
-        debugZone={debugZone}
         cellPitch={cellPitch}
         sphereRadiusRatio={sphereRadius}
         dnaBlendsRef={dnaBlendsRef}

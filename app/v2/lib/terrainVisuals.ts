@@ -9,24 +9,32 @@ export type TerrainVisualParams = {
   sphereRadiusRatio: number;
   /** Micro-cells per macro edge (1 = one sphere per opportunity). */
   gridSubdiv: number;
+  /** Macro grid width/height ratio (1 = square torus). */
+  gridLayoutAspect: number;
+  /** Featured placement radius from layout center (0 = tight cluster). */
+  featuredSpread: number;
   stickDashMin: number;
   stickDashMul: number;
   stickGapMin: number;
   stickGapMul: number;
-  gridDashMin: number;
-  gridDashMul: number;
-  gridGapMin: number;
-  gridGapMul: number;
-  gridGlowDashMin: number;
-  gridGlowDashMul: number;
-  gridGlowGapMin: number;
-  gridGlowGapMul: number;
+  /** Dotted grid: short dash = dot length along each edge. */
+  gridDotMin: number;
+  gridDotMul: number;
+  /** Spacing between dots along each edge. */
+  gridDotGapMin: number;
+  gridDotGapMul: number;
   gridOpacity: number;
-  gridGlowOpacity: number;
-  gridFadeStart: number;
-  gridFadeEnd: number;
   fogNearMul: number;
   fogFarMul: number;
+  /** × extent × fogNearMul for marker depth fade start. */
+  depthFadeNearScale: number;
+  /** × extent × fogFarMul for marker depth fade end. */
+  depthFadeFarScale: number;
+  /** × extent × fogNearMul for grid wireframe depth fade start. */
+  gridDepthFadeNearScale: number;
+  /** × extent × fogFarMul for grid wireframe depth fade end. */
+  gridDepthFadeFarScale: number;
+  depthFadeMinOpacity: number;
   sphereShadeEnabled: boolean;
   sphereShadeAzimuthDeg: number;
   sphereShadeElevationDeg: number;
@@ -38,31 +46,29 @@ export const DEFAULT_TERRAIN_VISUALS: TerrainVisualParams = {
   sphereRestColor: 0xf9f9f9,
   emptySphereColor: 0xf9f9f9,
   emptySphereRadiusMul: 1,
-  gridSubdiv: 8,
+  gridSubdiv: 3,
+  gridLayoutAspect: 1,
+  featuredSpread: 0.1,
   stickColor: 0x4a9a44,
   stickLineWidth: 1,
-  /** Unified sphere size (matches prior empty sub-sphere scale at subdiv 2). */
-  sphereRadiusRatio: 0.05,
   stickDashMin: 0.02,
   stickDashMul: 0.055,
   stickGapMin: 0.012,
   stickGapMul: 0.032,
-  gridDashMin: 0.04,
-  gridDashMul: 0.14,
-  gridGapMin: 0.038,
-  gridGapMul: 0.13,
-  gridGlowDashMin: 0.05,
-  gridGlowDashMul: 0.18,
-  gridGlowGapMin: 0.044,
-  gridGlowGapMul: 0.15,
-  gridOpacity: 0.03,
-  gridGlowOpacity: 0.16,
-  gridFadeStart: 0.48,
-  gridFadeEnd: 1.02,
-  fogNearMul: 0.22,
-  fogFarMul: 1.45,
+  gridDotMin: 0,
+  gridDotMul: 0,
+  gridDotGapMin: 0.01,
+  gridDotGapMul: 0,
+  gridOpacity: 1.0,
+  fogNearMul: 0.16,
+  fogFarMul: 0.58,
+  depthFadeNearScale: 0.05,
+  depthFadeFarScale: 0.31,
+  gridDepthFadeNearScale: 0.02,
+  gridDepthFadeFarScale: 0.5,
+  depthFadeMinOpacity: 0.0,
+  sphereRadiusRatio: 0.02,
   sphereShadeEnabled: true,
-  /** Upper-left key light (reference-style rolling hills). */
   sphereShadeAzimuthDeg: 225,
   sphereShadeElevationDeg: 36,
   sphereShadeAmbient: 0,
@@ -100,5 +106,16 @@ export function stickDashSizesFromVisuals(
     dashSize: Math.max(visuals.stickDashMin, cellPitch * visuals.stickDashMul),
     gapSize: Math.max(visuals.stickGapMin, cellPitch * visuals.stickGapMul),
     lineWidth: visuals.stickLineWidth,
+  };
+}
+
+/** LineDashedMaterial dot length + gap for the terrain lattice. */
+export function gridDotSizesFromVisuals(
+  cellPitch: number,
+  visuals: TerrainVisualParams,
+): { dotSize: number; dotGap: number } {
+  return {
+    dotSize: Math.max(visuals.gridDotMin, cellPitch * visuals.gridDotMul),
+    dotGap: Math.max(visuals.gridDotGapMin, cellPitch * visuals.gridDotGapMul),
   };
 }

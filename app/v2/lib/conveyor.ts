@@ -1,8 +1,8 @@
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
-import { wrapToroidal } from "@/app/v2/lib/toroidal";
+import { wrapDiagonalToroidalUV } from "@/app/v2/lib/toroidal";
 
 /** Grid-index scroll speed (field units per second). */
-export const CONVEYOR_GRID_SPEED = 0.28;
+export const CONVEYOR_GRID_SPEED = 0.336;
 
 /** Diagonal drift in grid space (+col, +row). */
 export const CONVEYOR_DIR_U = 0.7071067811865476;
@@ -39,10 +39,14 @@ export function getAnimatedGridUV(
   rows: number,
 ): { u: number; v: number } {
   const { offsetU, offsetV } = getConveyorOffset(elapsed);
-  return {
-    u: wrapToroidal(cell.col + offsetU, cols),
-    v: wrapToroidal(cell.row + offsetV, rows),
-  };
+  return wrapDiagonalToroidalUV(
+    cell.col + offsetU,
+    cell.row + offsetV,
+    cols,
+    rows,
+    cell.col,
+    cell.row,
+  );
 }
 
 export function getAnimatedWorldXZ(

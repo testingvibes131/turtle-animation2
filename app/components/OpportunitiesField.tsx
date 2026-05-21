@@ -18,10 +18,6 @@ export default function OpportunitiesField() {
     },
   });
 
-  const { showBlueCircle: showDebugZone } = useControls("Zone (debug)", {
-    showBlueCircle: { value: false, label: "Blue circle" },
-  });
-
   const { enabled: orbitEnabled } = useControls("Orbit", {
     enabled: { value: true, label: "Orbit controls" },
   });
@@ -34,7 +30,6 @@ export default function OpportunitiesField() {
       <div className="fixed inset-0 z-0 touch-none">
         <TerrainScene
           markerMotion={markerMotion}
-          showDebugZone={showDebugZone}
           orbitEnabled={orbitEnabled}
           visuals={visuals}
         />

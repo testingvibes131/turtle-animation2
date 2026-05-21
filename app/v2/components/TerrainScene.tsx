@@ -3,7 +3,10 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import { OpportunityCameraRig } from "@/app/components/OpportunityCameraRig";
-import { parseOpportunityRows } from "@/app/lib/opportunitiesCsv";
+import {
+  parseOpportunityRows,
+  thinNonFeaturedOpportunities,
+} from "@/app/lib/opportunitiesCsv";
 import {
   DEFAULT_CAMERA_POSITION,
   DEFAULT_OPPORTUNITY_FOV,
@@ -26,16 +29,13 @@ function fogRangeForExtent(
 
 function SceneContent({
   markerMotion,
-  showDebugZone,
   orbitEnabled,
   visuals,
 }: {
   markerMotion: MarkerMotionMode;
-  showDebugZone: boolean;
   orbitEnabled: boolean;
   visuals: TerrainVisualParams;
 }) {
-  const { width, height } = useThree((s) => s.size);
   const [rows, setRows] = useState<ReturnType<typeof parseOpportunityRows> | null>(
     null,
   );
@@ -45,7 +45,9 @@ function SceneContent({
     void fetch(CSV_PATH)
       .then((r) => r.text())
       .then((text) => {
-        if (!cancelled) setRows(parseOpportunityRows(text));
+        if (!cancelled) {
+          setRows(thinNonFeaturedOpportunities(parseOpportunityRows(text)));
+        }
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -60,16 +62,22 @@ function SceneContent({
     [rows],
   );
 
-  const aspect = width > 1 && height > 1 ? width / height : 16 / 9;
   const layout = useMemo(
     () =>
       rows
         ? layoutOpportunitiesOnGrid(rows, aprRange, {
-            aspect,
+            layoutAspect: visuals.gridLayoutAspect,
             subdiv: visuals.gridSubdiv,
+            featuredSpread: visuals.featuredSpread,
           })
         : null,
-    [rows, aprRange, aspect, visuals.gridSubdiv],
+    [
+      rows,
+      aprRange,
+      visuals.gridLayoutAspect,
+      visuals.gridSubdiv,
+      visuals.featuredSpread,
+    ],
   );
 
   if (!layout || layout.cells.length === 0) return null;
@@ -86,7 +94,6 @@ function SceneContent({
       <TerrainSurface
         layout={layout}
         markerMotion={markerMotion}
-        showDebugZone={showDebugZone}
         visuals={visuals}
       />
     </>
@@ -95,14 +102,12 @@ function SceneContent({
 
 type TerrainSceneProps = {
   markerMotion: MarkerMotionMode;
-  showDebugZone: boolean;
   orbitEnabled?: boolean;
   visuals: TerrainVisualParams;
 };
 
 export function TerrainScene({
   markerMotion,
-  showDebugZone,
   orbitEnabled = true,
   visuals,
 }: TerrainSceneProps) {
@@ -125,7 +130,6 @@ export function TerrainScene({
     >
       <SceneContent
         markerMotion={markerMotion}
-        showDebugZone={showDebugZone}
         orbitEnabled={orbitEnabled}
         visuals={visuals}
       />

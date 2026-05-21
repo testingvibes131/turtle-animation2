@@ -106,11 +106,28 @@ export function parseOpportunityRows(csvText: string): OpportunityRow[] {
   const out: OpportunityRow[] = [];
   for (let r = 1; r < table.length; r++) {
     const row = rowFromCells(header, table[r]!);
-    if (row?.id) out.push(row);
+    if (!row?.id || isDustTvl(row.tvlUsd)) continue;
+    out.push(row);
   }
   return out;
 }
 
 export function isDustTvl(tvlUsd: number): boolean {
   return tvlUsd <= TVL_DUST_MAX;
+}
+
+/** Keep every featured row; keep 1/8 of non-featured (stable by id). */
+const NON_FEATURED_KEEP_EVERY_NTH = 8;
+
+export function thinNonFeaturedOpportunities(
+  rows: OpportunityRow[],
+): OpportunityRow[] {
+  const featured: OpportunityRow[] = [];
+  const rest: OpportunityRow[] = [];
+  for (const row of rows) {
+    (row.featured ? featured : rest).push(row);
+  }
+  rest.sort((a, b) => a.id.localeCompare(b.id));
+  const thinRest = rest.filter((_, i) => i % NON_FEATURED_KEEP_EVERY_NTH === 0);
+  return [...featured, ...thinRest];
 }

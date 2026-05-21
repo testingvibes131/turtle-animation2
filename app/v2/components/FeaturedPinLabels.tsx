@@ -12,7 +12,6 @@ import {
   type RefObject,
 } from "react";
 import * as THREE from "three";
-import { isInsideDebugZone, type DebugZone } from "@/app/v2/lib/debugZone";
 import type { TerrainCell } from "@/app/v2/lib/gridLayout";
 import {
   cellToLabelContent,
@@ -36,6 +35,7 @@ import {
   type MarkerDepthFadeRange,
 } from "@/app/v2/lib/markerDepthFade";
 import type { TerrainWaveSnapshot } from "@/app/v2/lib/terrainWave";
+import { dmSansFontFamily } from "@/app/fonts";
 
 const LABEL_MAX_WIDTH = "70px";
 const OPACITY_EPSILON = 0.02;
@@ -48,8 +48,7 @@ const BLEND_IDLE_EPSILON = 0.05;
 const labelWrap: CSSProperties = {
   pointerEvents: "none",
   userSelect: "none",
-  fontFamily:
-    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  fontFamily: dmSansFontFamily,
   textAlign: "left",
   lineHeight: 1.25,
   textShadow: "0 1px 8px rgba(0,0,0,0.85), 0 0 1px rgba(0,0,0,0.9)",
@@ -231,9 +230,9 @@ type FeaturedPinLabelsProps = {
   cellPitch: number;
   waveRef: RefObject<TerrainWaveSnapshot>;
   markersMoveWithBelt: boolean;
-  debugZone: DebugZone;
   sphereRadiusRatio: number;
   depthFadeRange: MarkerDepthFadeRange;
+  depthFadeMinOpacity: number;
   dnaLookup?: (TerrainCell | undefined)[][];
   dnaBlendsRef?: RefObject<Float32Array>;
 };
@@ -243,9 +242,9 @@ export function FeaturedPinLabels({
   cellPitch,
   waveRef,
   markersMoveWithBelt,
-  debugZone,
   sphereRadiusRatio,
   depthFadeRange,
+  depthFadeMinOpacity,
   dnaLookup,
   dnaBlendsRef,
 }: FeaturedPinLabelsProps) {
@@ -365,17 +364,9 @@ export function FeaturedPinLabels({
           prepared,
           elapsed,
           markersMoveWithBelt,
-          debugZone,
           slot.blend,
           sphereRadiusRatio,
         );
-        if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
-          if (slot.lastOpacityWrite !== 0) {
-            dom.fade.style.opacity = "0";
-            slot.lastOpacityWrite = 0;
-          }
-          continue;
-        }
 
         const depthOpacity = markerDepthOpacity(
           flag.x,
@@ -383,6 +374,7 @@ export function FeaturedPinLabels({
           flag.z,
           camera,
           depthFadeRange,
+          depthFadeMinOpacity,
         );
         const displayOpacity = slot.opacity * depthOpacity;
         if (
@@ -409,23 +401,13 @@ export function FeaturedPinLabels({
         const cell = featured[i]!;
         const blend = blends ? (blends[i] ?? 0) : 1;
         const slot = getSlot(i);
-        const flag = getFeaturedFlagPose(
+        const show = isFeaturedFlagVisible(
           cell,
-          prepared,
+          i,
           elapsed,
-          markersMoveWithBelt,
-          debugZone,
-          blend,
-          sphereRadiusRatio,
+          dnaLookup,
+          blends ?? null,
         );
-        const show =
-          isFeaturedFlagVisible(
-            cell,
-            i,
-            elapsed,
-            dnaLookup,
-            blends ?? null,
-          ) && isInsideDebugZone(flag.x, flag.z, debugZone);
         if (show) {
           slot.text = cellToLabelContent(
             featuredFlagDisplayCell(cell, elapsed, dnaLookup),
@@ -458,15 +440,9 @@ export function FeaturedPinLabels({
           prepared,
           elapsed,
           markersMoveWithBelt,
-          debugZone,
           slot.blend,
           sphereRadiusRatio,
         );
-        if (!isInsideDebugZone(flag.x, flag.z, debugZone)) {
-          dom.fade.style.opacity = "0";
-          slot.lastOpacityWrite = 0;
-          continue;
-        }
 
         const depthOpacity = markerDepthOpacity(
           flag.x,
@@ -474,6 +450,7 @@ export function FeaturedPinLabels({
           flag.z,
           camera,
           depthFadeRange,
+          depthFadeMinOpacity,
         );
         const displayOpacity = slot.opacity * depthOpacity;
         dom.fade.style.opacity = String(displayOpacity);
