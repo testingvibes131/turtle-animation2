@@ -1,0 +1,181 @@
+"use client";
+
+import { useControls } from "leva";
+import { useMemo } from "react";
+import type { PerlinBlobParams } from "@/app/sketch/lib/perlinBlob";
+
+export type PerlinBlobVisualParams = PerlinBlobParams & {
+  pointSizeRatio: number;
+  rotationSpeed: number;
+  depthFadeMinOpacity: number;
+  depthSizeNearOffset: number;
+  depthSizeFarOffset: number;
+  depthSizeMinMul: number;
+  depthSizeMaxMul: number;
+  lineWidth: number;
+  lineOpacity: number;
+  orbitEnabled: boolean;
+  timeSpeed: number;
+};
+
+const DEFAULTS = {
+  radius: 1.0,
+  detail: 24,
+  noiseScale: 10,
+  displacementDivisor: 30,
+  perlinPeriod: 0.5,
+  timeSpeed: 0,
+  pointSizeRatio: 0.13,
+  rotationSpeed: 0,
+  depthFadeMinOpacity: 0,
+  depthSizeNearOffset: 0.19,
+  depthSizeFarOffset: 0.10,
+  depthSizeMinMul: 0.41,
+  depthSizeMaxMul: 0.88,
+  lineWidth: 2,
+  lineOpacity: 0.85,
+  orbitEnabled: true,
+} satisfies Omit<PerlinBlobVisualParams, "time">;
+
+export function useNoiseSphereControls(): PerlinBlobVisualParams {
+  const blob = useControls("Blob", {
+    radius: { value: DEFAULTS.radius, min: 0.5, max: 2.5, step: 0.05 },
+    detail: {
+      value: DEFAULTS.detail,
+      min: 2,
+      max: 24,
+      step: 1,
+      label: "icosphere detail",
+    },
+    pointSizeRatio: {
+      value: DEFAULTS.pointSizeRatio,
+      min: 0.04,
+      max: 0.28,
+      step: 0.01,
+      label: "base sphere size",
+    },
+  });
+
+  const perlin = useControls("Perlin", {
+    noiseScale: {
+      value: DEFAULTS.noiseScale,
+      min: 0.5,
+      max: 30,
+      step: 0.25,
+      label: "noise ×",
+    },
+    displacementDivisor: {
+      value: DEFAULTS.displacementDivisor,
+      min: 2,
+      max: 30,
+      step: 0.5,
+      label: "÷ amplitude",
+    },
+    perlinPeriod: {
+      value: DEFAULTS.perlinPeriod,
+      min: 0.25,
+      max: 30,
+      step: 0.1,
+      label: "period",
+    },
+    timeSpeed: {
+      value: DEFAULTS.timeSpeed,
+      min: 0,
+      max: 2,
+      step: 0.05,
+      label: "anim speed",
+    },
+  });
+
+  const motion = useControls("Motion", {
+    rotationSpeed: {
+      value: DEFAULTS.rotationSpeed,
+      min: 0,
+      max: 0.2,
+      step: 0.005,
+      label: "spin",
+    },
+    orbitEnabled: { value: DEFAULTS.orbitEnabled, label: "orbit controls" },
+  });
+
+  const depthSize = useControls("Depth size", {
+    depthSizeNearOffset: {
+      value: DEFAULTS.depthSizeNearOffset,
+      min: 0,
+      max: 1.2,
+      step: 0.02,
+      label: "near band × extent",
+    },
+    depthSizeFarOffset: {
+      value: DEFAULTS.depthSizeFarOffset,
+      min: 0.1,
+      max: 2,
+      step: 0.02,
+      label: "far band × extent",
+    },
+    depthSizeMinMul: {
+      value: DEFAULTS.depthSizeMinMul,
+      min: 0.1,
+      max: 1.5,
+      step: 0.02,
+      label: "far scale",
+    },
+    depthSizeMaxMul: {
+      value: DEFAULTS.depthSizeMaxMul,
+      min: 0.5,
+      max: 2.5,
+      step: 0.02,
+      label: "near scale",
+    },
+  });
+
+  const depthFade = useControls("Depth fade", {
+    depthFadeMinOpacity: {
+      value: DEFAULTS.depthFadeMinOpacity,
+      min: 0,
+      max: 1,
+      step: 0.02,
+      label: "min opacity",
+    },
+  });
+
+  const lines = useControls("Plexus lines", {
+    lineWidth: {
+      value: DEFAULTS.lineWidth,
+      min: 0.5,
+      max: 8,
+      step: 0.25,
+      label: "width",
+    },
+    lineOpacity: {
+      value: DEFAULTS.lineOpacity,
+      min: 0.1,
+      max: 1,
+      step: 0.02,
+      label: "opacity",
+    },
+  });
+
+  return useMemo(
+    () => ({
+      radius: blob.radius,
+      detail: Math.round(blob.detail),
+      pointSizeRatio: blob.pointSizeRatio,
+      noiseScale: perlin.noiseScale,
+      displacementDivisor: perlin.displacementDivisor,
+      perlinPeriod: perlin.perlinPeriod,
+      timeSpeed: perlin.timeSpeed,
+      time: 0,
+      rotationSpeed: motion.rotationSpeed,
+      orbitEnabled: motion.orbitEnabled,
+      depthFadeMinOpacity: depthFade.depthFadeMinOpacity,
+      depthSizeNearOffset: depthSize.depthSizeNearOffset,
+      depthSizeFarOffset: depthSize.depthSizeFarOffset,
+      depthSizeMinMul: depthSize.depthSizeMinMul,
+      depthSizeMaxMul: depthSize.depthSizeMaxMul,
+      lineWidth: lines.lineWidth,
+      lineOpacity: lines.lineOpacity,
+    }),
+    [blob, perlin, motion, depthSize, depthFade, lines],
+  );
+}
