@@ -16,25 +16,31 @@ export type PerlinBlobVisualParams = PerlinBlobParams & {
   lineOpacity: number;
   orbitEnabled: boolean;
   timeSpeed: number;
+  frontMinDot: number;
+  clusterMaxAngleDeg: number;
+  debugHoverZone: boolean;
 };
 
 const DEFAULTS = {
   radius: 1.0,
   detail: 24,
-  noiseScale: 10,
-  displacementDivisor: 30,
+  noiseScale: 14,
+  displacementDivisor: 38,
   perlinPeriod: 0.5,
   timeSpeed: 0,
   pointSizeRatio: 0.13,
-  rotationSpeed: 0,
+  rotationSpeed: 0.04,
   depthFadeMinOpacity: 0,
   depthSizeNearOffset: 0.19,
   depthSizeFarOffset: 0.10,
-  depthSizeMinMul: 0.41,
-  depthSizeMaxMul: 0.88,
+  depthSizeMinMul: 0.76,
+  depthSizeMaxMul: 1,
   lineWidth: 2,
   lineOpacity: 0.85,
   orbitEnabled: true,
+  frontMinDot: 0.55,
+  clusterMaxAngleDeg: 22,
+  debugHoverZone: false,
 } satisfies Omit<PerlinBlobVisualParams, "time">;
 
 export function useNoiseSphereControls(): PerlinBlobVisualParams {
@@ -67,7 +73,7 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
     displacementDivisor: {
       value: DEFAULTS.displacementDivisor,
       min: 2,
-      max: 30,
+      max: 60,
       step: 0.5,
       label: "÷ amplitude",
     },
@@ -96,6 +102,27 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       label: "spin",
     },
     orbitEnabled: { value: DEFAULTS.orbitEnabled, label: "orbit controls" },
+  });
+
+  const hoverCluster = useControls("Hover cluster", {
+    frontMinDot: {
+      value: DEFAULTS.frontMinDot,
+      min: 0.2,
+      max: 0.9,
+      step: 0.02,
+      label: "camera-facing zone (dot)",
+    },
+    clusterMaxAngleDeg: {
+      value: DEFAULTS.clusterMaxAngleDeg,
+      min: 8,
+      max: 45,
+      step: 1,
+      label: "max angle from hub °",
+    },
+    debugHoverZone: {
+      value: DEFAULTS.debugHoverZone,
+      label: "debug pickable (blue)",
+    },
   });
 
   const depthSize = useControls("Depth size", {
@@ -139,7 +166,7 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
     },
   });
 
-  const lines = useControls("Plexus lines", {
+  const lines = useControls("Hover lines", {
     lineWidth: {
       value: DEFAULTS.lineWidth,
       min: 0.5,
@@ -168,6 +195,9 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       time: 0,
       rotationSpeed: motion.rotationSpeed,
       orbitEnabled: motion.orbitEnabled,
+      frontMinDot: hoverCluster.frontMinDot,
+      clusterMaxAngleDeg: hoverCluster.clusterMaxAngleDeg,
+      debugHoverZone: hoverCluster.debugHoverZone,
       depthFadeMinOpacity: depthFade.depthFadeMinOpacity,
       depthSizeNearOffset: depthSize.depthSizeNearOffset,
       depthSizeFarOffset: depthSize.depthSizeFarOffset,
@@ -176,6 +206,6 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       lineWidth: lines.lineWidth,
       lineOpacity: lines.lineOpacity,
     }),
-    [blob, perlin, motion, depthSize, depthFade, lines],
+    [blob, perlin, motion, hoverCluster, depthSize, depthFade, lines],
   );
 }

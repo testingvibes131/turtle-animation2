@@ -29,18 +29,30 @@ export function vertexDirection(
 export function frontVertexDot(
   positions: Float32Array,
   index: number,
+  frontAxis: THREE.Vector3 = FRONT_AXIS,
 ): number {
-  return vertexDirection(positions, index).dot(FRONT_AXIS);
+  return vertexDirection(positions, index).dot(frontAxis);
+}
+
+/** True when the vertex lies on the cap facing `towardCamera` (blob-local, unit axis). */
+export function vertexFacesCamera(
+  positions: Float32Array,
+  index: number,
+  towardCamera: THREE.Vector3,
+  minDot: number,
+): boolean {
+  return frontVertexDot(positions, index, towardCamera) >= minDot;
 }
 
 export function collectFrontVertexIndices(
   positions: Float32Array,
   vertexCount: number,
+  frontAxis: THREE.Vector3 = FRONT_AXIS,
   minDot = FRONT_CLUSTER_DOT,
 ): number[] {
   const out: number[] = [];
   for (let i = 0; i < vertexCount; i++) {
-    if (frontVertexDot(positions, i) >= minDot) out.push(i);
+    if (frontVertexDot(positions, i, frontAxis) >= minDot) out.push(i);
   }
   return out;
 }

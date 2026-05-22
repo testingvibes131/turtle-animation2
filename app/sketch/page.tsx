@@ -2,8 +2,7 @@
 
 import { Leva } from "leva";
 import { useLayoutEffect, useState } from "react";
-import { HeroSection } from "@/app/components/HeroSection";
-import { SiteHeader } from "@/app/components/SiteHeader";
+import { SketchHeroCopy } from "@/app/sketch/components/SketchHeroCopy";
 import { NoiseSphereSketch } from "@/app/sketch/NoiseSphereScene";
 
 export default function SketchPage() {
@@ -26,8 +25,7 @@ export default function SketchPage() {
         <div className="absolute inset-0 z-0 touch-none">
           <NoiseSphereSketch />
         </div>
-        <HeroSection />
-        <SiteHeader />
+        <SketchHeroCopy />
       </main>
     </>
   );

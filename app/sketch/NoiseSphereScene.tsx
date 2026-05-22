@@ -1,31 +1,43 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import type { ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import {
-  parseOpportunityRows,
-  type OpportunityRow,
-} from "@/app/lib/opportunitiesCsv";
 import {
   attachMeshBasicDepthFade,
   createMarkerDepthFadeUniforms,
   updateMarkerDepthFadeUniforms,
 } from "@/app/v2/lib/markerDepthFade";
+import { CuratorHubBillboard } from "@/app/sketch/components/CuratorHubBillboard";
 import { CuratorPlexusLines } from "@/app/sketch/components/CuratorPlexusLines";
-import { depthSizeMultiplier } from "@/app/sketch/lib/sphereDepthSize";
-import { assignRowsByCuratorToVertices } from "@/app/sketch/lib/assignCsvToVertices";
+import { PartnerOrbitRings } from "@/app/sketch/components/PartnerOrbitRings";
+import type { ColoredPlexusGroup } from "@/app/sketch/components/CuratorPlexusLines";
+import { pickNextCurator } from "@/app/sketch/lib/curatorCatalog";
+import { vertexFacesCamera } from "@/app/sketch/lib/frontHemisphere";
+import { buildHoverPlexusEdges } from "@/app/sketch/lib/hoverPlexus";
 import {
-  buildCuratorColorMap,
-  groupPlexusEdgesByColor,
-} from "@/app/sketch/lib/curatorColors";
-import { buildCuratorPlexusEdges } from "@/app/sketch/lib/curatorPlexus";
+  pickHoverVertexNearRay,
+  SPHERE_PICK_MIN_RADIUS_MUL,
+} from "@/app/sketch/lib/pickSphereVertex";
+import { depthSizeMultiplier } from "@/app/sketch/lib/sphereDepthSize";
 import {
   useNoiseSphereControls,
   type PerlinBlobVisualParams,
 } from "@/app/sketch/hooks/useNoiseSphereControls";
+import { preloadLogoDisplayScales } from "@/app/sketch/lib/logoContentScale";
+import {
+  blobVisualExtent,
+  computeBlobOffsetX,
+} from "@/app/sketch/lib/blobViewportOffset";
+import { buildLiveVertexSet } from "@/app/sketch/lib/liveVertices";
+import {
+  RENDER_DEBUG_PICKABLE,
+  RENDER_HUB_LOGO,
+  RENDER_PARTNER_SPHERE,
+  RENDER_PLEXUS_LINES,
+  RENDER_SPHERE,
+} from "@/app/sketch/lib/sketchRenderOrder";
 import {
   createIcosahedronVertices,
   displacedVertexPosition,
@@ -33,29 +45,64 @@ import {
   type PerlinBlobParams,
 } from "@/app/sketch/lib/perlinBlob";
 
-const CSV_PATH = "/data/turtle-opportunities.csv";
 const BG = "#141514";
-const POINT_COLOR = 0xf9f9f9;
+const POINT_COLOR = 0x2c2d2b;
+/** Live + camera-facing cap (hover pickable). */
+const DEBUG_PICKABLE_COLOR = 0x2973ff;
+const LIVE_SCALE_MUL = 1.25;
+const DEBUG_PICKABLE_SCALE_MUL = 1.08;
+const DEAD_SCALE_MUL = 0.88;
+/** Partner size: previous 1.4× + 15%. */
+const PARTNER_SCALE_MUL = 1.4 * 1.15;
+/** Max hub + partners (Aave = 8 edges). */
+const MAX_HIGHLIGHT_INSTANCES = 9;
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
 const _dummy = new THREE.Object3D();
+const _camWorld = new THREE.Vector3();
+const _groupWorld = new THREE.Vector3();
+const _towardCamera = new THREE.Vector3();
+const _worldPos = new THREE.Vector3();
+const _frameScales = new Float32Array(0);
 
 export type SphereHoverInfo = {
-  name: string;
   curator: string;
-  apr: number;
+  opportunities: number;
+  color: number;
+};
+
+type HoverVertsState = {
+  hub: number;
+  partners: Set<number>;
+  color: number;
+  curatorName: string;
 };
 
 function PerlinBlobPoints({
   params,
-  rows,
   onHover,
+  offsetX,
 }: {
   params: PerlinBlobVisualParams;
-  rows: OpportunityRow[] | null;
   onHover: (info: SphereHoverInfo | null) => void;
+  offsetX: number;
 }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const { camera } = useThree();
+  const blobGroupRef = useRef<THREE.Group>(null);
+  const liveMeshRef = useRef<THREE.InstancedMesh>(null);
+  const deadMeshRef = useRef<THREE.InstancedMesh>(null);
+  const highlightMeshRef = useRef<THREE.InstancedMesh>(null);
+  const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
+  const hoverRef = useRef<HoverVertsState | null>(null);
+  const scalesRef = useRef(_frameScales);
+  const { camera, raycaster, pointer, gl } = useThree();
+  const [hoverLines, setHoverLines] = useState<ColoredPlexusGroup[]>([]);
+  const [hubBillboard, setHubBillboard] = useState<{
+    hub: number;
+    curatorName: string;
+  } | null>(null);
+  const [partnerOrbits, setPartnerOrbits] = useState<{
+    indices: number[];
+    color: number;
+  } | null>(null);
   const depthFadeUniforms = useMemo(
     () => createMarkerDepthFadeUniforms(),
     [],
@@ -66,32 +113,25 @@ function PerlinBlobPoints({
     [params.radius, params.detail],
   );
 
-  const rowAt = useMemo(
-    () =>
-      rows
-        ? assignRowsByCuratorToVertices(
-            vertices.positions,
-            vertices.count,
-            rows,
-          )
-        : null,
-    [rows, vertices.positions, vertices.count],
+  const liveVertices = useMemo(
+    () => buildLiveVertexSet(vertices.count),
+    [vertices.count],
   );
 
-  const colorByCurator = useMemo(
-    () => (rows ? buildCuratorColorMap(rows) : new Map<string, number>()),
-    [rows],
+  const { liveIndices, deadIndices } = useMemo(() => {
+    const live: number[] = [];
+    const dead: number[] = [];
+    for (let i = 0; i < vertices.count; i++) {
+      if (liveVertices.has(i)) live.push(i);
+      else dead.push(i);
+    }
+    return { liveIndices: live, deadIndices: dead };
+  }, [vertices.count, liveVertices]);
+
+  const clusterMaxAngleRad = useMemo(
+    () => THREE.MathUtils.degToRad(params.clusterMaxAngleDeg),
+    [params.clusterMaxAngleDeg],
   );
-
-  const edges = useMemo(() => {
-    if (!rowAt) return [];
-    return buildCuratorPlexusEdges(rowAt, vertices.positions);
-  }, [rowAt, vertices.positions]);
-
-  const plexusGroups = useMemo(() => {
-    if (!rowAt || edges.length === 0) return [];
-    return groupPlexusEdgesByColor(edges, rowAt, colorByCurator);
-  }, [rowAt, edges, colorByCurator]);
 
   const pointRadius = useMemo(
     () =>
@@ -100,43 +140,144 @@ function PerlinBlobPoints({
     [params.radius, vertices.count, params.pointSizeRatio],
   );
 
-  const material = useMemo(() => {
-    const mat = new THREE.MeshBasicMaterial({ color: POINT_COLOR });
+  const liveMaterial = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: POINT_COLOR,
+      toneMapped: false,
+    });
     attachMeshBasicDepthFade(mat, depthFadeUniforms);
     return mat;
   }, [depthFadeUniforms]);
 
-  useEffect(() => () => material.dispose(), [material]);
-
-  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    if (!rowAt) return;
-    const id = e.instanceId;
-    if (id === undefined || id < 0 || id >= rowAt.length) {
-      onHover(null);
-      document.body.style.cursor = "";
-      return;
-    }
-    const row = rowAt[id];
-    if (!row) {
-      onHover(null);
-      document.body.style.cursor = "";
-      return;
-    }
-    document.body.style.cursor = "pointer";
-    onHover({
-      name: row.name,
-      curator: row.curator.trim() || "Unknown",
-      apr: row.estAprPercent,
+  const deadMaterial = useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: POINT_COLOR,
+      toneMapped: false,
     });
+    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    return mat;
+  }, [depthFadeUniforms]);
+
+  const highlightMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: POINT_COLOR,
+        toneMapped: false,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        depthTest: true,
+      }),
+    [],
+  );
+
+  const debugPickableMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: DEBUG_PICKABLE_COLOR,
+        toneMapped: false,
+        depthWrite: false,
+        depthTest: true,
+      }),
+    [],
+  );
+
+  useEffect(() => () => liveMaterial.dispose(), [liveMaterial]);
+  useEffect(() => () => deadMaterial.dispose(), [deadMaterial]);
+  useEffect(() => () => highlightMaterial.dispose(), [highlightMaterial]);
+  useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
+
+  useLayoutEffect(() => {
+    const group = blobGroupRef.current;
+    if (group) group.position.x = offsetX;
+  }, [offsetX]);
+
+  useLayoutEffect(() => {
+    const deadMesh = deadMeshRef.current;
+    if (deadMesh) deadMesh.raycast = () => {};
+    const highlightMesh = highlightMeshRef.current;
+    if (highlightMesh) highlightMesh.raycast = () => {};
+    const debugMesh = debugPickableMeshRef.current;
+    if (debugMesh) debugMesh.raycast = () => {};
+  }, []);
+
+  const towardCameraFromView = () => {
+    const group = blobGroupRef.current;
+    if (!group) return _towardCamera.set(0, 0, 1);
+    camera.getWorldPosition(_camWorld);
+    group.getWorldPosition(_groupWorld);
+    _towardCamera.subVectors(_camWorld, _groupWorld);
+    group.worldToLocal(_towardCamera);
+    if (_towardCamera.lengthSq() < 1e-10) return _towardCamera.set(0, 0, 1);
+    return _towardCamera.normalize();
   };
 
-  const handlePointerOut = () => {
+  const activateHover = (hub: number) => {
+    const curator = pickNextCurator();
+    const toward = towardCameraFromView();
+    const edges = buildHoverPlexusEdges(
+      vertices.positions,
+      vertices.count,
+      hub,
+      curator.opportunities,
+      toward,
+      {
+        frontMinDot: params.frontMinDot,
+        clusterMaxAngleRad,
+        liveVertices,
+      },
+    );
+
+    if (edges.length === 0) {
+      clearHover();
+      return;
+    }
+
+    const partners = new Set<number>();
+    for (const [, partner] of edges) partners.add(partner);
+
+    hoverRef.current = {
+      hub,
+      partners,
+      color: curator.color,
+      curatorName: curator.name,
+    };
+    setHoverLines([{ color: curator.color, edges }]);
+    setHubBillboard({ hub, curatorName: curator.name });
+    setPartnerOrbits({ indices: [...partners], color: curator.color });
+    onHover({
+      curator: curator.name,
+      opportunities: curator.opportunities,
+      color: curator.color,
+    });
+    gl.domElement.style.cursor = "pointer";
+  };
+
+  const clearHover = () => {
+    if (!hoverRef.current) return;
+    hoverRef.current = null;
+    setHoverLines([]);
+    setHubBillboard(null);
+    setPartnerOrbits(null);
     onHover(null);
-    document.body.style.cursor = "";
+    gl.domElement.style.cursor = "";
   };
 
-  useFrame((state) => {
+  useEffect(() => {
+    const el = gl.domElement;
+    const onLeave = () => clearHover();
+    el.addEventListener("pointerleave", onLeave);
+    return () => el.removeEventListener("pointerleave", onLeave);
+  }, [gl]);
+
+  useFrame((state, delta) => {
+    const group = blobGroupRef.current;
+    const hover = hoverRef.current;
+
+    if (group && params.rotationSpeed !== 0 && hover === null) {
+      group.rotation.y += params.rotationSpeed * delta;
+    }
+
     const blobParams: PerlinBlobParams = {
       ...params,
       time: state.clock.elapsedTime * params.timeSpeed,
@@ -149,25 +290,168 @@ function PerlinBlobPoints({
     const sizeNear = camDist - extent * params.depthSizeNearOffset;
     const sizeFar = camDist + extent * params.depthSizeFarOffset;
 
-    const mesh = meshRef.current;
-    if (mesh) {
-      for (let i = 0; i < vertices.count; i++) {
-        displacedVertexPosition(vertices, i, blobParams, _dummy.position);
-        const dist = camera.position.distanceTo(_dummy.position);
-        const scale =
-          pointRadius *
-          depthSizeMultiplier(
-            dist,
-            sizeNear,
-            sizeFar,
-            params.depthSizeMinMul,
-            params.depthSizeMaxMul,
-          );
-        _dummy.scale.setScalar(scale);
-        _dummy.updateMatrix();
-        mesh.setMatrixAt(i, _dummy.matrix);
+    const liveMesh = liveMeshRef.current;
+    const deadMesh = deadMeshRef.current;
+    const highlightMesh = highlightMeshRef.current;
+
+    let scales = scalesRef.current;
+    if (scales.length !== vertices.count) {
+      scales = new Float32Array(vertices.count);
+      scalesRef.current = scales;
+    }
+
+    const writeInstance = (
+      mesh: THREE.InstancedMesh,
+      vertexIndex: number,
+      slot: number,
+      scaleMul: number,
+      hide: boolean,
+    ) => {
+      displacedVertexPosition(vertices, vertexIndex, blobParams, _dummy.position);
+      _worldPos.copy(_dummy.position);
+      if (group) group.localToWorld(_worldPos);
+      const dist = camera.position.distanceTo(_worldPos);
+      const visualScale =
+        pointRadius *
+        scaleMul *
+        depthSizeMultiplier(
+          dist,
+          sizeNear,
+          sizeFar,
+          params.depthSizeMinMul,
+          params.depthSizeMaxMul,
+        );
+      scales[vertexIndex] = visualScale;
+      _dummy.scale.setScalar(hide ? 0 : visualScale);
+      _dummy.updateMatrix();
+      mesh.setMatrixAt(slot, _dummy.matrix);
+    };
+
+    if (liveMesh) {
+      for (let li = 0; li < liveIndices.length; li++) {
+        const i = liveIndices[li]!;
+        const hide =
+          hover !== null && (i === hover.hub || hover.partners.has(i));
+        writeInstance(liveMesh, i, li, LIVE_SCALE_MUL, hide);
       }
-      mesh.instanceMatrix.needsUpdate = true;
+      liveMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    if (deadMesh) {
+      for (let di = 0; di < deadIndices.length; di++) {
+        const i = deadIndices[di]!;
+        writeInstance(deadMesh, i, di, DEAD_SCALE_MUL, false);
+      }
+      deadMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    const toward = towardCameraFromView();
+
+    const debugMesh = debugPickableMeshRef.current;
+    if (debugMesh) {
+      let pi = 0;
+      if (params.debugHoverZone) {
+        for (let li = 0; li < liveIndices.length; li++) {
+          const i = liveIndices[li]!;
+          if (
+            !vertexFacesCamera(
+              vertices.positions,
+              i,
+              toward,
+              params.frontMinDot,
+            )
+          ) {
+            continue;
+          }
+          writeInstance(
+            debugMesh,
+            i,
+            pi,
+            LIVE_SCALE_MUL * DEBUG_PICKABLE_SCALE_MUL,
+            false,
+          );
+          pi++;
+        }
+      }
+      debugMesh.count = pi;
+      debugMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    const pointerOnCanvas =
+      Math.abs(pointer.x) <= 1 && Math.abs(pointer.y) <= 1;
+    if (pointerOnCanvas && liveMesh) {
+      raycaster.setFromCamera(pointer, camera);
+      const minPick = pointRadius * SPHERE_PICK_MIN_RADIUS_MUL;
+      const picked = pickHoverVertexNearRay(
+        raycaster.ray,
+        camera.position,
+        vertices.count,
+        (i, target) => {
+          displacedVertexPosition(vertices, i, blobParams, target);
+          if (group) group.localToWorld(target);
+        },
+        (i) => scales[i] ?? pointRadius,
+        minPick,
+        (i) =>
+          !liveVertices.has(i) ||
+          vertexFacesCamera(
+            vertices.positions,
+            i,
+            toward,
+            params.frontMinDot,
+          ),
+        (i) =>
+          liveVertices.has(i) &&
+          vertexFacesCamera(
+            vertices.positions,
+            i,
+            toward,
+            params.frontMinDot,
+          ),
+      );
+
+      if (picked >= 0) {
+        gl.domElement.style.cursor = "pointer";
+        if (hover?.hub !== picked) activateHover(picked);
+      } else {
+        gl.domElement.style.cursor = "";
+        if (hover) clearHover();
+      }
+    } else {
+      gl.domElement.style.cursor = "";
+      if (hover) clearHover();
+    }
+
+    const hoverAfterPick = hoverRef.current;
+
+    if (highlightMesh) {
+      let hi = 0;
+      if (hoverAfterPick) {
+        highlightMaterial.color.setHex(hoverAfterPick.color);
+        for (const idx of hoverAfterPick.partners) {
+          displacedVertexPosition(vertices, idx, blobParams, _dummy.position);
+          _worldPos.copy(_dummy.position);
+          if (group) group.localToWorld(_worldPos);
+          const dist = camera.position.distanceTo(_worldPos);
+          const highlightMul = PARTNER_SCALE_MUL;
+          const scale =
+            pointRadius *
+            highlightMul *
+            depthSizeMultiplier(
+              dist,
+              sizeNear,
+              sizeFar,
+              params.depthSizeMinMul,
+              params.depthSizeMaxMul,
+            );
+          _dummy.scale.setScalar(scale);
+          _dummy.updateMatrix();
+          highlightMesh.setMatrixAt(hi, _dummy.matrix);
+          hi++;
+        }
+      }
+      highlightMesh.count = hi;
+      highlightMesh.instanceMatrix.needsUpdate = true;
     }
 
     updateMarkerDepthFadeUniforms(
@@ -184,23 +468,63 @@ function PerlinBlobPoints({
   });
 
   return (
-    <>
+    <group ref={blobGroupRef} position={[offsetX, 0, 0]}>
       <instancedMesh
-        ref={meshRef}
-        args={[SPHERE_GEO, material, vertices.count]}
+        ref={liveMeshRef}
+        args={[SPHERE_GEO, liveMaterial, liveIndices.length]}
         frustumCulled={false}
-        renderOrder={0}
-        onPointerMove={handlePointerMove}
-        onPointerOut={handlePointerOut}
+        renderOrder={RENDER_SPHERE}
       />
-      {plexusGroups.length > 0 ? (
-        <CuratorPlexusLines
-          groups={plexusGroups}
+      <instancedMesh
+        ref={deadMeshRef}
+        args={[SPHERE_GEO, deadMaterial, deadIndices.length]}
+        frustumCulled={false}
+        renderOrder={RENDER_SPHERE}
+      />
+      <instancedMesh
+        ref={debugPickableMeshRef}
+        args={[SPHERE_GEO, debugPickableMaterial, liveIndices.length]}
+        frustumCulled={false}
+        renderOrder={RENDER_DEBUG_PICKABLE}
+      />
+      <instancedMesh
+        ref={highlightMeshRef}
+        args={[SPHERE_GEO, highlightMaterial, MAX_HIGHLIGHT_INSTANCES]}
+        frustumCulled={false}
+        renderOrder={RENDER_PARTNER_SPHERE}
+      />
+      {partnerOrbits ? (
+        <PartnerOrbitRings
+          partnerIndices={partnerOrbits.indices}
+          color={partnerOrbits.color}
           vertices={vertices}
           params={params}
+          pointRadius={pointRadius}
+          partnerScaleMul={PARTNER_SCALE_MUL}
         />
       ) : null}
-    </>
+      {hoverLines.length > 0 ? (
+        <group renderOrder={RENDER_PLEXUS_LINES}>
+          <CuratorPlexusLines
+            groups={hoverLines}
+            vertices={vertices}
+            params={params}
+          />
+        </group>
+      ) : null}
+      {hubBillboard ? (
+        <group renderOrder={RENDER_HUB_LOGO}>
+          <Suspense fallback={null}>
+            <CuratorHubBillboard
+              hubIndex={hubBillboard.hub}
+              curatorName={hubBillboard.curatorName}
+              vertices={vertices}
+              params={params}
+            />
+          </Suspense>
+        </group>
+      ) : null}
+    </group>
   );
 }
 
@@ -211,27 +535,24 @@ function Scene({
   params: PerlinBlobVisualParams;
   onHover: (info: SphereHoverInfo | null) => void;
 }) {
-  const [rows, setRows] = useState<OpportunityRow[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetch(CSV_PATH)
-      .then((r) => r.text())
-      .then((text) => {
-        if (!cancelled) setRows(parseOpportunityRows(text));
-      })
-      .catch(() => {
-        if (!cancelled) setRows([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { camera, size } = useThree();
+  const blobOffsetX = useMemo(() => {
+    const extent = blobVisualExtent(params);
+    return computeBlobOffsetX(
+      camera as THREE.PerspectiveCamera,
+      size.width / Math.max(size.height, 1),
+      extent,
+    );
+  }, [camera, params, size.height, size.width]);
 
   return (
     <>
       <color attach="background" args={[BG]} />
-      <PerlinBlobPoints params={params} rows={rows} onHover={onHover} />
+      <PerlinBlobPoints
+        params={params}
+        onHover={onHover}
+        offsetX={blobOffsetX}
+      />
       <OrbitControls
         enableDamping
         dampingFactor={0.06}
@@ -247,9 +568,18 @@ function HoverLabel({ hover }: { hover: SphereHoverInfo }) {
       className="pointer-events-none absolute left-4 top-4 z-10 max-w-xs rounded-md border border-white/10 bg-black/70 px-3 py-2 text-sm text-[#f9f9f9] backdrop-blur-sm"
       role="status"
     >
-      <p className="font-medium leading-snug">{hover.name}</p>
-      <p className="text-white/55">{hover.curator}</p>
-      <p className="text-white/70">{hover.apr.toFixed(2)}% APR</p>
+      <p
+        className="font-medium leading-snug"
+        style={{
+          color: `#${(hover.color & 0xffffff).toString(16).padStart(6, "0")}`,
+        }}
+      >
+        {hover.curator}
+      </p>
+      <p className="text-white/55">
+        {hover.opportunities}{" "}
+        {hover.opportunities === 1 ? "opportunity" : "opportunities"}
+      </p>
     </div>
   );
 }
@@ -264,7 +594,7 @@ export function NoiseSphereScene({
   return (
     <Canvas
       className="h-full w-full touch-none"
-      camera={{ position: [0, 0.15, 4.2], fov: 42, near: 0.1, far: 100 }}
+      camera={{ position: [0, 0.15, 3], fov: 50, near: 0.1, far: 100 }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: false }}
     >
@@ -276,6 +606,10 @@ export function NoiseSphereScene({
 export function NoiseSphereSketch() {
   const params = useNoiseSphereControls();
   const [hover, setHover] = useState<SphereHoverInfo | null>(null);
+
+  useEffect(() => {
+    void preloadLogoDisplayScales();
+  }, []);
 
   return (
     <>

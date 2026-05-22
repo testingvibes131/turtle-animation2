@@ -9,13 +9,21 @@ import {
   LineSegmentsGeometry,
 } from "three-stdlib";
 import type { PerlinBlobVisualParams } from "@/app/sketch/hooks/useNoiseSphereControls";
-import type { ColoredPlexusGroup } from "@/app/sketch/lib/curatorColors";
-import type { CuratorEdge } from "@/app/sketch/lib/curatorPlexus";
+import type { CuratorEdge } from "@/app/sketch/lib/hoverPlexus";
+import { RENDER_PLEXUS_LINES } from "@/app/sketch/lib/sketchRenderOrder";
 import {
   displacedVertexPosition,
   type IcosahedronVertexData,
   type PerlinBlobParams,
 } from "@/app/sketch/lib/perlinBlob";
+
+export type ColoredPlexusGroup = {
+  color: number;
+  edges: CuratorEdge[];
+};
+
+const LINE_DASH_SIZE = 0.0075;
+const LINE_GAP_SIZE = 0.01;
 
 const _posA = new THREE.Vector3();
 const _posB = new THREE.Vector3();
@@ -50,18 +58,23 @@ function PlexusLineBatch({
     const material = new LineMaterial({
       color,
       linewidth: params.lineWidth,
+      dashed: true,
+      dashSize: LINE_DASH_SIZE,
+      gapSize: LINE_GAP_SIZE,
       transparent: true,
-      opacity: params.lineOpacity,
+      opacity: 1,
       depthWrite: false,
       depthTest: false,
     });
+    material.defines.USE_DASH = "";
 
     const lines = new LineSegments2(geometry, material);
     lines.frustumCulled = false;
-    lines.renderOrder = 10;
+    lines.renderOrder = RENDER_PLEXUS_LINES;
+    lines.computeLineDistances();
 
     return { lines, geometry, material };
-  }, [color, edges, params.lineOpacity, params.lineWidth]);
+  }, [color, edges, params.lineWidth]);
 
   useEffect(() => {
     linePositionsRef.current = new Float32Array(edges.length * 6);
@@ -78,9 +91,8 @@ function PlexusLineBatch({
     if (!bundle) return;
     bundle.material.resolution.set(size.width, size.height);
     bundle.material.linewidth = params.lineWidth;
-    bundle.material.opacity = params.lineOpacity;
     bundle.material.needsUpdate = true;
-  }, [bundle, params.lineOpacity, params.lineWidth, size.height, size.width]);
+  }, [bundle, params.lineWidth, size.height, size.width]);
 
   useEffect(() => {
     return () => {
@@ -112,6 +124,8 @@ function PlexusLineBatch({
     }
 
     b.geometry.setPositions(arr);
+    b.lines.computeLineDistances();
+    b.lines.renderOrder = RENDER_PLEXUS_LINES;
   });
 
   if (!bundle) return null;
