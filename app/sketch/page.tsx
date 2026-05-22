@@ -3,6 +3,7 @@
 import { Leva } from "leva";
 import { useLayoutEffect, useState } from "react";
 import { SketchHeroCopy } from "@/app/sketch/components/SketchHeroCopy";
+import { SketchPartnersLogos } from "@/app/sketch/components/SketchPartnersLogos";
 import { NoiseSphereSketch } from "@/app/sketch/NoiseSphereScene";
 
 export default function SketchPage() {
@@ -26,6 +27,7 @@ export default function SketchPage() {
           <NoiseSphereSketch />
         </div>
         <SketchHeroCopy />
+        <SketchPartnersLogos />
       </main>
     </>
   );
