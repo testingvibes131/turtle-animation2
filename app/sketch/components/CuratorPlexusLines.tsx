@@ -10,6 +10,10 @@ import {
 } from "three-stdlib";
 import type { PerlinBlobVisualParams } from "@/app/sketch/hooks/useNoiseSphereControls";
 import type { CuratorEdge } from "@/app/sketch/lib/hoverPlexus";
+import {
+  displacedHubAnchorPosition,
+  type HubAnchorOptions,
+} from "@/app/sketch/lib/curatorZones";
 import { RENDER_PLEXUS_LINES } from "@/app/sketch/lib/sketchRenderOrder";
 import {
   displacedVertexPosition,
@@ -39,11 +43,21 @@ function PlexusLineBatch({
   edges,
   vertices,
   params,
+  hubIndex,
+  hubZoneDeg,
+  hubPickOptions,
+  getTowardCamera,
+  blobAnimTimeRef,
 }: {
   color: number;
   edges: CuratorEdge[];
   vertices: IcosahedronVertexData;
   params: PerlinBlobVisualParams;
+  hubIndex: number;
+  hubZoneDeg: number;
+  hubPickOptions: HubAnchorOptions;
+  getTowardCamera: () => THREE.Vector3;
+  blobAnimTimeRef?: React.MutableRefObject<number>;
 }) {
   const size = useThree((s) => s.size);
   const linePositionsRef = useRef<Float32Array | null>(null);
@@ -108,12 +122,26 @@ function PlexusLineBatch({
 
     const blobParams: PerlinBlobParams = {
       ...params,
-      time: state.clock.elapsedTime * params.timeSpeed,
+      time:
+        blobAnimTimeRef?.current ??
+        state.clock.elapsedTime * params.timeSpeed,
     };
 
     let p = 0;
     for (const [a, bIdx] of edges) {
-      displacedVertexPosition(vertices, a, blobParams, _posA);
+      if (a === hubIndex) {
+        displacedHubAnchorPosition(
+          vertices,
+          hubIndex,
+          getTowardCamera(),
+          hubZoneDeg,
+          { ...hubPickOptions, hubPickBlob: blobParams },
+          blobParams,
+          _posA,
+        );
+      } else {
+        displacedVertexPosition(vertices, a, blobParams, _posA);
+      }
       displacedVertexPosition(vertices, bIdx, blobParams, _posB);
       arr[p++] = _posA.x;
       arr[p++] = _posA.y;
@@ -137,10 +165,20 @@ export function CuratorPlexusLines({
   groups,
   vertices,
   params,
+  hubIndex,
+  hubZoneDeg,
+  hubPickOptions,
+  getTowardCamera,
+  blobAnimTimeRef,
 }: {
   groups: ColoredPlexusGroup[];
   vertices: IcosahedronVertexData;
   params: PerlinBlobVisualParams;
+  hubIndex: number;
+  hubZoneDeg: number;
+  hubPickOptions: HubAnchorOptions;
+  getTowardCamera: () => THREE.Vector3;
+  blobAnimTimeRef?: React.MutableRefObject<number>;
 }) {
   return (
     <>
@@ -151,6 +189,11 @@ export function CuratorPlexusLines({
           edges={g.edges}
           vertices={vertices}
           params={params}
+          hubIndex={hubIndex}
+          hubZoneDeg={hubZoneDeg}
+          hubPickOptions={hubPickOptions}
+          getTowardCamera={getTowardCamera}
+          blobAnimTimeRef={blobAnimTimeRef}
         />
       ))}
     </>

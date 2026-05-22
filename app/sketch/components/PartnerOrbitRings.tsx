@@ -6,35 +6,39 @@ import * as THREE from "three";
 import type { PerlinBlobVisualParams } from "@/app/sketch/hooks/useNoiseSphereControls";
 import { billboardToCamera } from "@/app/sketch/lib/billboardToCamera";
 import {
-  displacedVertexPosition,
   type IcosahedronVertexData,
   type PerlinBlobParams,
 } from "@/app/sketch/lib/perlinBlob";
 import { RENDER_PARTNER_ORBIT } from "@/app/sketch/lib/sketchRenderOrder";
 import { worldScaleForScreenPx } from "@/app/sketch/lib/screenSpaceScale";
-import { depthSizeMultiplier } from "@/app/sketch/lib/sphereDepthSize";
+import { computeZoneMarkerLayout } from "@/app/sketch/lib/zoneMarkerTransform";
 
 const _worldPos = new THREE.Vector3();
 
 /** Outer ring diameter vs highlighted partner sphere diameter (screen px). */
 const ORBIT_SIZE_VS_SPHERE = 1.9;
 
-type PartnerOrbitRingProps = {
+export type OrbitRingTarget = {
   vertexIndex: number;
+  scaleMul: number;
+};
+
+type PartnerOrbitRingProps = {
+  target: OrbitRingTarget;
   color: number;
   vertices: IcosahedronVertexData;
   params: PerlinBlobVisualParams;
   pointRadius: number;
-  partnerScaleMul: number;
+  blobAnimTimeRef?: React.MutableRefObject<number>;
 };
 
 function PartnerOrbitRing({
-  vertexIndex,
+  target,
   color,
   vertices,
   params,
   pointRadius,
-  partnerScaleMul,
+  blobAnimTimeRef,
 }: PartnerOrbitRingProps) {
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -62,34 +66,35 @@ function PartnerOrbitRing({
 
     const blobParams: PerlinBlobParams = {
       ...params,
-      time: state.clock.elapsedTime * params.timeSpeed,
+      time:
+        blobAnimTimeRef?.current ??
+        state.clock.elapsedTime * params.timeSpeed,
     };
-
-    displacedVertexPosition(vertices, vertexIndex, blobParams, root.position);
-    root.rotation.set(0, 0, 0);
-    billboardToCamera(mesh, root, state.camera);
-
-    root.updateMatrixWorld(true);
-    root.getWorldPosition(_worldPos);
 
     const maxDisp =
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
     const extent = params.radius + maxDisp;
-    const camDist = state.camera.position.length();
-    const sizeNear = camDist - extent * params.depthSizeNearOffset;
-    const sizeFar = camDist + extent * params.depthSizeFarOffset;
-    const dist = state.camera.position.distanceTo(_worldPos);
+    const layout = computeZoneMarkerLayout(
+      vertices,
+      target.vertexIndex,
+      blobParams,
+      pointRadius,
+      target.scaleMul,
+      state.camera,
+      root.parent,
+      extent,
+      params.depthSizeNearOffset,
+      params.depthSizeFarOffset,
+      params.depthSizeMinMul,
+      params.depthSizeMaxMul,
+    );
 
-    const sphereWorld =
-      pointRadius *
-      partnerScaleMul *
-      depthSizeMultiplier(
-        dist,
-        sizeNear,
-        sizeFar,
-        params.depthSizeMinMul,
-        params.depthSizeMaxMul,
-      );
+    root.position.copy(layout.localPosition);
+    root.rotation.set(0, 0, 0);
+    billboardToCamera(mesh, root, state.camera);
+
+    _worldPos.copy(layout.worldPosition);
+    const sphereWorld = layout.sphereScale;
 
     const refPx = 16;
     const refWorld = worldScaleForScreenPx(
@@ -121,31 +126,31 @@ function PartnerOrbitRing({
 }
 
 export function PartnerOrbitRings({
-  partnerIndices,
+  targets,
   color,
   vertices,
   params,
   pointRadius,
-  partnerScaleMul,
+  blobAnimTimeRef,
 }: {
-  partnerIndices: number[];
+  targets: OrbitRingTarget[];
   color: number;
   vertices: IcosahedronVertexData;
   params: PerlinBlobVisualParams;
   pointRadius: number;
-  partnerScaleMul: number;
+  blobAnimTimeRef?: React.MutableRefObject<number>;
 }) {
   return (
     <>
-      {partnerIndices.map((index) => (
+      {targets.map((target) => (
         <PartnerOrbitRing
-          key={index}
-          vertexIndex={index}
+          key={target.vertexIndex}
+          target={target}
           color={color}
           vertices={vertices}
           params={params}
           pointRadius={pointRadius}
-          partnerScaleMul={partnerScaleMul}
+          blobAnimTimeRef={blobAnimTimeRef}
         />
       ))}
     </>

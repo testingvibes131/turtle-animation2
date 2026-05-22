@@ -7,12 +7,12 @@ export type CuratorDef = {
 };
 
 export const CURATORS: CuratorDef[] = [
-  { name: "Aave", opportunities: 8, color: 0x9896ff, logoScale: 1 },
-  { name: "Curvance", opportunities: 7, color: 0x644aee },
+  { name: "Aave", opportunities: 12, color: 0x9896ff, logoScale: 1 },
+  { name: "Curvance", opportunities: 8, color: 0x644aee },
   { name: "Euler", opportunities: 4, color: 0x2ae5b9 },
   { name: "YO", opportunities: 3, color: 0xccff00 },
-  { name: "Lido", opportunities: 3, color: 0xffd3d3 },
-  { name: "Morpho", opportunities: 7, color: 0x2973ff },
+  { name: "Lido", opportunities: 10, color: 0xffd3d3 },
+  { name: "Morpho", opportunities: 5, color: 0x2973ff },
 ];
 
 let nextCuratorIndex = 0;

@@ -11,7 +11,10 @@ import {
   getLogoDisplayScale,
 } from "@/app/sketch/lib/logoContentScale";
 import {
-  displacedVertexPosition,
+  curatorZoneClockDeg,
+  displacedHubAnchorPosition,
+} from "@/app/sketch/lib/curatorZones";
+import {
   type IcosahedronVertexData,
   type PerlinBlobParams,
 } from "@/app/sketch/lib/perlinBlob";
@@ -33,6 +36,8 @@ type CuratorHubBillboardProps = {
   curatorName: string;
   vertices: IcosahedronVertexData;
   params: PerlinBlobVisualParams;
+  getTowardCamera: () => THREE.Vector3;
+  blobAnimTimeRef?: React.MutableRefObject<number>;
 };
 
 export function CuratorHubBillboard({
@@ -40,6 +45,8 @@ export function CuratorHubBillboard({
   curatorName,
   vertices,
   params,
+  getTowardCamera,
+  blobAnimTimeRef,
 }: CuratorHubBillboardProps) {
   const texture = useTexture(curatorLogoPath(curatorName));
   const rootRef = useRef<THREE.Group>(null);
@@ -64,10 +71,27 @@ export function CuratorHubBillboard({
 
     const blobParams: PerlinBlobParams = {
       ...params,
-      time: state.clock.elapsedTime * params.timeSpeed,
+      time:
+        blobAnimTimeRef?.current ??
+        state.clock.elapsedTime * params.timeSpeed,
     };
 
-    displacedVertexPosition(vertices, hubIndex, blobParams, root.position);
+    displacedHubAnchorPosition(
+      vertices,
+      hubIndex,
+      getTowardCamera(),
+      curatorZoneClockDeg(curatorName),
+      {
+        frontMinDot: params.frontMinDot,
+        blobCenterLean: params.blobCenterLean,
+        zoneCenterOffsetRight: params.zoneCenterOffsetRight,
+        hubOffsetSpheres: params.hubOffsetSpheres,
+        hubPickMesh: vertices,
+        hubPickBlob: blobParams,
+      },
+      blobParams,
+      root.position,
+    );
     root.rotation.set(0, 0, 0);
 
     const camera = state.camera;

@@ -2,22 +2,28 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
-  attachMeshBasicDepthFade,
   createMarkerDepthFadeUniforms,
   updateMarkerDepthFadeUniforms,
 } from "@/app/v2/lib/markerDepthFade";
-import { CuratorHubBillboard } from "@/app/sketch/components/CuratorHubBillboard";
-import { CuratorPlexusLines } from "@/app/sketch/components/CuratorPlexusLines";
-import { PartnerOrbitRings } from "@/app/sketch/components/PartnerOrbitRings";
-import type { ColoredPlexusGroup } from "@/app/sketch/components/CuratorPlexusLines";
-import { pickNextCurator } from "@/app/sketch/lib/curatorCatalog";
-import { vertexFacesCamera } from "@/app/sketch/lib/frontHemisphere";
-import { buildHoverPlexusEdges } from "@/app/sketch/lib/hoverPlexus";
 import {
-  pickHoverVertexNearRay,
+  attachBlobPointFade,
+  ensureInstanceOpacityBuffer,
+  setInstanceOpacityAt,
+} from "@/app/sketch/lib/blobPointFade";
+import { noiseSlopeOpacityMul } from "@/app/sketch/lib/noiseSlopeOpacity";
+import { ActiveCuratorZones } from "@/app/sketch/components/ActiveCuratorZones";
+import { vertexFacesCamera } from "@/app/sketch/lib/frontHemisphere";
+import {
+  buildZoneHubEdgesRandom,
+  findZoneForMemberVertex,
+  pickZoneAtCapRay,
+  type CuratorZoneAssignment,
+} from "@/app/sketch/lib/curatorZones";
+import {
+  pickZoneMemberNearRay,
   SPHERE_PICK_MIN_RADIUS_MUL,
 } from "@/app/sketch/lib/pickSphereVertex";
 import { depthSizeMultiplier } from "@/app/sketch/lib/sphereDepthSize";
@@ -33,9 +39,6 @@ import {
 import { buildLiveVertexSet } from "@/app/sketch/lib/liveVertices";
 import {
   RENDER_DEBUG_PICKABLE,
-  RENDER_HUB_LOGO,
-  RENDER_PARTNER_SPHERE,
-  RENDER_PLEXUS_LINES,
   RENDER_SPHERE,
 } from "@/app/sketch/lib/sketchRenderOrder";
 import {
@@ -49,13 +52,8 @@ const BG = "#141514";
 const POINT_COLOR = 0x2c2d2b;
 /** Live + camera-facing cap (hover pickable). */
 const DEBUG_PICKABLE_COLOR = 0x2973ff;
-const LIVE_SCALE_MUL = 1.25;
+const BLOB_POINT_SCALE_MUL = 1.25;
 const DEBUG_PICKABLE_SCALE_MUL = 1.08;
-const DEAD_SCALE_MUL = 0.88;
-/** Partner size: previous 1.4× + 15%. */
-const PARTNER_SCALE_MUL = 1.4 * 1.15;
-/** Max hub + partners (Aave = 8 edges). */
-const MAX_HIGHLIGHT_INSTANCES = 9;
 const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
 const _dummy = new THREE.Object3D();
 const _camWorld = new THREE.Vector3();
@@ -63,46 +61,32 @@ const _groupWorld = new THREE.Vector3();
 const _towardCamera = new THREE.Vector3();
 const _worldPos = new THREE.Vector3();
 const _frameScales = new Float32Array(0);
-
-export type SphereHoverInfo = {
-  curator: string;
-  opportunities: number;
-  color: number;
-};
-
-type HoverVertsState = {
-  hub: number;
-  partners: Set<number>;
-  color: number;
-  curatorName: string;
-};
+const _pointer = new THREE.Vector2();
+const _pickRay = new THREE.Ray();
+const ZONE_MEMBER_PICK_SCALE_MUL = 0.0;
 
 function PerlinBlobPoints({
   params,
-  onHover,
   offsetX,
 }: {
   params: PerlinBlobVisualParams;
-  onHover: (info: SphereHoverInfo | null) => void;
   offsetX: number;
 }) {
   const blobGroupRef = useRef<THREE.Group>(null);
   const liveMeshRef = useRef<THREE.InstancedMesh>(null);
   const deadMeshRef = useRef<THREE.InstancedMesh>(null);
-  const highlightMeshRef = useRef<THREE.InstancedMesh>(null);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
-  const hoverRef = useRef<HoverVertsState | null>(null);
   const scalesRef = useRef(_frameScales);
-  const { camera, raycaster, pointer, gl } = useThree();
-  const [hoverLines, setHoverLines] = useState<ColoredPlexusGroup[]>([]);
-  const [hubBillboard, setHubBillboard] = useState<{
-    hub: number;
-    curatorName: string;
-  } | null>(null);
-  const [partnerOrbits, setPartnerOrbits] = useState<{
-    indices: number[];
-    color: number;
-  } | null>(null);
+  const zoneUsedRef = useRef<Set<number>>(new Set());
+  const zonesSnapshotRef = useRef<CuratorZoneAssignment[]>([]);
+  const blobAnimTimeRef = useRef(0);
+  const frozenAnimTimeRef = useRef<number | null>(null);
+  const activeZoneRef = useRef<CuratorZoneAssignment | null>(null);
+  const [activeZone, setActiveZone] = useState<CuratorZoneAssignment | null>(
+    null,
+  );
+  const { camera, gl } = useThree();
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const depthFadeUniforms = useMemo(
     () => createMarkerDepthFadeUniforms(),
     [],
@@ -128,11 +112,6 @@ function PerlinBlobPoints({
     return { liveIndices: live, deadIndices: dead };
   }, [vertices.count, liveVertices]);
 
-  const clusterMaxAngleRad = useMemo(
-    () => THREE.MathUtils.degToRad(params.clusterMaxAngleDeg),
-    [params.clusterMaxAngleDeg],
-  );
-
   const pointRadius = useMemo(
     () =>
       estimateVertexSpacing(params.radius, vertices.count) *
@@ -145,7 +124,7 @@ function PerlinBlobPoints({
       color: POINT_COLOR,
       toneMapped: false,
     });
-    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    attachBlobPointFade(mat, depthFadeUniforms);
     return mat;
   }, [depthFadeUniforms]);
 
@@ -154,22 +133,9 @@ function PerlinBlobPoints({
       color: POINT_COLOR,
       toneMapped: false,
     });
-    attachMeshBasicDepthFade(mat, depthFadeUniforms);
+    attachBlobPointFade(mat, depthFadeUniforms);
     return mat;
   }, [depthFadeUniforms]);
-
-  const highlightMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: POINT_COLOR,
-        toneMapped: false,
-        transparent: true,
-        opacity: 1,
-        depthWrite: false,
-        depthTest: true,
-      }),
-    [],
-  );
 
   const debugPickableMaterial = useMemo(
     () =>
@@ -184,7 +150,6 @@ function PerlinBlobPoints({
 
   useEffect(() => () => liveMaterial.dispose(), [liveMaterial]);
   useEffect(() => () => deadMaterial.dispose(), [deadMaterial]);
-  useEffect(() => () => highlightMaterial.dispose(), [highlightMaterial]);
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
 
   useLayoutEffect(() => {
@@ -195,11 +160,13 @@ function PerlinBlobPoints({
   useLayoutEffect(() => {
     const deadMesh = deadMeshRef.current;
     if (deadMesh) deadMesh.raycast = () => {};
-    const highlightMesh = highlightMeshRef.current;
-    if (highlightMesh) highlightMesh.raycast = () => {};
     const debugMesh = debugPickableMeshRef.current;
     if (debugMesh) debugMesh.raycast = () => {};
   }, []);
+
+  useEffect(() => {
+    activeZoneRef.current = activeZone;
+  }, [activeZone]);
 
   const towardCameraFromView = () => {
     const group = blobGroupRef.current;
@@ -212,75 +179,146 @@ function PerlinBlobPoints({
     return _towardCamera.normalize();
   };
 
-  const activateHover = (hub: number) => {
-    const curator = pickNextCurator();
-    const toward = towardCameraFromView();
-    const edges = buildHoverPlexusEdges(
-      vertices.positions,
-      vertices.count,
-      hub,
-      curator.opportunities,
-      toward,
-      {
-        frontMinDot: params.frontMinDot,
-        clusterMaxAngleRad,
-        liveVertices,
-      },
-    );
-
-    if (edges.length === 0) {
-      clearHover();
-      return;
-    }
-
-    const partners = new Set<number>();
-    for (const [, partner] of edges) partners.add(partner);
-
-    hoverRef.current = {
-      hub,
-      partners,
-      color: curator.color,
-      curatorName: curator.name,
-    };
-    setHoverLines([{ color: curator.color, edges }]);
-    setHubBillboard({ hub, curatorName: curator.name });
-    setPartnerOrbits({ indices: [...partners], color: curator.color });
-    onHover({
-      curator: curator.name,
-      opportunities: curator.opportunities,
-      color: curator.color,
-    });
-    gl.domElement.style.cursor = "pointer";
-  };
-
-  const clearHover = () => {
-    if (!hoverRef.current) return;
-    hoverRef.current = null;
-    setHoverLines([]);
-    setHubBillboard(null);
-    setPartnerOrbits(null);
-    onHover(null);
-    gl.domElement.style.cursor = "";
-  };
-
   useEffect(() => {
-    const el = gl.domElement;
-    const onLeave = () => clearHover();
-    el.addEventListener("pointerleave", onLeave);
-    return () => el.removeEventListener("pointerleave", onLeave);
-  }, [gl]);
+    const canvas = gl.domElement;
+    const minPickRadius = pointRadius * SPHERE_PICK_MIN_RADIUS_MUL;
+
+    const pickAtClient = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+
+      _pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      _pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(_pointer, camera);
+      _pickRay.copy(raycaster.ray);
+
+      const group = blobGroupRef.current;
+      const toward = towardCameraFromView();
+      const zones = zonesSnapshotRef.current;
+      if (zones.length === 0) return null;
+
+      const animTime = blobAnimTimeRef.current;
+      const blobParams: PerlinBlobParams = { ...params, time: animTime };
+
+      const capZone = pickZoneAtCapRay(
+        _pickRay,
+        group,
+        toward,
+        zones,
+        blobVisualExtent(params),
+        params.frontMinDot,
+        undefined,
+        {
+          frontMinDot: params.frontMinDot,
+          zoneCenterOffsetRight: params.zoneCenterOffsetRight,
+          blobCenterLean: params.blobCenterLean,
+        },
+      );
+      if (capZone) return capZone;
+
+      const scales = scalesRef.current;
+
+      const getCenter = (index: number, target: THREE.Vector3) => {
+        displacedVertexPosition(vertices, index, blobParams, target);
+        if (group) group.localToWorld(target);
+      };
+
+      const getRadius = (index: number) => {
+        const base = scales[index] > 0 ? scales[index]! : pointRadius;
+        return base * ZONE_MEMBER_PICK_SCALE_MUL;
+      };
+
+      const picked = pickZoneMemberNearRay(
+        _pickRay,
+        camera.position,
+        zones,
+        getCenter,
+        getRadius,
+        minPickRadius,
+      );
+      if (picked < 0) return null;
+
+      return findZoneForMemberVertex(zones, picked);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      const zone = pickAtClient(e.clientX, e.clientY);
+      setActiveZone((prev) => {
+        if (!zone) return null;
+        if (prev?.curator.name === zone.curator.name) return prev;
+
+        const snap =
+          zonesSnapshotRef.current.find(
+            (z) => z.curator.name === zone.curator.name,
+          ) ?? zone;
+        const toward = towardCameraFromView();
+        const targetCount = Math.max(
+          1,
+          Math.round(
+            snap.curator.opportunities * (params.hubConnectionMul ?? 1),
+          ),
+        );
+        const edges = buildZoneHubEdgesRandom(
+          vertices.positions,
+          snap.hub,
+          snap.partners,
+          snap.members,
+          toward,
+          targetCount,
+          {
+            frontMinDot: params.frontMinDot,
+            maxAngleFromHubDeg: params.clusterMaxAngleDeg,
+            liveVertices,
+            blobCenterLean: params.blobCenterLean,
+          },
+        );
+        return { ...snap, edges };
+      });
+    };
+
+    const onPointerLeave = () => {
+      setActiveZone(null);
+      frozenAnimTimeRef.current = null;
+    };
+
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerleave", onPointerLeave);
+    return () => {
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
+    };
+  }, [
+    camera,
+    gl.domElement,
+    liveVertices,
+    params,
+    pointRadius,
+    raycaster,
+    vertices,
+  ]);
 
   useFrame((state, delta) => {
     const group = blobGroupRef.current;
-    const hover = hoverRef.current;
+    const hovered = activeZoneRef.current;
+    const clockTime = state.clock.elapsedTime * params.timeSpeed;
 
-    if (group && params.rotationSpeed !== 0 && hover === null) {
+    if (hovered) {
+      if (frozenAnimTimeRef.current === null) {
+        frozenAnimTimeRef.current = clockTime;
+      }
+      blobAnimTimeRef.current = frozenAnimTimeRef.current;
+    } else {
+      frozenAnimTimeRef.current = null;
+      blobAnimTimeRef.current = clockTime;
+    }
+
+    if (group && params.rotationSpeed !== 0 && !hovered) {
       group.rotation.y += params.rotationSpeed * delta;
     }
 
     const blobParams: PerlinBlobParams = {
       ...params,
-      time: state.clock.elapsedTime * params.timeSpeed,
+      time: blobAnimTimeRef.current,
     };
 
     const maxDisp =
@@ -292,7 +330,7 @@ function PerlinBlobPoints({
 
     const liveMesh = liveMeshRef.current;
     const deadMesh = deadMeshRef.current;
-    const highlightMesh = highlightMeshRef.current;
+    const zoneUsed = zoneUsedRef.current;
 
     let scales = scalesRef.current;
     if (scales.length !== vertices.count) {
@@ -328,19 +366,57 @@ function PerlinBlobPoints({
     };
 
     if (liveMesh) {
+      ensureInstanceOpacityBuffer(liveMesh, liveIndices.length);
       for (let li = 0; li < liveIndices.length; li++) {
         const i = liveIndices[li]!;
-        const hide =
-          hover !== null && (i === hover.hub || hover.partners.has(i));
-        writeInstance(liveMesh, i, li, LIVE_SCALE_MUL, hide);
+        writeInstance(
+          liveMesh,
+          i,
+          li,
+          BLOB_POINT_SCALE_MUL,
+          zoneUsed.has(i),
+        );
+        if (!zoneUsed.has(i)) {
+          setInstanceOpacityAt(
+            liveMesh,
+            li,
+            noiseSlopeOpacityMul(
+              vertices,
+              i,
+              blobParams,
+              params.noiseSlopeMinOpacity,
+              params.noiseSlopeMaxOpacity,
+            ),
+          );
+        }
       }
       liveMesh.instanceMatrix.needsUpdate = true;
     }
 
     if (deadMesh) {
+      ensureInstanceOpacityBuffer(deadMesh, deadIndices.length);
       for (let di = 0; di < deadIndices.length; di++) {
         const i = deadIndices[di]!;
-        writeInstance(deadMesh, i, di, DEAD_SCALE_MUL, false);
+        writeInstance(
+          deadMesh,
+          i,
+          di,
+          BLOB_POINT_SCALE_MUL,
+          zoneUsed.has(i),
+        );
+        if (!zoneUsed.has(i)) {
+          setInstanceOpacityAt(
+            deadMesh,
+            di,
+            noiseSlopeOpacityMul(
+              vertices,
+              i,
+              blobParams,
+              params.noiseSlopeMinOpacity,
+              params.noiseSlopeMaxOpacity,
+            ),
+          );
+        }
       }
       deadMesh.instanceMatrix.needsUpdate = true;
     }
@@ -367,7 +443,7 @@ function PerlinBlobPoints({
             debugMesh,
             i,
             pi,
-            LIVE_SCALE_MUL * DEBUG_PICKABLE_SCALE_MUL,
+            BLOB_POINT_SCALE_MUL * DEBUG_PICKABLE_SCALE_MUL,
             false,
           );
           pi++;
@@ -375,83 +451,6 @@ function PerlinBlobPoints({
       }
       debugMesh.count = pi;
       debugMesh.instanceMatrix.needsUpdate = true;
-    }
-
-    const pointerOnCanvas =
-      Math.abs(pointer.x) <= 1 && Math.abs(pointer.y) <= 1;
-    if (pointerOnCanvas && liveMesh) {
-      raycaster.setFromCamera(pointer, camera);
-      const minPick = pointRadius * SPHERE_PICK_MIN_RADIUS_MUL;
-      const picked = pickHoverVertexNearRay(
-        raycaster.ray,
-        camera.position,
-        vertices.count,
-        (i, target) => {
-          displacedVertexPosition(vertices, i, blobParams, target);
-          if (group) group.localToWorld(target);
-        },
-        (i) => scales[i] ?? pointRadius,
-        minPick,
-        (i) =>
-          !liveVertices.has(i) ||
-          vertexFacesCamera(
-            vertices.positions,
-            i,
-            toward,
-            params.frontMinDot,
-          ),
-        (i) =>
-          liveVertices.has(i) &&
-          vertexFacesCamera(
-            vertices.positions,
-            i,
-            toward,
-            params.frontMinDot,
-          ),
-      );
-
-      if (picked >= 0) {
-        gl.domElement.style.cursor = "pointer";
-        if (hover?.hub !== picked) activateHover(picked);
-      } else {
-        gl.domElement.style.cursor = "";
-        if (hover) clearHover();
-      }
-    } else {
-      gl.domElement.style.cursor = "";
-      if (hover) clearHover();
-    }
-
-    const hoverAfterPick = hoverRef.current;
-
-    if (highlightMesh) {
-      let hi = 0;
-      if (hoverAfterPick) {
-        highlightMaterial.color.setHex(hoverAfterPick.color);
-        for (const idx of hoverAfterPick.partners) {
-          displacedVertexPosition(vertices, idx, blobParams, _dummy.position);
-          _worldPos.copy(_dummy.position);
-          if (group) group.localToWorld(_worldPos);
-          const dist = camera.position.distanceTo(_worldPos);
-          const highlightMul = PARTNER_SCALE_MUL;
-          const scale =
-            pointRadius *
-            highlightMul *
-            depthSizeMultiplier(
-              dist,
-              sizeNear,
-              sizeFar,
-              params.depthSizeMinMul,
-              params.depthSizeMaxMul,
-            );
-          _dummy.scale.setScalar(scale);
-          _dummy.updateMatrix();
-          highlightMesh.setMatrixAt(hi, _dummy.matrix);
-          hi++;
-        }
-      }
-      highlightMesh.count = hi;
-      highlightMesh.instanceMatrix.needsUpdate = true;
     }
 
     updateMarkerDepthFadeUniforms(
@@ -487,54 +486,23 @@ function PerlinBlobPoints({
         frustumCulled={false}
         renderOrder={RENDER_DEBUG_PICKABLE}
       />
-      <instancedMesh
-        ref={highlightMeshRef}
-        args={[SPHERE_GEO, highlightMaterial, MAX_HIGHLIGHT_INSTANCES]}
-        frustumCulled={false}
-        renderOrder={RENDER_PARTNER_SPHERE}
+      <ActiveCuratorZones
+        vertices={vertices}
+        params={params}
+        pointRadius={pointRadius}
+        liveVertices={liveVertices}
+        getTowardCamera={towardCameraFromView}
+        zoneUsedRef={zoneUsedRef}
+        zonesSnapshotRef={zonesSnapshotRef}
+        activeZone={activeZone}
+        blobAnimTimeRef={blobAnimTimeRef}
+        depthFadeUniforms={depthFadeUniforms}
       />
-      {partnerOrbits ? (
-        <PartnerOrbitRings
-          partnerIndices={partnerOrbits.indices}
-          color={partnerOrbits.color}
-          vertices={vertices}
-          params={params}
-          pointRadius={pointRadius}
-          partnerScaleMul={PARTNER_SCALE_MUL}
-        />
-      ) : null}
-      {hoverLines.length > 0 ? (
-        <group renderOrder={RENDER_PLEXUS_LINES}>
-          <CuratorPlexusLines
-            groups={hoverLines}
-            vertices={vertices}
-            params={params}
-          />
-        </group>
-      ) : null}
-      {hubBillboard ? (
-        <group renderOrder={RENDER_HUB_LOGO}>
-          <Suspense fallback={null}>
-            <CuratorHubBillboard
-              hubIndex={hubBillboard.hub}
-              curatorName={hubBillboard.curatorName}
-              vertices={vertices}
-              params={params}
-            />
-          </Suspense>
-        </group>
-      ) : null}
     </group>
   );
 }
 
-function Scene({
-  params,
-  onHover,
-}: {
-  params: PerlinBlobVisualParams;
-  onHover: (info: SphereHoverInfo | null) => void;
-}) {
+function Scene({ params }: { params: PerlinBlobVisualParams }) {
   const { camera, size } = useThree();
   const blobOffsetX = useMemo(() => {
     const extent = blobVisualExtent(params);
@@ -548,11 +516,7 @@ function Scene({
   return (
     <>
       <color attach="background" args={[BG]} />
-      <PerlinBlobPoints
-        params={params}
-        onHover={onHover}
-        offsetX={blobOffsetX}
-      />
+      <PerlinBlobPoints params={params} offsetX={blobOffsetX} />
       <OrbitControls
         enableDamping
         dampingFactor={0.06}
@@ -562,35 +526,7 @@ function Scene({
   );
 }
 
-function HoverLabel({ hover }: { hover: SphereHoverInfo }) {
-  return (
-    <div
-      className="pointer-events-none absolute left-4 top-4 z-10 max-w-xs rounded-md border border-white/10 bg-black/70 px-3 py-2 text-sm text-[#f9f9f9] backdrop-blur-sm"
-      role="status"
-    >
-      <p
-        className="font-medium leading-snug"
-        style={{
-          color: `#${(hover.color & 0xffffff).toString(16).padStart(6, "0")}`,
-        }}
-      >
-        {hover.curator}
-      </p>
-      <p className="text-white/55">
-        {hover.opportunities}{" "}
-        {hover.opportunities === 1 ? "opportunity" : "opportunities"}
-      </p>
-    </div>
-  );
-}
-
-export function NoiseSphereScene({
-  params,
-  onHover,
-}: {
-  params: PerlinBlobVisualParams;
-  onHover: (info: SphereHoverInfo | null) => void;
-}) {
+export function NoiseSphereScene({ params }: { params: PerlinBlobVisualParams }) {
   return (
     <Canvas
       className="h-full w-full touch-none"
@@ -598,23 +534,17 @@ export function NoiseSphereScene({
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: false }}
     >
-      <Scene params={params} onHover={onHover} />
+      <Scene params={params} />
     </Canvas>
   );
 }
 
 export function NoiseSphereSketch() {
   const params = useNoiseSphereControls();
-  const [hover, setHover] = useState<SphereHoverInfo | null>(null);
 
   useEffect(() => {
     void preloadLogoDisplayScales();
   }, []);
 
-  return (
-    <>
-      <NoiseSphereScene params={params} onHover={setHover} />
-      {hover ? <HoverLabel hover={hover} /> : null}
-    </>
-  );
+  return <NoiseSphereScene params={params} />;
 }

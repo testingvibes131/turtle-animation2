@@ -18,11 +18,17 @@ export type PerlinBlobVisualParams = PerlinBlobParams & {
   timeSpeed: number;
   frontMinDot: number;
   clusterMaxAngleDeg: number;
+  blobCenterLean: number;
   debugHoverZone: boolean;
+  hubConnectionMul: number;
+  zoneCenterOffsetRight: number;
+  hubOffsetSpheres: number;
+  noiseSlopeMinOpacity: number;
+  noiseSlopeMaxOpacity: number;
 };
 
 const DEFAULTS = {
-  radius: 1.0,
+  radius: 0.9,
   detail: 24,
   noiseScale: 14,
   displacementDivisor: 38,
@@ -38,9 +44,15 @@ const DEFAULTS = {
   lineWidth: 2,
   lineOpacity: 0.85,
   orbitEnabled: true,
-  frontMinDot: 0.55,
+  frontMinDot: 0.35,
   clusterMaxAngleDeg: 22,
+  blobCenterLean: 0.4,
   debugHoverZone: false,
+  hubConnectionMul: 1.5,
+  zoneCenterOffsetRight: 0.3,
+  hubOffsetSpheres: 0,
+  noiseSlopeMinOpacity: 0.42,
+  noiseSlopeMaxOpacity: 1,
 } satisfies Omit<PerlinBlobVisualParams, "time">;
 
 export function useNoiseSphereControls(): PerlinBlobVisualParams {
@@ -91,6 +103,20 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       step: 0.05,
       label: "anim speed",
     },
+    noiseSlopeMinOpacity: {
+      value: DEFAULTS.noiseSlopeMinOpacity,
+      min: 0.1,
+      max: 1,
+      step: 0.02,
+      label: "noise shadow opacity",
+    },
+    noiseSlopeMaxOpacity: {
+      value: DEFAULTS.noiseSlopeMaxOpacity,
+      min: 0.1,
+      max: 1,
+      step: 0.02,
+      label: "noise light opacity",
+    },
   });
 
   const motion = useControls("Motion", {
@@ -117,11 +143,32 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       min: 8,
       max: 45,
       step: 1,
-      label: "max angle from hub °",
+      label: "hub → partner distance °",
+    },
+    blobCenterLean: {
+      value: DEFAULTS.blobCenterLean,
+      min: 0,
+      max: 1,
+      step: 0.02,
+      label: "blob center lean",
     },
     debugHoverZone: {
       value: DEFAULTS.debugHoverZone,
       label: "debug pickable (blue)",
+    },
+    zoneCenterOffsetRight: {
+      value: DEFAULTS.zoneCenterOffsetRight,
+      min: -0.2,
+      max: 0.2,
+      step: 0.005,
+      label: "zone center → right",
+    },
+    hubOffsetSpheres: {
+      value: DEFAULTS.hubOffsetSpheres,
+      min: 0,
+      max: 24,
+      step: 1,
+      label: "hub offset (0 = zone center)",
     },
   });
 
@@ -167,6 +214,13 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
   });
 
   const lines = useControls("Hover lines", {
+    hubConnectionMul: {
+      value: DEFAULTS.hubConnectionMul,
+      min: 1,
+      max: 10,
+      step: 0.05,
+      label: "hub connections ×",
+    },
     lineWidth: {
       value: DEFAULTS.lineWidth,
       min: 0.5,
@@ -192,17 +246,23 @@ export function useNoiseSphereControls(): PerlinBlobVisualParams {
       displacementDivisor: perlin.displacementDivisor,
       perlinPeriod: perlin.perlinPeriod,
       timeSpeed: perlin.timeSpeed,
+      noiseSlopeMinOpacity: perlin.noiseSlopeMinOpacity,
+      noiseSlopeMaxOpacity: perlin.noiseSlopeMaxOpacity,
       time: 0,
       rotationSpeed: motion.rotationSpeed,
       orbitEnabled: motion.orbitEnabled,
       frontMinDot: hoverCluster.frontMinDot,
       clusterMaxAngleDeg: hoverCluster.clusterMaxAngleDeg,
+      blobCenterLean: hoverCluster.blobCenterLean,
       debugHoverZone: hoverCluster.debugHoverZone,
+      zoneCenterOffsetRight: hoverCluster.zoneCenterOffsetRight,
+      hubOffsetSpheres: Math.round(hoverCluster.hubOffsetSpheres),
       depthFadeMinOpacity: depthFade.depthFadeMinOpacity,
       depthSizeNearOffset: depthSize.depthSizeNearOffset,
       depthSizeFarOffset: depthSize.depthSizeFarOffset,
       depthSizeMinMul: depthSize.depthSizeMinMul,
       depthSizeMaxMul: depthSize.depthSizeMaxMul,
+      hubConnectionMul: lines.hubConnectionMul,
       lineWidth: lines.lineWidth,
       lineOpacity: lines.lineOpacity,
     }),
