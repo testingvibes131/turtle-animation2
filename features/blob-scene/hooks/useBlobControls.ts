@@ -14,7 +14,6 @@ export type BlobVisualParams = PerlinBlobParams & {
   depthSizeMaxMul: number;
   lineWidth: number;
   lineOpacity: number;
-  orbitEnabled: boolean;
   timeSpeed: number;
   frontMinDot: number;
   clusterMaxAngleDeg: number;
@@ -28,7 +27,7 @@ export type BlobVisualParams = PerlinBlobParams & {
 };
 
 const DEFAULTS = {
-  radius: 0.9,
+  radius: 0.7,
   detail: 24,
   noiseScale: 14,
   displacementDivisor: 38,
@@ -43,7 +42,6 @@ const DEFAULTS = {
   depthSizeMaxMul: 1,
   lineWidth: 2,
   lineOpacity: 0.85,
-  orbitEnabled: true,
   frontMinDot: 0.35,
   clusterMaxAngleDeg: 22,
   blobCenterLean: 0.4,
@@ -127,7 +125,6 @@ export function useBlobControls(): BlobVisualParams {
       step: 0.005,
       label: "spin",
     },
-    orbitEnabled: { value: DEFAULTS.orbitEnabled, label: "orbit controls" },
   });
 
   const hoverCluster = useControls("Hover cluster", {
@@ -250,7 +247,6 @@ export function useBlobControls(): BlobVisualParams {
       noiseSlopeMaxOpacity: perlin.noiseSlopeMaxOpacity,
       time: 0,
       rotationSpeed: motion.rotationSpeed,
-      orbitEnabled: motion.orbitEnabled,
       frontMinDot: hoverCluster.frontMinDot,
       clusterMaxAngleDeg: hoverCluster.clusterMaxAngleDeg,
       blobCenterLean: hoverCluster.blobCenterLean,

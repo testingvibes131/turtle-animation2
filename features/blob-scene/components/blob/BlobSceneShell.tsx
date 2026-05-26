@@ -1,6 +1,5 @@
 "use client";
 
-import { OrbitControls } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
@@ -28,11 +27,6 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
     <>
       <color attach="background" args={[BG]} />
       <BlobSceneContent params={params} offsetX={blobOffsetX} />
-      <OrbitControls
-        enableDamping
-        dampingFactor={0.06}
-        enabled={params.orbitEnabled}
-      />
     </>
   );
 }

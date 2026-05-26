@@ -3,8 +3,9 @@ import { dmSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Turtle",
-  description: "The trusted dealflow layer for internet capital markets",
+  title: "Turtle — Onchain Yield Management",
+  description:
+    "Aggregated, diligenced, personalized onchain yield management.",
 };
 
 export default function RootLayout({
@@ -17,7 +18,9 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${dmSans.className} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="flex min-h-full flex-col bg-surface-0 font-sans text-ink-primary">
+        {children}
+      </body>
     </html>
   );
 }

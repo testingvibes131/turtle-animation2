@@ -205,7 +205,7 @@ export function useBlobAnimationFreeze(
         frozenAnimTimeRef.current = null;
         blobAnimTimeRef.current = clockTime;
       }
-      return params.rotationSpeed !== 0 && !hovered;
+      return params.rotationSpeed !== 0;
     },
   };
 }

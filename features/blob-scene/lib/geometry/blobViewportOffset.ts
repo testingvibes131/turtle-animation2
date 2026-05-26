@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 
-/** Fraction of blob diameter that sits past the right viewport edge. */
-export const BLOB_RIGHT_CROP_FRACTION = 0.15;
+/** Fraction of blob diameter past the right viewport edge (lower = further left). */
+export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 
 export function blobVisualExtent(params: BlobVisualParams): number {
   const maxDisp =
@@ -11,7 +11,7 @@ export function blobVisualExtent(params: BlobVisualParams): number {
 }
 
 /**
- * +X shift so ~25% of the blob diameter extends beyond the right screen edge.
+ * Horizontal shift for the blob. Positive cropFraction pushes right; negative pulls left.
  */
 export function computeBlobOffsetX(
   camera: THREE.PerspectiveCamera,

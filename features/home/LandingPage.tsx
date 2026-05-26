@@ -1,0 +1,41 @@
+"use client";
+
+import { useEffect } from "react";
+import { SiteHeader } from "@/components/site-header/SiteHeader";
+import { SiteFooter } from "@/components/site-footer/SiteFooter";
+import { GlowDivider } from "@/components/ui/GlowDivider";
+import { BackedBy } from "@/features/home/sections/BackedBy";
+import { CaseStudies } from "@/features/home/sections/CaseStudies";
+import { CommandCenter } from "@/features/home/sections/CommandCenter";
+import { GreedyParanoidSection } from "@/features/home/sections/GreedyParanoidSection";
+import { HeroSection } from "@/features/home/sections/HeroSection";
+import { LatestUpdates } from "@/features/home/sections/LatestUpdates";
+import { Pipeline } from "@/features/home/sections/Pipeline";
+import { RadarCta } from "@/features/home/sections/RadarCta";
+
+export function LandingPage() {
+  useEffect(() => {
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  return (
+    <>
+      <SiteHeader />
+      <main className="bg-surface-0 text-ink-primary">
+        <HeroSection />
+        <GreedyParanoidSection />
+        <CommandCenter />
+        <Pipeline />
+        <CaseStudies />
+        <BackedBy />
+        <RadarCta />
+        <LatestUpdates />
+        <GlowDivider />
+      </main>
+      <SiteFooter />
+    </>
+  );
+}
