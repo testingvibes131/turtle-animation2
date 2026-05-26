@@ -19,7 +19,7 @@ export function ActiveCuratorZones() {
     vertices,
     params,
     pointRadius,
-    getTowardCamera,
+    getHubLayoutAxis,
     blobAnimTimeRef,
     activeZone,
   } = useBlobScene();
@@ -50,7 +50,7 @@ export function ActiveCuratorZones() {
           curatorName={displayZone.curator.name}
           vertices={vertices}
           params={params}
-          getTowardCamera={getTowardCamera}
+          getTowardCamera={getHubLayoutAxis}
           blobAnimTimeRef={blobAnimTimeRef}
         />
       ) : null}
@@ -86,7 +86,7 @@ export function ActiveCuratorZones() {
                 hubPickMesh: vertices,
               } satisfies HubAnchorOptions
             }
-            getTowardCamera={getTowardCamera}
+            getTowardCamera={getHubLayoutAxis}
             blobAnimTimeRef={blobAnimTimeRef}
           />
         </group>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   BlobSceneProvider,
@@ -28,6 +28,8 @@ export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
   const zonesSnapshotRef = useRef<BlobSceneContextValue["zonesSnapshotRef"]["current"]>([]);
   const blobAnimTimeRef = useRef(0);
   const frozenAnimTimeRef = useRef<number | null>(null);
+  const frozenLayoutAxisRef = useRef<THREE.Vector3 | null>(null);
+  const frozenLayoutZoneRef = useRef<string | null>(null);
   const scalesRef = useRef<Float32Array>(new Float32Array(0));
   const [activeZone, setActiveZone] = useState<BlobSceneContextValue["activeZone"]>(null);
 
@@ -40,6 +42,23 @@ export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
   );
 
   const getTowardCamera = useTowardCamera(blobGroupRef);
+
+  useLayoutEffect(() => {
+    if (activeZone) {
+      const name = activeZone.curator.name;
+      if (frozenLayoutZoneRef.current !== name) {
+        frozenLayoutAxisRef.current = getTowardCamera().clone();
+        frozenLayoutZoneRef.current = name;
+      }
+    } else {
+      frozenLayoutAxisRef.current = null;
+      frozenLayoutZoneRef.current = null;
+    }
+  }, [activeZone, getTowardCamera]);
+
+  const getHubLayoutAxis = useCallback(() => {
+    return frozenLayoutAxisRef.current ?? getTowardCamera();
+  }, [getTowardCamera]);
 
   const contextValue = useMemo<BlobSceneContextValue>(
     () => ({
@@ -58,11 +77,13 @@ export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
       activeZone,
       setActiveZone,
       getTowardCamera,
+      getHubLayoutAxis,
     }),
     [
       activeZone,
       deadIndices,
       depthFadeUniforms,
+      getHubLayoutAxis,
       getTowardCamera,
       liveIndices,
       liveVertices,
@@ -84,6 +105,7 @@ export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
     setActiveZone,
     getTowardCamera,
     frozenAnimTimeRef,
+    frozenLayoutAxisRef,
   });
 
   const { tickAnimationTime } = useBlobAnimationFreeze(

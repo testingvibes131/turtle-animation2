@@ -39,6 +39,7 @@ type UseBlobInteractionArgs = Pick<
   | "getTowardCamera"
 > & {
   frozenAnimTimeRef: RefObject<number | null>;
+  frozenLayoutAxisRef: RefObject<THREE.Vector3 | null>;
 };
 
 export function useBlobInteraction({
@@ -53,6 +54,7 @@ export function useBlobInteraction({
   setActiveZone,
   getTowardCamera,
   frozenAnimTimeRef,
+  frozenLayoutAxisRef,
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -157,6 +159,7 @@ export function useBlobInteraction({
     const onPointerLeave = () => {
       setActiveZone(null);
       frozenAnimTimeRef.current = null;
+      frozenLayoutAxisRef.current = null;
     };
 
     canvas.addEventListener("pointermove", onPointerMove);
@@ -170,6 +173,7 @@ export function useBlobInteraction({
     blobGroupRef,
     camera,
     frozenAnimTimeRef,
+    frozenLayoutAxisRef,
     getTowardCamera,
     gl.domElement,
     liveVertices,

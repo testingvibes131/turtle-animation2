@@ -31,6 +31,8 @@ export type BlobSceneContextValue = {
     React.SetStateAction<CuratorZoneAssignment | null>
   >;
   getTowardCamera: () => THREE.Vector3;
+  /** Camera-facing layout axis; frozen for the active hover zone. */
+  getHubLayoutAxis: () => THREE.Vector3;
 };
 
 const BlobSceneContext = createContext<BlobSceneContextValue | null>(null);
