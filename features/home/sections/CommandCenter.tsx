@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { CtaPill } from "@/components/ui/CtaPill";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { SectionShell } from "@/components/layout/SectionShell";
+import { CommandCenterFeatureCanvas } from "@/features/home/components/CommandCenterFeatureCanvas";
 import { commandCenterFeatures } from "@/features/home/data/updates";
 
 export function CommandCenter() {
@@ -29,13 +29,7 @@ export function CommandCenter() {
                   className="relative w-full overflow-hidden rounded-[clamp(10px,0.9vw,13px)]"
                   style={{ aspectRatio: "570 / 499" }}
                 >
-                  <Image
-                    src={feature.image}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="480px"
-                  />
+                  <CommandCenterFeatureCanvas />
                 </div>
                 <div className="flex flex-col gap-[clamp(10px,1vw,16px)] px-2.5">
                   <h3 className="bg-clip-text text-[clamp(20px,2.1vw,30px)] font-normal leading-[1.3] text-transparent text-gradient-heading-h">
