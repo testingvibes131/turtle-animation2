@@ -42,27 +42,33 @@ export const updates: UpdateArticle[] = [
   },
 ];
 
+export type CommandCenterFeatureVisual = "deals" | "portfolio" | "alerts";
+
 export type CommandCenterFeature = {
   image: string;
   title: string;
   description: string;
+  visual: CommandCenterFeatureVisual;
 };
 
 export const commandCenterFeatures: CommandCenterFeature[] = [
   {
     image: "/cards/deals.png",
+    visual: "deals",
     title: "Diligenced Deals",
     description:
       "Access selected on-chain yield backed by Turtle review, clear mechanics, and transparent incentive terms.",
   },
   {
     image: "/cards/portfolio.png",
+    visual: "portfolio",
     title: "Aggregated Portfolio",
     description:
       "Bundle your wallets across DeFi to evaluate positions, discover idle assets, and optimize your portfolio.",
   },
   {
     image: "/cards/alerts.png",
+    visual: "alerts",
     title: "Personalized Alerts",
     description:
       "Get pinged when a new deal fits your book and stay on top of the ones you're already in, so you can manage risk instead of refreshing dashboards.",
