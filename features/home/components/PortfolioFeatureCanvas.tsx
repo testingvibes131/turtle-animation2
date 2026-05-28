@@ -10,7 +10,6 @@ import {
   clamp,
   clamp01,
   drawFalloffDotGrid,
-  GRID_ACCENT_COLOR,
   GRID_CONNECTOR_DOT_RADIUS,
   GRID_DOT_RADIUS,
   GRID_MAIN_DOT_RADIUS,
@@ -18,15 +17,32 @@ import {
   isInsideGridFalloff,
   smoothstep,
 } from "@/features/home/components/commandCenterGrid";
+import { drawGreenGlowCircle } from "@/features/home/components/commandCenterGreenGlow";
+import { drawRedGlowCircle } from "@/features/home/components/commandCenterRedGlow";
+import { drawWhiteGlowCircle } from "@/features/home/components/commandCenterWhiteGlow";
+import {
+  COMMAND_CENTER_TURTLE_HEIGHT,
+  COMMAND_CENTER_TURTLE_WIDTH,
+  drawCommandCenterTurtleMark,
+} from "@/features/home/components/commandCenterTurtleMark";
 import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
 
 const PORTFOLIO_HUB_RADIUS = GRID_MAIN_DOT_RADIUS * 2;
 const SPINE_RADIUS_MIN = GRID_DOT_RADIUS * 0.65;
 const SPINE_RADIUS_MAX = GRID_CONNECTOR_DOT_RADIUS * 1.15;
-const TRIANGLE_DOT_COLOR = "#f9f9f9";
-const HUB_ROW_OFFSET = 3;
-const SIDE_RED_DOT_COLOR = "#ff4d4d";
+/** Hub row vs canvas center — lower = more room for triangle below. */
+const HUB_ROW_OFFSET = 1;
 const SIDE_RED_DOT_COUNT = 2;
+
+const PORTFOLIO_TURTLE_WIDTH = COMMAND_CENTER_TURTLE_WIDTH * 1.5;
+const PORTFOLIO_TURTLE_HEIGHT = COMMAND_CENTER_TURTLE_HEIGHT * 1.5;
+const PORTFOLIO_TURTLE_OFFSET_Y = GRID_SPACING;
+const PORTFOLIO_TRIANGLE_WHITE = { r: 249, g: 249, b: 249 };
+const PORTFOLIO_TRIANGLE_WHITE_OPACITY = 0.5;
+/** Triangle rows top → bottom: 1, 3, 5 dots. */
+const TRIANGLE_ROW_DOT_COUNTS = [1, 3, 5] as const;
+/** Pixel gap between turtle bottom and triangle apex. */
+const TRIANGLE_GAP_BELOW_TURTLE = GRID_SPACING * 0.5;
 
 const SPINE_CASCADE_SPEED = 2.5;
 const SPINE_CASCADE_STAGGER = 0.4;
@@ -34,6 +50,8 @@ const SPINE_SCALE_MIN = 0.38;
 const SPINE_SCALE_MAX = 1.28;
 const TRIANGLE_CASCADE_SPEED = 2.1;
 const TRIANGLE_CASCADE_STAGGER = 0.28;
+const TRIANGLE_SCALE_MIN = 0.38;
+const TRIANGLE_SCALE_MAX = 1.28;
 const RED_BLINK_SPEED = 1.35;
 const RED_OFF_ALPHA = 0.06;
 
@@ -76,6 +94,64 @@ function sideRandom01(index: number, salt: number) {
   return h / 4294967295;
 }
 
+function portfolioTurtleBottomY(hubY: number) {
+  return hubY + PORTFOLIO_TURTLE_OFFSET_Y + PORTFOLIO_TURTLE_HEIGHT / 2;
+}
+
+function triangleLayoutFits(
+  hub: PixelPoint,
+  offsetX: number,
+  offsetY: number,
+  hubCol: number,
+  startRow: number,
+  rows: number,
+  cols: number,
+) {
+  for (let level = 0; level < TRIANGLE_ROW_DOT_COUNTS.length; level++) {
+    const row = startRow + level;
+    if (row >= rows) return false;
+
+    const halfWidth = triangleLevelHalfWidth(level);
+    if (halfWidth === null) return false;
+
+    const y = offsetY + row * GRID_SPACING;
+    for (let col = hubCol - halfWidth; col <= hubCol + halfWidth; col++) {
+      if (col < 0 || col >= cols) return false;
+      const x = offsetX + col * GRID_SPACING;
+      if (!isInsideGridFalloff(x, y, hub.x, hub.y)) return false;
+    }
+  }
+  return true;
+}
+
+/** Lowest start row under the turtle where 1 → 3 → 5 all fit in falloff. */
+function portfolioTriangleStartRow(
+  hub: PixelPoint,
+  width: number,
+  height: number,
+  hubRow: number,
+  hubCol: number,
+) {
+  const { offsetX, offsetY } = gridOffsets(width, height);
+  const rows = Math.ceil((height - offsetY) / GRID_SPACING) + 1;
+  const cols = Math.ceil((width - offsetX) / GRID_SPACING) + 1;
+  const minY = portfolioTurtleBottomY(hub.y) + TRIANGLE_GAP_BELOW_TURTLE;
+  const turtleMinRow = Math.ceil((minY - offsetY) / GRID_SPACING);
+  const minStart = hubRow + 1;
+
+  for (let startRow = turtleMinRow; startRow >= minStart; startRow--) {
+    if (triangleLayoutFits(hub, offsetX, offsetY, hubCol, startRow, rows, cols)) {
+      return startRow;
+    }
+  }
+  return minStart;
+}
+
+function triangleLevelHalfWidth(level: number) {
+  if (level < 0 || level >= TRIANGLE_ROW_DOT_COUNTS.length) return null;
+  return (TRIANGLE_ROW_DOT_COUNTS[level] - 1) / 2;
+}
+
 function isTriangleGridCell(
   col: number,
   row: number,
@@ -86,10 +162,10 @@ function isTriangleGridCell(
   const { offsetX, offsetY } = gridOffsets(width, height);
   const hubCol = Math.round((hub.x - offsetX) / GRID_SPACING);
   const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const startRow = hubRow + 1;
-  if (row < startRow) return false;
-
-  const halfWidth = row - startRow;
+  const startRow = portfolioTriangleStartRow(hub, width, height, hubRow, hubCol);
+  const level = row - startRow;
+  const halfWidth = triangleLevelHalfWidth(level);
+  if (halfWidth === null) return false;
   if (col < hubCol - halfWidth || col > hubCol + halfWidth) return false;
 
   const x = offsetX + col * GRID_SPACING;
@@ -235,14 +311,8 @@ function drawSideRedDots(
     const { x, y } = gridColRowToPixel(slot.col, slot.row, offsetX, offsetY);
     if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
 
-    ctx.fillStyle = SIDE_RED_DOT_COLOR;
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(x, y, GRID_CONNECTOR_DOT_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
+    drawRedGlowCircle(ctx, x, y, GRID_CONNECTOR_DOT_RADIUS, alpha);
   }
-
-  ctx.globalAlpha = 1;
 }
 
 function spineDotBaseRadius(row: number, hubRow: number) {
@@ -289,13 +359,9 @@ function drawTopSpineDots(
   hubRow: number,
   timeS: number,
 ) {
-  ctx.fillStyle = GRID_ACCENT_COLOR;
-
   for (const dot of dots) {
     const scale = spineCascadeScale(dot.row, hubRow, timeS);
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dot.baseRadius * scale, 0, Math.PI * 2);
-    ctx.fill();
+    drawGreenGlowCircle(ctx, dot.x, dot.y, dot.baseRadius * scale);
   }
 }
 
@@ -309,24 +375,35 @@ function getBottomTriangleDots(
   const rows = Math.ceil((height - offsetY) / GRID_SPACING) + 1;
   const hubCol = Math.round((hub.x - offsetX) / GRID_SPACING);
   const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const startRow = hubRow + 1;
+  const startRow = portfolioTriangleStartRow(hub, width, height, hubRow, hubCol);
   const dots: TriangleDot[] = [];
 
-  for (let row = startRow, i = 0; row < rows; row++, i++) {
-    const y = offsetY + row * GRID_SPACING;
-    const centerX = offsetX + hubCol * GRID_SPACING;
-    if (!isInsideGridFalloff(centerX, y, hub.x, hub.y)) break;
+  for (let level = 0; level < TRIANGLE_ROW_DOT_COUNTS.length; level++) {
+    const row = startRow + level;
+    if (row >= rows) break;
 
-    const halfWidth = i;
+    const y = offsetY + row * GRID_SPACING;
+    const halfWidth = triangleLevelHalfWidth(level);
+    if (halfWidth === null) continue;
+
     for (let col = hubCol - halfWidth; col <= hubCol + halfWidth; col++) {
       if (col < 0 || col >= cols) continue;
       const x = offsetX + col * GRID_SPACING;
       if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
-      dots.push({ x, y, cascadeIndex: i });
+      dots.push({ x, y, cascadeIndex: level });
     }
   }
 
   return dots;
+}
+
+function triangleCascadePhase(
+  cascadeIndex: number,
+  maxCascadeIndex: number,
+  timeS: number,
+) {
+  const indexFromBottom = maxCascadeIndex - cascadeIndex;
+  return timeS * TRIANGLE_CASCADE_SPEED - indexFromBottom * TRIANGLE_CASCADE_STAGGER;
 }
 
 function triangleCascadeOpacity(
@@ -334,10 +411,18 @@ function triangleCascadeOpacity(
   maxCascadeIndex: number,
   timeS: number,
 ) {
-  const indexFromBottom = maxCascadeIndex - cascadeIndex;
-  const phase =
-    timeS * TRIANGLE_CASCADE_SPEED - indexFromBottom * TRIANGLE_CASCADE_STAGGER;
+  const phase = triangleCascadePhase(cascadeIndex, maxCascadeIndex, timeS);
   return 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(phase));
+}
+
+function triangleCascadeScale(
+  cascadeIndex: number,
+  maxCascadeIndex: number,
+  timeS: number,
+) {
+  const phase = triangleCascadePhase(cascadeIndex, maxCascadeIndex, timeS);
+  const pulse = 0.5 + 0.5 * Math.sin(phase);
+  return TRIANGLE_SCALE_MIN + (TRIANGLE_SCALE_MAX - TRIANGLE_SCALE_MIN) * pulse;
 }
 
 function drawBottomTriangleDots(
@@ -358,14 +443,20 @@ function drawBottomTriangleDots(
     );
     if (alpha <= 0.01) continue;
 
-    ctx.fillStyle = TRIANGLE_DOT_COLOR;
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, GRID_DOT_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
+    const scale = triangleCascadeScale(
+      dot.cascadeIndex,
+      maxCascadeIndex,
+      timeS,
+    );
+    drawWhiteGlowCircle(
+      ctx,
+      dot.x,
+      dot.y,
+      GRID_DOT_RADIUS * scale,
+      alpha * PORTFOLIO_TRIANGLE_WHITE_OPACITY,
+      PORTFOLIO_TRIANGLE_WHITE,
+    );
   }
-
-  ctx.globalAlpha = 1;
 }
 
 function isTopSpineGridDot(
@@ -412,10 +503,18 @@ function drawScene(
   drawTopSpineDots(ctx, topSpineDots, hubRow, timeS);
   drawSideRedDots(ctx, redSlots, hub, width, height, timeS);
 
-  ctx.fillStyle = GRID_ACCENT_COLOR;
-  ctx.beginPath();
-  ctx.arc(hub.x, hub.y, PORTFOLIO_HUB_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
+  const turtleY = hub.y + PORTFOLIO_TURTLE_OFFSET_Y;
+  if (
+    !drawCommandCenterTurtleMark(
+      ctx,
+      hub.x,
+      turtleY,
+      PORTFOLIO_TURTLE_WIDTH,
+      PORTFOLIO_TURTLE_HEIGHT,
+    )
+  ) {
+    drawGreenGlowCircle(ctx, hub.x, turtleY, PORTFOLIO_HUB_RADIUS);
+  }
 }
 
 export function PortfolioFeatureCanvas() {

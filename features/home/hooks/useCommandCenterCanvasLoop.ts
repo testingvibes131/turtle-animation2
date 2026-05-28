@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { resizeCanvas } from "@/features/home/components/commandCenterCanvas";
+import { loadCommandCenterTurtleImage } from "@/features/home/components/commandCenterTurtleMark";
 
 export type CommandCenterFrameArgs = {
   ctx: CanvasRenderingContext2D;
@@ -21,6 +22,8 @@ export function useCommandCenterCanvasLoop(
   onFrameRef.current = onFrame;
 
   useEffect(() => {
+    loadCommandCenterTurtleImage();
+
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;

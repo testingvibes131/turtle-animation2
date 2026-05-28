@@ -11,7 +11,6 @@ import {
   cellOrganicUnit,
   clamp01,
   distanceFromZoneCenter,
-  GRID_ACCENT_COLOR,
   GRID_CONNECTOR_DOT_RADIUS,
   GRID_MIN_VISIBLE_ALPHA,
   GRID_MIN_VISIBLE_RADIUS,
@@ -29,15 +28,20 @@ import {
   resolveStickyZoneHub,
   stepZoneCenter,
 } from "@/features/home/components/commandCenterZoneDriver";
+import { drawGreenGlowCircle } from "@/features/home/components/commandCenterGreenGlow";
+import {
+  COMMAND_CENTER_TURTLE_HALF_EXTENT,
+  drawCommandCenterTurtleMark,
+} from "@/features/home/components/commandCenterTurtleMark";
 import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
 
 const CONNECTOR_LINE_WIDTH = 1;
-const CONNECTOR_OPACITY = 0.75;
+const CONNECTOR_LINE_COLOR = "rgba(171, 174, 170, 1)";
+const CONNECTOR_LINE_DASH: [number, number] = [2, 3];
 const CONNECTOR_MOVE_S = 0.11;
 const CONNECTOR_STAGGER_MAX = 0.18;
 const CONNECTOR_RING_MIN = 0.72;
 const CONNECTOR_RING_SKIP_FRACTION = 0.3;
-const FLY_BOUNDS_MARGIN_FACTOR = 0.5;
 
 type InsideCell = GridCell & PixelPoint;
 
@@ -169,6 +173,8 @@ function drawZoneConnectors(
 
   ctx.save();
   ctx.lineWidth = CONNECTOR_LINE_WIDTH;
+  ctx.strokeStyle = CONNECTOR_LINE_COLOR;
+  ctx.setLineDash(CONNECTOR_LINE_DASH);
 
   for (const entry of entries.values()) {
     const progress = connectorLineProgress(entry, timeS);
@@ -177,7 +183,6 @@ function drawZoneConnectors(
     const endX = center.x + (entry.x - center.x) * progress;
     const endY = center.y + (entry.y - center.y) * progress;
 
-    ctx.strokeStyle = `rgba(255, 255, 255, ${CONNECTOR_OPACITY})`;
     ctx.beginPath();
     ctx.moveTo(center.x, center.y);
     ctx.lineTo(endX, endY);
@@ -192,21 +197,16 @@ function drawConnectorDots(
   entries: Map<string, ConnectorEntry>,
   timeS: number,
 ) {
-  ctx.fillStyle = GRID_ACCENT_COLOR;
-
   for (const entry of entries.values()) {
     const progress = connectorLineProgress(entry, timeS);
     if (progress <= 0) continue;
 
-    ctx.beginPath();
-    ctx.arc(
+    drawGreenGlowCircle(
+      ctx,
       entry.x,
       entry.y,
       GRID_CONNECTOR_DOT_RADIUS * progress,
-      0,
-      Math.PI * 2,
     );
-    ctx.fill();
   }
 }
 
@@ -224,11 +224,7 @@ function drawScene(
   ctx.clearRect(0, 0, width, height);
 
   mainDot.setBounds(
-    createFlyBounds(
-      width,
-      height,
-      GRID_MAIN_DOT_RADIUS * FLY_BOUNDS_MARGIN_FACTOR,
-    ),
+    createFlyBounds(width, height, COMMAND_CENTER_TURTLE_HALF_EXTENT),
   );
   mainDot.update(dt);
   const { x: mainX, y: mainY } = mainDot.getPosition();
@@ -297,10 +293,9 @@ function drawScene(
     }
   }
 
-  ctx.fillStyle = GRID_ACCENT_COLOR;
-  ctx.beginPath();
-  ctx.arc(mainX, mainY, GRID_MAIN_DOT_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
+  if (!drawCommandCenterTurtleMark(ctx, mainX, mainY)) {
+    drawGreenGlowCircle(ctx, mainX, mainY, GRID_MAIN_DOT_RADIUS);
+  }
 }
 
 export function CommandCenterFeatureCanvas() {

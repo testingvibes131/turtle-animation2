@@ -1,13 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   getGridDimensions,
   type GridCell,
 } from "@/features/home/components/commandCenterCanvas";
 import {
   cellOrganicUnit,
-  GRID_ACCENT_COLOR,
   GRID_CONNECTOR_DOT_RADIUS,
   GRID_DOT_RADIUS,
   GRID_MIN_VISIBLE_ALPHA,
@@ -24,21 +23,24 @@ import {
   resolveStickyZoneHub,
   stepZoneCenter,
 } from "@/features/home/components/commandCenterZoneDriver";
+import {
+  drawCommandCenterMagnifyingRing,
+  loadCommandCenterMagnifyingImage,
+} from "@/features/home/components/commandCenterMagnifyingRing";
+import { drawGreenGlowCircle } from "@/features/home/components/commandCenterGreenGlow";
 import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
+
+const FLY_BOUNDS_MARGIN = GRID_DOT_RADIUS * 4;
 
 const ALERTS_MODIFIER_ZONE_SCALE = 0.88;
 const ALERTS_MODIFIER_ZONE_PIXEL_RADIUS =
   GRID_MODIFIER_ZONE_PIXEL_RADIUS * ALERTS_MODIFIER_ZONE_SCALE;
 
-const ZONE_FILL = "rgba(255, 255, 255, 0.05)";
-const ZONE_STROKE = "rgba(255, 255, 255, 1)";
-const ZONE_STROKE_WIDTH = 1;
 const DIAMOND_GREEN_RADIUS_CENTER = GRID_CONNECTOR_DOT_RADIUS * 1.35;
 const DIAMOND_GREEN_RADIUS_EDGE = GRID_DOT_RADIUS * 0.88;
 const DIAMOND_PULSE_SPEED = 1.75;
 const DIAMOND_PULSE_STAGGER = 0.48;
 const DIAMOND_MIN_VISIBILITY = 0.42;
-const FLY_BOUNDS_MARGIN = GRID_DOT_RADIUS * 4;
 
 function isDiamondGreenDot(col: number, row: number, hubCol: number, hubRow: number) {
   const dr = Math.abs(row - hubRow);
@@ -74,15 +76,9 @@ function drawModifierZoneCircle(
   zoneX: number,
   zoneY: number,
 ) {
-  ctx.save();
-  ctx.fillStyle = ZONE_FILL;
-  ctx.beginPath();
-  ctx.arc(zoneX, zoneY, ALERTS_MODIFIER_ZONE_PIXEL_RADIUS, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = ZONE_STROKE;
-  ctx.lineWidth = ZONE_STROKE_WIDTH;
-  ctx.stroke();
-  ctx.restore();
+  const zoneDiameter = ALERTS_MODIFIER_ZONE_PIXEL_RADIUS * 2;
+
+  drawCommandCenterMagnifyingRing(ctx, zoneX, zoneY, zoneDiameter);
 }
 
 function drawModifierGrid(
@@ -117,12 +113,7 @@ function drawModifierGrid(
         const baseRadius = diamondGreenRadius(col, row, hubCol, hubRow);
         const radius = baseRadius * (0.88 + 0.12 * visibility);
 
-        ctx.fillStyle = GRID_ACCENT_COLOR;
-        ctx.globalAlpha = visibility;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        drawGreenGlowCircle(ctx, x, y, radius, visibility);
         continue;
       }
 
@@ -193,6 +184,10 @@ function drawScene(
 }
 
 export function AlertsFeatureCanvas() {
+  useEffect(() => {
+    loadCommandCenterMagnifyingImage();
+  }, []);
+
   const mainDotRef = useRef(
     new FlyingMainDot({ minX: 0, minY: 0, maxX: 0, maxY: 0 }),
   );
