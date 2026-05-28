@@ -37,15 +37,14 @@ function distanceFromHub(
   return Math.hypot(dotX - hubX, dotY - hubY);
 }
 
-function isInsideModifierZone(
+export function isInsideModifierZone(
   dotX: number,
   dotY: number,
   hubX: number,
   hubY: number,
+  zoneRadius = GRID_MODIFIER_ZONE_PIXEL_RADIUS,
 ) {
-  return (
-    distanceFromHub(dotX, dotY, hubX, hubY) <= GRID_MODIFIER_ZONE_PIXEL_RADIUS
-  );
+  return distanceFromHub(dotX, dotY, hubX, hubY) <= zoneRadius;
 }
 
 /** True when a grid point is still inside the hub falloff band (not past the edge fade). */
@@ -65,13 +64,14 @@ export function gridDotAppearance(
   dotY: number,
   hubX: number,
   hubY: number,
+  zoneRadius = GRID_MODIFIER_ZONE_PIXEL_RADIUS,
 ) {
   const dist = distanceFromHub(dotX, dotY, hubX, hubY);
-  if (isInsideModifierZone(dotX, dotY, hubX, hubY)) {
+  if (isInsideModifierZone(dotX, dotY, hubX, hubY, zoneRadius)) {
     return { radius: GRID_DOT_RADIUS, alpha: GRID_MUTED_ALPHA };
   }
 
-  const outside = dist - GRID_MODIFIER_ZONE_PIXEL_RADIUS;
+  const outside = dist - zoneRadius;
   if (outside >= GRID_MODIFIER_FALLOFF_PIXEL) {
     return {
       radius: GRID_DOT_RADIUS * GRID_OUTSIDE_MIN_SCALE,

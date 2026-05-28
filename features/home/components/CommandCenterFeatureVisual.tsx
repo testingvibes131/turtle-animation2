@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { CommandCenterFeatureVisual } from "@/features/home/data/updates";
+import { AlertsFeatureCanvas } from "@/features/home/components/AlertsFeatureCanvas";
 import { CommandCenterFeatureCanvas } from "@/features/home/components/CommandCenterFeatureCanvas";
 import { PortfolioFeatureCanvas } from "@/features/home/components/PortfolioFeatureCanvas";
 
@@ -15,6 +16,10 @@ export function CommandCenterFeatureVisual({ visual, image }: Props) {
 
   if (visual === "deals") {
     return <CommandCenterFeatureCanvas />;
+  }
+
+  if (visual === "alerts") {
+    return <AlertsFeatureCanvas />;
   }
 
   return (
