@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
+  gridColRowToPixel,
+  gridOffsets,
+  type PixelPoint,
+} from "@/features/home/components/commandCenterCanvas";
+import {
+  clamp,
+  clamp01,
   drawFalloffDotGrid,
   GRID_ACCENT_COLOR,
   GRID_CONNECTOR_DOT_RADIUS,
@@ -9,7 +16,9 @@ import {
   GRID_MAIN_DOT_RADIUS,
   GRID_SPACING,
   isInsideGridFalloff,
+  smoothstep,
 } from "@/features/home/components/commandCenterGrid";
+import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
 
 const PORTFOLIO_HUB_RADIUS = GRID_MAIN_DOT_RADIUS * 2;
 const SPINE_RADIUS_MIN = GRID_DOT_RADIUS * 0.65;
@@ -28,7 +37,6 @@ const TRIANGLE_CASCADE_STAGGER = 0.28;
 const RED_BLINK_SPEED = 1.35;
 const RED_OFF_ALPHA = 0.06;
 
-type PixelPoint = { x: number; y: number };
 type SpineDot = PixelPoint & { row: number; baseRadius: number };
 type TriangleDot = PixelPoint & { cascadeIndex: number };
 
@@ -40,42 +48,6 @@ type RedDotSlot = {
   row: number;
   wasLit: boolean;
 };
-
-function smoothstep(t: number) {
-  return t * t * (3 - 2 * t);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function clamp01(value: number) {
-  return clamp(value, 0, 1);
-}
-
-function resizeCanvas(
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  container: HTMLDivElement,
-) {
-  const { width, height } = container.getBoundingClientRect();
-  if (width === 0 || height === 0) return null;
-
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { width, height };
-}
-
-function gridOffsets(width: number, height: number) {
-  return {
-    offsetX: (width % GRID_SPACING) / 2,
-    offsetY: (height % GRID_SPACING) / 2,
-  };
-}
 
 function spineColumnX(hubX: number, offsetX: number) {
   const col = Math.round((hubX - offsetX) / GRID_SPACING);
@@ -160,18 +132,6 @@ function randomGridCellOnSide(
   }
 
   return null;
-}
-
-function gridCellToPixel(
-  col: number,
-  row: number,
-  offsetX: number,
-  offsetY: number,
-): PixelPoint {
-  return {
-    x: offsetX + col * GRID_SPACING,
-    y: offsetY + row * GRID_SPACING,
-  };
 }
 
 function createRedDotSlots(
@@ -272,7 +232,7 @@ function drawSideRedDots(
 
     if (isTriangleGridCell(slot.col, slot.row, hub, width, height)) continue;
 
-    const { x, y } = gridCellToPixel(slot.col, slot.row, offsetX, offsetY);
+    const { x, y } = gridColRowToPixel(slot.col, slot.row, offsetX, offsetY);
     if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
 
     ctx.fillStyle = SIDE_RED_DOT_COLOR;
@@ -459,54 +419,21 @@ function drawScene(
 }
 
 export function PortfolioFeatureCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const startTimeRef = useRef<number | null>(null);
   const redSlotsRef = useRef<RedDotSlot[]>([]);
   const layoutKeyRef = useRef("");
 
-  useEffect(() => {
-    const container = containerRef.current;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let frameId = 0;
-
-    const frame = (now: number) => {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = now;
-      }
-      const timeS = (now - startTimeRef.current) / 1000;
-
-      const size = resizeCanvas(canvas, ctx, container);
-      if (size) {
-        const layoutKey = `${size.width}x${size.height}`;
-        if (layoutKeyRef.current !== layoutKey) {
-          layoutKeyRef.current = layoutKey;
-          const hub = getHubPosition(size.width, size.height);
-          redSlotsRef.current = createRedDotSlots(hub, size.width, size.height);
-        }
-
-        drawScene(ctx, size.width, size.height, timeS, redSlotsRef.current);
+  const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
+    ({ ctx, width, height, timeS }) => {
+      const layoutKey = `${width}x${height}`;
+      if (layoutKeyRef.current !== layoutKey) {
+        layoutKeyRef.current = layoutKey;
+        const hub = getHubPosition(width, height);
+        redSlotsRef.current = createRedDotSlots(hub, width, height);
       }
 
-      frameId = requestAnimationFrame(frame);
-    };
-
-    frameId = requestAnimationFrame(frame);
-    const observer = new ResizeObserver(() => {
-      resizeCanvas(canvas, ctx, container);
-    });
-    observer.observe(container);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      observer.disconnect();
-    };
-  }, []);
+      drawScene(ctx, width, height, timeS, redSlotsRef.current);
+    },
+  );
 
   return (
     <div ref={containerRef} className="absolute inset-0">

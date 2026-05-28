@@ -1,5 +1,15 @@
 /** Shared dot grid styling for Command Center feature canvases. */
 
+import { smoothstep } from "@/features/home/components/commandCenterGridMath";
+
+export {
+  cellKey,
+  cellOrganicUnit,
+  clamp,
+  clamp01,
+  smoothstep,
+} from "@/features/home/components/commandCenterGridMath";
+
 export const GRID_DOT_DIAMETER = 7;
 export const GRID_DOT_RADIUS = GRID_DOT_DIAMETER / 2;
 export const GRID_SPACING = 24;
@@ -24,8 +34,13 @@ export const GRID_OUTSIDE_MIN_SCALE = 0.35;
 export const GRID_MIN_VISIBLE_RADIUS = 0.15;
 export const GRID_MIN_VISIBLE_ALPHA = 0.002;
 
-function smoothstep(t: number) {
-  return t * t * (3 - 2 * t);
+export function distanceFromZoneCenter(
+  dotX: number,
+  dotY: number,
+  zoneX: number,
+  zoneY: number,
+) {
+  return Math.hypot(dotX - zoneX, dotY - zoneY);
 }
 
 function distanceFromHub(
