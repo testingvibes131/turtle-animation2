@@ -1,77 +1,84 @@
+/** Command Center card: Personalized Alerts (`visual: "alerts"`). */
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
-  gridColRowToPixel,
+  getGridDimensions,
   gridOffsets,
   type PixelPoint,
 } from "@/features/home/components/commandCenterCanvas";
 import {
+  cellKey,
+  cellOrganicUnit,
   clamp,
   clamp01,
-  drawFalloffDotGrid,
-  GRID_CONNECTOR_DOT_RADIUS,
   GRID_DOT_RADIUS,
-  GRID_MAIN_DOT_RADIUS,
+  GRID_MIN_VISIBLE_ALPHA,
+  GRID_MIN_VISIBLE_RADIUS,
+  GRID_MUTED_ALPHA,
+  GRID_MODIFIER_ZONE_PIXEL_RADIUS,
   GRID_SPACING,
-  isInsideGridFalloff,
+  isInsideModifierZone,
   smoothstep,
 } from "@/features/home/components/commandCenterGrid";
+import {
+  drawCommandCenterAlertDot,
+  loadCommandCenterAlertDotImage,
+} from "@/features/home/components/commandCenterMagnifyingRing";
 import { drawGreenGlowCircle } from "@/features/home/components/commandCenterGreenGlow";
 import { drawRedGlowCircle } from "@/features/home/components/commandCenterRedGlow";
 import { drawWhiteGlowCircle } from "@/features/home/components/commandCenterWhiteGlow";
-import {
-  COMMAND_CENTER_TURTLE_HEIGHT,
-  COMMAND_CENTER_TURTLE_WIDTH,
-  drawCommandCenterTurtleMark,
-} from "@/features/home/components/commandCenterTurtleMark";
 import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
 
-const PORTFOLIO_HUB_RADIUS = GRID_MAIN_DOT_RADIUS * 2;
-const SPINE_RADIUS_MIN = GRID_DOT_RADIUS * 0.65;
-const SPINE_RADIUS_MAX = GRID_CONNECTOR_DOT_RADIUS * 1.15;
 /** Hub row vs canvas center (0 = vertically centered on card). */
 const HUB_ROW_OFFSET = 0;
-const SIDE_RED_DOT_COUNT = 2;
 
-const PORTFOLIO_TURTLE_WIDTH = COMMAND_CENTER_TURTLE_WIDTH * 1.5;
-const PORTFOLIO_TURTLE_HEIGHT = COMMAND_CENTER_TURTLE_HEIGHT * 1.5;
-/** Turtle anchor at hub — centered on spine/triangle junction. */
-const PORTFOLIO_TURTLE_OFFSET_Y = 0;
-const PORTFOLIO_TRIANGLE_WHITE = { r: 249, g: 249, b: 249 };
-const PORTFOLIO_TRIANGLE_WHITE_OPACITY = 0.5;
-/** Triangle rows top → bottom: 1, 3, 5 dots. */
-const TRIANGLE_ROW_DOT_COUNTS = [1, 3, 5] as const;
-/** Pixel gap between turtle bottom and triangle apex. */
-const TRIANGLE_GAP_BELOW_TURTLE = GRID_SPACING * 0.5;
+/** Top→bottom sweep; all columns in sync (row phase only). */
+const CASCADE_SPEED = 0.95;
+const CASCADE_STAGGER = 0.17;
+const ROW_CASCADE_ALPHA_MIN = 0.38;
+const ROW_CASCADE_SCALE_MIN = 0.48;
+const ROW_CASCADE_SCALE_MAX = 1.85;
+const ALERTS_DOT_GLOW_OPACITY = 0.92;
+const STICK_PEAK_HASH_SALT = 47;
+const PICK_COLOR_HASH_SALT = 61;
+/** ~70% green / 30% red per alert wave. */
+const GREEN_PICK_CHANCE = 0.7;
+const TWO_PI = Math.PI * 2;
+/** Row pulse must be at crest (avoids sticking while wave is still rising/falling). */
+const STICK_PULSE_MIN = 0.97;
+/** Wider fade band than shared grid (default 4 cells → 7 cells). */
+const ALERTS_MODIFIER_FALLOFF_PIXEL = 7 * GRID_SPACING;
+/** Pure white core for alerts grid (default white glow is muted gray). */
+const ALERTS_WHITE_TONE = { r: 255, g: 255, b: 255 };
+/** Icon size vs glow core — grid diameter alone is too small to read. */
+const MAGNIFY_DOT_DIAMETER_SCALE = 2.6;
+const ALERT_ICON_SIZE_SCALE = 1.65;
+const MAGNIFY_DOT_MIN_DIAMETER = 14;
+const MAGNIFY_DOT_HIGHLIGHT_ALPHA = 1;
+const ALERT_ICON_FADE_S = 0.34;
+/** White/green/red glow extends past dot center — keep centers inside clip bounds. */
+const DOT_GLOW_OUTER_SCALE = 1.15 * 1.38;
+const MAX_DOT_GLOW_OUTER_RADIUS =
+  GRID_DOT_RADIUS * ROW_CASCADE_SCALE_MAX * DOT_GLOW_OUTER_SCALE;
+const CANVAS_EDGE_INSET = Math.ceil(
+  Math.max(MAX_DOT_GLOW_OUTER_RADIUS, (MAGNIFY_DOT_MIN_DIAMETER * ALERT_ICON_SIZE_SCALE) / 2),
+);
 
-const SPINE_CASCADE_SPEED = 2.5;
-const SPINE_CASCADE_STAGGER = 0.4;
-const SPINE_SCALE_MIN = 0.38;
-const SPINE_SCALE_MAX = 1.28;
-const TRIANGLE_CASCADE_SPEED = 2.1;
-const TRIANGLE_CASCADE_STAGGER = 0.28;
-const TRIANGLE_SCALE_MIN = 0.38;
-const TRIANGLE_SCALE_MAX = 1.28;
-const RED_BLINK_SPEED = 1.35;
-const RED_OFF_ALPHA = 0.06;
+type HighlightColor = "green" | "red";
 
-type SpineDot = PixelPoint & { row: number; baseRadius: number };
-type TriangleDot = PixelPoint & { cascadeIndex: number };
-
-type RedDotSlot = {
-  side: "left" | "right";
-  slot: number;
-  blinkPhase: number;
-  col: number;
-  row: number;
-  wasLit: boolean;
+type WaveHighlightPlan = {
+  picks: Set<string>;
+  colors: Map<string, HighlightColor>;
 };
 
-function spineColumnX(hubX: number, offsetX: number) {
-  const col = Math.round((hubX - offsetX) / GRID_SPACING);
-  return offsetX + col * GRID_SPACING;
-}
+type AlertIconPhase = "in" | "held" | "out";
+
+type AlertIconState = {
+  phase: AlertIconPhase;
+  phaseStartS: number;
+  color: HighlightColor;
+};
 
 function getHubPosition(width: number, height: number): PixelPoint {
   const { offsetX, offsetY } = gridOffsets(width, height);
@@ -88,438 +95,424 @@ function getHubPosition(width: number, height: number): PixelPoint {
   };
 }
 
-function sideRandom01(index: number, salt: number) {
-  let h = (index * 374761393 + salt * 982451653) | 0;
-  h = (h ^ (h >>> 13)) * 1274126177;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return h / 4294967295;
+function cellCascadePhase(row: number, timeS: number) {
+  return timeS * CASCADE_SPEED - row * CASCADE_STAGGER;
 }
 
-function portfolioTurtleBottomY(hubY: number) {
-  return hubY + PORTFOLIO_TURTLE_OFFSET_Y + PORTFOLIO_TURTLE_HEIGHT / 2;
+function rowCascadePhase(row: number, timeS: number) {
+  return cellCascadePhase(row, timeS);
 }
 
-function triangleLayoutFits(
-  hub: PixelPoint,
-  offsetX: number,
-  offsetY: number,
-  hubCol: number,
-  startRow: number,
-  rows: number,
-  cols: number,
-) {
-  for (let level = 0; level < TRIANGLE_ROW_DOT_COUNTS.length; level++) {
-    const row = startRow + level;
-    if (row >= rows) return false;
-
-    const halfWidth = triangleLevelHalfWidth(level);
-    if (halfWidth === null) return false;
-
-    const y = offsetY + row * GRID_SPACING;
-    for (let col = hubCol - halfWidth; col <= hubCol + halfWidth; col++) {
-      if (col < 0 || col >= cols) return false;
-      const x = offsetX + col * GRID_SPACING;
-      if (!isInsideGridFalloff(x, y, hub.x, hub.y)) return false;
-    }
-  }
-  return true;
+/** One full top→bottom sweep (all rows share this cycle). */
+function globalSweepCycle(timeS: number) {
+  return Math.floor((timeS * CASCADE_SPEED) / TWO_PI);
 }
 
-/** Lowest start row under the turtle where 1 → 3 → 5 all fit in falloff. */
-function portfolioTriangleStartRow(
-  hub: PixelPoint,
-  width: number,
-  height: number,
-  hubRow: number,
-  hubCol: number,
-) {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const rows = Math.ceil((height - offsetY) / GRID_SPACING) + 1;
-  const cols = Math.ceil((width - offsetX) / GRID_SPACING) + 1;
-  const minY = portfolioTurtleBottomY(hub.y) + TRIANGLE_GAP_BELOW_TURTLE;
-  const turtleMinRow = Math.ceil((minY - offsetY) / GRID_SPACING);
-  const minStart = hubRow + 1;
-
-  for (let startRow = turtleMinRow; startRow >= minStart; startRow--) {
-    if (triangleLayoutFits(hub, offsetX, offsetY, hubCol, startRow, rows, cols)) {
-      return startRow;
-    }
-  }
-  return minStart;
+function rowSweepCycle(row: number, timeS: number) {
+  return Math.floor(rowCascadePhase(row, timeS) / TWO_PI);
 }
 
-function triangleLevelHalfWidth(level: number) {
-  if (level < 0 || level >= TRIANGLE_ROW_DOT_COUNTS.length) return null;
-  return (TRIANGLE_ROW_DOT_COUNTS[level] - 1) / 2;
-}
-
-function isTriangleGridCell(
-  col: number,
+function clearRowStuck(
+  stuck: Set<string>,
+  stuckColors: Map<string, HighlightColor>,
   row: number,
-  hub: PixelPoint,
-  width: number,
-  height: number,
 ) {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const hubCol = Math.round((hub.x - offsetX) / GRID_SPACING);
-  const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const startRow = portfolioTriangleStartRow(hub, width, height, hubRow, hubCol);
-  const level = row - startRow;
-  const halfWidth = triangleLevelHalfWidth(level);
-  if (halfWidth === null) return false;
-  if (col < hubCol - halfWidth || col > hubCol + halfWidth) return false;
-
-  const x = offsetX + col * GRID_SPACING;
-  const y = offsetY + row * GRID_SPACING;
-  return isInsideGridFalloff(x, y, hub.x, hub.y);
-}
-
-function randomGridCellOnSide(
-  hub: PixelPoint,
-  width: number,
-  height: number,
-  side: "left" | "right",
-  slot: number,
-  salt: number,
-): { col: number; row: number } | null {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const cols = Math.ceil((width - offsetX) / GRID_SPACING) + 1;
-  const rows = Math.ceil((height - offsetY) / GRID_SPACING) + 1;
-  const hubCol = Math.round((hub.x - offsetX) / GRID_SPACING);
-
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const col =
-      side === "left"
-        ? Math.floor(
-            sideRandom01(attempt, salt + slot * 17) * Math.max(1, hubCol - 1),
-          )
-        : hubCol +
-          1 +
-          Math.floor(
-            sideRandom01(attempt, salt + slot * 23) *
-              Math.max(1, cols - hubCol - 2),
-          );
-    const row = Math.floor(sideRandom01(attempt, salt + slot * 31) * rows);
-    if (isTriangleGridCell(col, row, hub, width, height)) continue;
-
-    const x = offsetX + col * GRID_SPACING;
-    const y = offsetY + row * GRID_SPACING;
-    if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
-    return { col, row };
-  }
-
-  return null;
-}
-
-function createRedDotSlots(
-  hub: PixelPoint,
-  width: number,
-  height: number,
-): RedDotSlot[] {
-  const slots: RedDotSlot[] = [];
-
-  for (const side of ["left", "right"] as const) {
-    for (let slot = 0; slot < SIDE_RED_DOT_COUNT; slot++) {
-      const salt = side === "left" ? 11 : 29;
-      const cell = randomGridCellOnSide(hub, width, height, side, slot, salt);
-      if (!cell) continue;
-
-      slots.push({
-        side,
-        slot,
-        blinkPhase: sideRandom01(slot, salt + 5) * Math.PI * 2,
-        col: cell.col,
-        row: cell.row,
-        wasLit: true,
-      });
-    }
-  }
-
-  return slots;
-}
-
-function retargetRedSlot(
-  slot: RedDotSlot,
-  hub: PixelPoint,
-  width: number,
-  height: number,
-  saltOffset: number,
-) {
-  const salt = (slot.side === "left" ? 11 : 29) + saltOffset;
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const next = randomGridCellOnSide(
-      hub,
-      width,
-      height,
-      slot.side,
-      slot.slot,
-      salt + attempt,
-    );
-    if (!next) continue;
-    if (next.col === slot.col && next.row === slot.row) continue;
-    slot.col = next.col;
-    slot.row = next.row;
-    return;
+  const prefix = `${row},`;
+  for (const key of [...stuck]) {
+    if (!key.startsWith(prefix)) continue;
+    stuck.delete(key);
+    stuckColors.delete(key);
   }
 }
 
-function updateRedDotSlots(
-  slots: RedDotSlot[],
-  hub: PixelPoint,
-  width: number,
-  height: number,
-  timeS: number,
+function rowPulse(row: number, timeS: number) {
+  return 0.5 + 0.5 * Math.sin(cellCascadePhase(row, timeS));
+}
+
+function isRowAtWaveCrest(row: number, timeS: number) {
+  return rowPulse(row, timeS) >= STICK_PULSE_MIN;
+}
+
+function rowCascadeFactors(row: number, timeS: number) {
+  const pulse = rowPulse(row, timeS);
+  return {
+    alpha: ROW_CASCADE_ALPHA_MIN + (1 - ROW_CASCADE_ALPHA_MIN) * pulse,
+    scale:
+      ROW_CASCADE_SCALE_MIN +
+      (ROW_CASCADE_SCALE_MAX - ROW_CASCADE_SCALE_MIN) * pulse,
+  };
+}
+
+function peakCascadeFactors() {
+  return { alpha: 1, scale: ROW_CASCADE_SCALE_MAX };
+}
+
+/** Hub falloff: 1 inside modifier zone, smooth fade to 0 at falloff edge. */
+function alertsDotFalloffScale(
+  dotX: number,
+  dotY: number,
+  hubX: number,
+  hubY: number,
 ) {
-  for (const slot of slots) {
-    const alpha = redDotVisibility(slot, timeS);
-    const lit = alpha > RED_OFF_ALPHA;
-
-    if (!lit && slot.wasLit) {
-      retargetRedSlot(
-        slot,
-        hub,
-        width,
-        height,
-        Math.floor(timeS * 10) + slot.slot,
-      );
-    }
-
-    slot.wasLit = lit;
-  }
-}
-
-function redDotVisibility(slot: RedDotSlot, timeS: number) {
-  const wave = Math.sin(timeS * RED_BLINK_SPEED + slot.blinkPhase);
-  return smoothstep(clamp01((wave + 0.15) / 0.55));
-}
-
-function drawSideRedDots(
-  ctx: CanvasRenderingContext2D,
-  slots: RedDotSlot[],
-  hub: PixelPoint,
-  width: number,
-  height: number,
-  timeS: number,
-) {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-
-  for (const slot of slots) {
-    const alpha = redDotVisibility(slot, timeS);
-    if (alpha <= 0.01) continue;
-
-    if (isTriangleGridCell(slot.col, slot.row, hub, width, height)) continue;
-
-    const { x, y } = gridColRowToPixel(slot.col, slot.row, offsetX, offsetY);
-    if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
-
-    drawRedGlowCircle(ctx, x, y, GRID_CONNECTOR_DOT_RADIUS, alpha);
-  }
-}
-
-function spineDotBaseRadius(row: number, hubRow: number) {
-  if (hubRow <= 1) return SPINE_RADIUS_MAX;
-  const towardTop = 1 - row / (hubRow - 1);
-  return SPINE_RADIUS_MIN + (SPINE_RADIUS_MAX - SPINE_RADIUS_MIN) * towardTop;
-}
-
-function spineCascadeScale(row: number, hubRow: number, timeS: number) {
-  const indexFromHub = hubRow - 1 - row;
-  const phase = timeS * SPINE_CASCADE_SPEED - indexFromHub * SPINE_CASCADE_STAGGER;
-  const pulse = 0.5 + 0.5 * Math.sin(phase);
-  return SPINE_SCALE_MIN + (SPINE_SCALE_MAX - SPINE_SCALE_MIN) * pulse;
-}
-
-function getTopSpineDots(
-  hub: PixelPoint,
-  width: number,
-  height: number,
-): SpineDot[] {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const x = spineColumnX(hub.x, offsetX);
-  const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const dots: SpineDot[] = [];
-
-  for (let row = 0; row < hubRow; row++) {
-    const y = offsetY + row * GRID_SPACING;
-    if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
-
-    dots.push({
-      x,
-      y,
-      row,
-      baseRadius: spineDotBaseRadius(row, hubRow),
-    });
+  if (isInsideModifierZone(dotX, dotY, hubX, hubY)) {
+    return 1;
   }
 
-  return dots;
-}
-
-function drawTopSpineDots(
-  ctx: CanvasRenderingContext2D,
-  dots: SpineDot[],
-  hubRow: number,
-  timeS: number,
-) {
-  for (const dot of dots) {
-    const scale = spineCascadeScale(dot.row, hubRow, timeS);
-    drawGreenGlowCircle(ctx, dot.x, dot.y, dot.baseRadius * scale);
-  }
-}
-
-function getBottomTriangleDots(
-  hub: PixelPoint,
-  width: number,
-  height: number,
-): TriangleDot[] {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const cols = Math.ceil((width - offsetX) / GRID_SPACING) + 1;
-  const rows = Math.ceil((height - offsetY) / GRID_SPACING) + 1;
-  const hubCol = Math.round((hub.x - offsetX) / GRID_SPACING);
-  const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const startRow = portfolioTriangleStartRow(hub, width, height, hubRow, hubCol);
-  const dots: TriangleDot[] = [];
-
-  for (let level = 0; level < TRIANGLE_ROW_DOT_COUNTS.length; level++) {
-    const row = startRow + level;
-    if (row >= rows) break;
-
-    const y = offsetY + row * GRID_SPACING;
-    const halfWidth = triangleLevelHalfWidth(level);
-    if (halfWidth === null) continue;
-
-    for (let col = hubCol - halfWidth; col <= hubCol + halfWidth; col++) {
-      if (col < 0 || col >= cols) continue;
-      const x = offsetX + col * GRID_SPACING;
-      if (!isInsideGridFalloff(x, y, hub.x, hub.y)) continue;
-      dots.push({ x, y, cascadeIndex: level });
-    }
+  const dist = Math.hypot(dotX - hubX, dotY - hubY);
+  const outside = dist - GRID_MODIFIER_ZONE_PIXEL_RADIUS;
+  if (outside >= ALERTS_MODIFIER_FALLOFF_PIXEL) {
+    return 0;
   }
 
-  return dots;
+  const t = smoothstep(outside / ALERTS_MODIFIER_FALLOFF_PIXEL);
+  return 1 - t;
 }
 
-function triangleCascadePhase(
-  cascadeIndex: number,
-  maxCascadeIndex: number,
-  timeS: number,
-) {
-  const indexFromBottom = maxCascadeIndex - cascadeIndex;
-  return timeS * TRIANGLE_CASCADE_SPEED - indexFromBottom * TRIANGLE_CASCADE_STAGGER;
+/** Narrow pulse excursion as hub falloff fades (keeps edge dots small/dim). */
+function pulseModulatedByFalloff(value: number, falloffScale: number) {
+  return 1 + (value - 1) * falloffScale;
 }
 
-function triangleCascadeOpacity(
-  cascadeIndex: number,
-  maxCascadeIndex: number,
-  timeS: number,
+/** Falloff disc + glow halo so edge dots are not clipped at the circle boundary. */
+function isDotInsideFalloffVisibleArea(
+  dotX: number,
+  dotY: number,
+  hubX: number,
+  hubY: number,
+  glowOuterRadius: number,
 ) {
-  const phase = triangleCascadePhase(cascadeIndex, maxCascadeIndex, timeS);
-  return 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(phase));
-}
-
-function triangleCascadeScale(
-  cascadeIndex: number,
-  maxCascadeIndex: number,
-  timeS: number,
-) {
-  const phase = triangleCascadePhase(cascadeIndex, maxCascadeIndex, timeS);
-  const pulse = 0.5 + 0.5 * Math.sin(phase);
-  return TRIANGLE_SCALE_MIN + (TRIANGLE_SCALE_MAX - TRIANGLE_SCALE_MIN) * pulse;
-}
-
-function drawBottomTriangleDots(
-  ctx: CanvasRenderingContext2D,
-  dots: TriangleDot[],
-  timeS: number,
-) {
-  const maxCascadeIndex = dots.reduce(
-    (max, dot) => Math.max(max, dot.cascadeIndex),
-    0,
+  const dist = Math.hypot(dotX - hubX, dotY - hubY);
+  return (
+    dist <=
+    GRID_MODIFIER_ZONE_PIXEL_RADIUS +
+      ALERTS_MODIFIER_FALLOFF_PIXEL +
+      glowOuterRadius
   );
-
-  for (const dot of dots) {
-    const alpha = triangleCascadeOpacity(
-      dot.cascadeIndex,
-      maxCascadeIndex,
-      timeS,
-    );
-    if (alpha <= 0.01) continue;
-
-    const scale = triangleCascadeScale(
-      dot.cascadeIndex,
-      maxCascadeIndex,
-      timeS,
-    );
-    drawWhiteGlowCircle(
-      ctx,
-      dot.x,
-      dot.y,
-      GRID_DOT_RADIUS * scale,
-      alpha * PORTFOLIO_TRIANGLE_WHITE_OPACITY,
-      PORTFOLIO_TRIANGLE_WHITE,
-    );
-  }
 }
 
-function isTopSpineGridDot(
+function isInsideCanvasGlowMargin(
   x: number,
   y: number,
-  hub: PixelPoint,
   width: number,
   height: number,
+  outerRadius: number,
 ) {
-  const { offsetX, offsetY } = gridOffsets(width, height);
-  const spineX = spineColumnX(hub.x, offsetX);
-  const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const row = Math.round((y - offsetY) / GRID_SPACING);
   return (
-    Math.abs(x - spineX) < 0.5 &&
-    row >= 0 &&
-    row < hubRow &&
-    isInsideGridFalloff(x, y, hub.x, hub.y)
+    x >= outerRadius &&
+    x <= width - outerRadius &&
+    y >= outerRadius &&
+    y <= height - outerRadius
   );
 }
 
-function drawScene(
+function pickedHighlightColor(
+  row: number,
+  col: number,
+  waveCycle: number,
+): HighlightColor {
+  return cellOrganicUnit(row, col + PICK_COLOR_HASH_SALT + waveCycle * 313) <
+    GREEN_PICK_CHANCE
+    ? "green"
+    : "red";
+}
+
+function waveHighlightScore(row: number, col: number, waveCycle: number) {
+  return cellOrganicUnit(
+    row,
+    col + STICK_PEAK_HASH_SALT + waveCycle * 911,
+  );
+}
+
+/** Exactly one highlight per global wave (deterministic hub cell per cycle). */
+function buildWaveHighlightPicks(
+  rows: number,
+  cols: number,
+  offsetX: number,
+  offsetY: number,
+  hubX: number,
+  hubY: number,
+  waveCycle: number,
+) {
+  const picks = new Set<string>();
+  const colors = new Map<string, HighlightColor>();
+
+  let chosen: { row: number; col: number } | null = null;
+  let bestScore = Infinity;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const x = offsetX + col * GRID_SPACING;
+      const y = offsetY + row * GRID_SPACING;
+      if (!isInFullStrengthHub(x, y, hubX, hubY)) continue;
+
+      const score = waveHighlightScore(row, col, waveCycle);
+      if (score >= bestScore) continue;
+
+      bestScore = score;
+      chosen = { row, col };
+    }
+  }
+
+  if (chosen) {
+    const key = cellKey(chosen.row, chosen.col);
+    picks.add(key);
+    colors.set(key, pickedHighlightColor(chosen.row, chosen.col, waveCycle));
+  }
+
+  return { picks, colors };
+}
+
+/** Full-strength hub only — fade band never reaches max size/opacity. */
+function isInFullStrengthHub(
+  dotX: number,
+  dotY: number,
+  hubX: number,
+  hubY: number,
+) {
+  return isInsideModifierZone(dotX, dotY, hubX, hubY);
+}
+
+function pruneInvalidStuckCells(
+  stuck: Set<string>,
+  stuckColors: Map<string, HighlightColor>,
+  offsetX: number,
+  offsetY: number,
+  hubX: number,
+  hubY: number,
+) {
+  for (const key of [...stuck]) {
+    const comma = key.indexOf(",");
+    const row = Number(key.slice(0, comma));
+    const col = Number(key.slice(comma + 1));
+    const x = offsetX + col * GRID_SPACING;
+    const y = offsetY + row * GRID_SPACING;
+    if (!isInFullStrengthHub(x, y, hubX, hubY)) {
+      stuck.delete(key);
+      stuckColors.delete(key);
+    }
+  }
+}
+
+function alertIconFadeAlpha(state: AlertIconState, timeS: number) {
+  const t = clamp01((timeS - state.phaseStartS) / ALERT_ICON_FADE_S);
+  switch (state.phase) {
+    case "in":
+      return smoothstep(t) * MAGNIFY_DOT_HIGHLIGHT_ALPHA;
+    case "held":
+      return MAGNIFY_DOT_HIGHLIGHT_ALPHA;
+    case "out":
+      return (1 - smoothstep(t)) * MAGNIFY_DOT_HIGHLIGHT_ALPHA;
+  }
+}
+
+function syncAlertIconStates(
+  iconStates: Map<string, AlertIconState>,
+  stuck: Set<string>,
+  stuckColors: Map<string, HighlightColor>,
+  timeS: number,
+) {
+  for (const key of stuck) {
+    const color = stuckColors.get(key) ?? "green";
+    const existing = iconStates.get(key);
+    if (!existing) {
+      iconStates.set(key, { phase: "in", phaseStartS: timeS, color });
+      continue;
+    }
+    if (existing.phase === "out") {
+      iconStates.set(key, { phase: "in", phaseStartS: timeS, color });
+    } else if (existing.phase === "in") {
+      const t = timeS - existing.phaseStartS;
+      if (t >= ALERT_ICON_FADE_S) {
+        iconStates.set(key, {
+          phase: "held",
+          phaseStartS: timeS,
+          color: existing.color,
+        });
+      }
+    }
+  }
+
+  for (const [key, state] of [...iconStates]) {
+    if (stuck.has(key)) continue;
+
+    if (state.phase === "out") {
+      if (timeS - state.phaseStartS >= ALERT_ICON_FADE_S) {
+        iconStates.delete(key);
+      }
+      continue;
+    }
+
+    iconStates.set(key, {
+      phase: "out",
+      phaseStartS: timeS,
+      color: state.color,
+    });
+  }
+}
+
+function updatePeakStuckCells(
+  stuck: Set<string>,
+  stuckColors: Map<string, HighlightColor>,
+  rowCycles: Map<number, number>,
+  wavePlan: WaveHighlightPlan,
+  rows: number,
+  cols: number,
+  timeS: number,
+  offsetX: number,
+  offsetY: number,
+  hubX: number,
+  hubY: number,
+) {
+  pruneInvalidStuckCells(stuck, stuckColors, offsetX, offsetY, hubX, hubY);
+
+  for (let row = 0; row < rows; row++) {
+    const cycle = rowSweepCycle(row, timeS);
+    if (rowCycles.get(row) !== cycle) {
+      rowCycles.set(row, cycle);
+      clearRowStuck(stuck, stuckColors, row);
+    }
+
+    if (!isRowAtWaveCrest(row, timeS)) continue;
+
+    for (let col = 0; col < cols; col++) {
+      const key = cellKey(row, col);
+      if (!wavePlan.picks.has(key)) continue;
+
+      const x = offsetX + col * GRID_SPACING;
+      const y = offsetY + row * GRID_SPACING;
+      if (!isInFullStrengthHub(x, y, hubX, hubY)) continue;
+
+      if (!stuck.has(key)) {
+        const color = wavePlan.colors.get(key);
+        if (color) stuckColors.set(key, color);
+      }
+      stuck.add(key);
+    }
+  }
+}
+
+function drawCascadingFalloffGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
+  hubX: number,
+  hubY: number,
   timeS: number,
-  redSlots: RedDotSlot[],
+  stuckAtPeak: Set<string>,
+  stuckColors: Map<string, HighlightColor>,
+  alertIconStates: Map<string, AlertIconState>,
 ) {
-  ctx.clearRect(0, 0, width, height);
+  const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
+  const glowAlphaScale = ALERTS_DOT_GLOW_OPACITY / GRID_MUTED_ALPHA;
+  const peakGlowRadius = GRID_DOT_RADIUS * ROW_CASCADE_SCALE_MAX;
+  const peakIconDiameter =
+    Math.max(
+      MAGNIFY_DOT_MIN_DIAMETER,
+      peakGlowRadius * 2 * MAGNIFY_DOT_DIAMETER_SCALE,
+    ) * ALERT_ICON_SIZE_SCALE;
 
-  const hub = getHubPosition(width, height);
-  const { offsetY } = gridOffsets(width, height);
-  const hubRow = Math.round((hub.y - offsetY) / GRID_SPACING);
-  const topSpineDots = getTopSpineDots(hub, width, height);
-  const bottomTriangleDots = getBottomTriangleDots(hub, width, height);
+  for (const [key, state] of alertIconStates) {
+    const iconAlpha = alertIconFadeAlpha(state, timeS);
+    if (iconAlpha < 0.01) continue;
 
-  updateRedDotSlots(redSlots, hub, width, height, timeS);
+    const comma = key.indexOf(",");
+    const row = Number(key.slice(0, comma));
+    const col = Number(key.slice(comma + 1));
+    const x = offsetX + col * GRID_SPACING;
+    const y = offsetY + row * GRID_SPACING;
+    const iconOuterRadius = peakIconDiameter / 2;
+    if (!isInsideCanvasGlowMargin(x, y, width, height, iconOuterRadius)) {
+      continue;
+    }
 
-  drawFalloffDotGrid(ctx, width, height, hub.x, hub.y, (x, y) =>
-    isTopSpineGridDot(x, y, hub, width, height),
-  );
-
-  drawBottomTriangleDots(ctx, bottomTriangleDots, timeS);
-  drawTopSpineDots(ctx, topSpineDots, hubRow, timeS);
-  drawSideRedDots(ctx, redSlots, hub, width, height, timeS);
-
-  const turtleY = hub.y + PORTFOLIO_TURTLE_OFFSET_Y;
-  if (
-    !drawCommandCenterTurtleMark(
+    drawCommandCenterAlertDot(
       ctx,
-      hub.x,
-      turtleY,
-      PORTFOLIO_TURTLE_WIDTH,
-      PORTFOLIO_TURTLE_HEIGHT,
-    )
-  ) {
-    drawGreenGlowCircle(ctx, hub.x, turtleY, PORTFOLIO_HUB_RADIUS);
+      x,
+      y,
+      peakIconDiameter,
+      iconAlpha,
+      state.color,
+    );
+  }
+
+  for (let row = 0; row < rows; row++) {
+    const rowCascade = rowCascadeFactors(row, timeS);
+
+    for (let col = 0; col < cols; col++) {
+      const x = offsetX + col * GRID_SPACING;
+      const y = offsetY + row * GRID_SPACING;
+      const key = cellKey(row, col);
+      const iconState = alertIconStates.get(key);
+      const isStuckPeak =
+        stuckAtPeak.has(key) && isInFullStrengthHub(x, y, hubX, hubY);
+      const isHighlightFadingOut = iconState?.phase === "out";
+      const cascade =
+        isStuckPeak || isHighlightFadingOut
+          ? peakCascadeFactors()
+          : rowCascade;
+      const highlightColor = isStuckPeak
+        ? stuckColors.get(key)
+        : isHighlightFadingOut
+          ? iconState.color
+          : null;
+
+      const falloffScale = alertsDotFalloffScale(x, y, hubX, hubY);
+      if (falloffScale <= 0) continue;
+
+      const pulseScale = pulseModulatedByFalloff(cascade.scale, falloffScale);
+      const pulseAlpha = pulseModulatedByFalloff(cascade.alpha, falloffScale);
+      const glowRadius = GRID_DOT_RADIUS * falloffScale * pulseScale;
+      const glowOuterRadius = glowRadius * DOT_GLOW_OUTER_SCALE;
+      const glowAlpha =
+        GRID_MUTED_ALPHA * falloffScale * pulseAlpha * glowAlphaScale;
+
+      if (
+        glowRadius < GRID_MIN_VISIBLE_RADIUS ||
+        glowAlpha < GRID_MIN_VISIBLE_ALPHA
+      ) {
+        continue;
+      }
+
+      if (
+        !isDotInsideFalloffVisibleArea(x, y, hubX, hubY, glowOuterRadius) ||
+        !isInsideCanvasGlowMargin(x, y, width, height, glowOuterRadius)
+      ) {
+        continue;
+      }
+
+      if (highlightColor === "red") {
+        drawRedGlowCircle(ctx, x, y, glowRadius, glowAlpha);
+      } else if (highlightColor === "green") {
+        drawGreenGlowCircle(ctx, x, y, glowRadius, glowAlpha);
+      } else {
+        drawWhiteGlowCircle(
+          ctx,
+          x,
+          y,
+          glowRadius,
+          glowAlpha,
+          ALERTS_WHITE_TONE,
+        );
+      }
+
+    }
   }
 }
 
 export function PortfolioFeatureCanvas() {
-  const redSlotsRef = useRef<RedDotSlot[]>([]);
+  useEffect(() => {
+    loadCommandCenterAlertDotImage();
+  }, []);
+
+  const stuckAtPeakRef = useRef(new Set<string>());
+  const stuckColorsRef = useRef(new Map<string, HighlightColor>());
+  const alertIconStatesRef = useRef(new Map<string, AlertIconState>());
+  const waveHighlightPlanRef = useRef<WaveHighlightPlan>({
+    picks: new Set(),
+    colors: new Map(),
+  });
+  const rowCyclesRef = useRef(new Map<number, number>());
+  const globalWaveCycleRef = useRef(-1);
   const layoutKeyRef = useRef("");
 
   const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
@@ -527,16 +520,71 @@ export function PortfolioFeatureCanvas() {
       const layoutKey = `${width}x${height}`;
       if (layoutKeyRef.current !== layoutKey) {
         layoutKeyRef.current = layoutKey;
-        const hub = getHubPosition(width, height);
-        redSlotsRef.current = createRedDotSlots(hub, width, height);
+        stuckAtPeakRef.current = new Set();
+        stuckColorsRef.current = new Map();
+        alertIconStatesRef.current = new Map();
+        waveHighlightPlanRef.current = { picks: new Set(), colors: new Map() };
+        rowCyclesRef.current = new Map();
+        globalWaveCycleRef.current = -1;
       }
 
-      drawScene(ctx, width, height, timeS, redSlotsRef.current);
+      const hub = getHubPosition(width, height);
+      const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
+      const waveCycle = globalSweepCycle(timeS);
+      if (globalWaveCycleRef.current !== waveCycle) {
+        globalWaveCycleRef.current = waveCycle;
+        waveHighlightPlanRef.current = buildWaveHighlightPicks(
+          rows,
+          cols,
+          offsetX,
+          offsetY,
+          hub.x,
+          hub.y,
+          waveCycle,
+        );
+      }
+
+      updatePeakStuckCells(
+        stuckAtPeakRef.current,
+        stuckColorsRef.current,
+        rowCyclesRef.current,
+        waveHighlightPlanRef.current,
+        rows,
+        cols,
+        timeS,
+        offsetX,
+        offsetY,
+        hub.x,
+        hub.y,
+      );
+      syncAlertIconStates(
+        alertIconStatesRef.current,
+        stuckAtPeakRef.current,
+        stuckColorsRef.current,
+        timeS,
+      );
+
+      ctx.clearRect(0, 0, width, height);
+      drawCascadingFalloffGrid(
+        ctx,
+        width,
+        height,
+        hub.x,
+        hub.y,
+        timeS,
+        stuckAtPeakRef.current,
+        stuckColorsRef.current,
+        alertIconStatesRef.current,
+      );
     },
   );
 
   return (
-    <div ref={containerRef} className="absolute inset-0">
+    <div
+      ref={containerRef}
+      className="absolute inset-0"
+      style={{ padding: CANVAS_EDGE_INSET }}
+    >
       <canvas ref={canvasRef} className="block h-full w-full" />
     </div>
   );

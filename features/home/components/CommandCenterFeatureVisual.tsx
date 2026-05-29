@@ -12,13 +12,13 @@ type Props = {
 export function CommandCenterFeatureVisual({ visual, image }: Props) {
   switch (visual) {
     case "deals":
-      // Diligenced Deals — composition 3 (glass zone + green diamond)
+      // Diligenced Deals — glass ring + green diamond pulse
       return <AlertsFeatureCanvas />;
     case "portfolio":
-      // Aggregated Portfolio — composition 1 (connector ring + flying turtle)
+      // Aggregated Portfolio — connector ring + flying turtle
       return <CommandCenterFeatureCanvas />;
     case "alerts":
-      // Personalized Alerts — composition 2 (spine + triangle + turtle)
+      // Personalized Alerts — falloff grid, white glow, L→R row cascade
       return <PortfolioFeatureCanvas />;
     default:
       return (

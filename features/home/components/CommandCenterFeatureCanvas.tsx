@@ -1,3 +1,4 @@
+/** Command Center card: Aggregated Portfolio (`visual: "portfolio"`). */
 "use client";
 
 import { useRef } from "react";

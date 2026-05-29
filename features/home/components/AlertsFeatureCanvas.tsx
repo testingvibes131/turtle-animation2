@@ -1,3 +1,4 @@
+/** Command Center card: Diligenced Deals (`visual: "deals"`). */
 "use client";
 
 import { useEffect, useRef } from "react";

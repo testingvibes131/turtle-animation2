@@ -42,6 +42,7 @@ export const updates: UpdateArticle[] = [
   },
 ];
 
+/** Routed in CommandCenterFeatureVisual: deals → diamond, portfolio → connectors, alerts → row cascade. */
 export type CommandCenterFeatureVisual = "deals" | "portfolio" | "alerts";
 
 export type CommandCenterFeature = {
