@@ -36,11 +36,12 @@ const ALERTS_MODIFIER_ZONE_SCALE = 0.88;
 const ALERTS_MODIFIER_ZONE_PIXEL_RADIUS =
   GRID_MODIFIER_ZONE_PIXEL_RADIUS * ALERTS_MODIFIER_ZONE_SCALE;
 
-const DIAMOND_GREEN_RADIUS_CENTER = GRID_CONNECTOR_DOT_RADIUS * 1.35;
-const DIAMOND_GREEN_RADIUS_EDGE = GRID_DOT_RADIUS * 0.88;
+const DIAMOND_GREEN_RADIUS_CENTER = GRID_CONNECTOR_DOT_RADIUS * 1.5;
+const DIAMOND_GREEN_RADIUS_EDGE = GRID_DOT_RADIUS * 0.95;
 const DIAMOND_PULSE_SPEED = 1.75;
 const DIAMOND_PULSE_STAGGER = 0.48;
-const DIAMOND_MIN_VISIBILITY = 0.42;
+const DIAMOND_MIN_VISIBILITY = 0.62;
+const ALERTS_GREEN_VISIBILITY_BOOST = 1.2;
 
 function isDiamondGreenDot(col: number, row: number, hubCol: number, hubRow: number) {
   const dr = Math.abs(row - hubRow);
@@ -81,7 +82,7 @@ function drawModifierZoneCircle(
   drawCommandCenterMagnifyingRing(ctx, zoneX, zoneY, zoneDiameter);
 }
 
-function drawModifierGrid(
+function drawModifierMutedGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -89,34 +90,27 @@ function drawModifierGrid(
   zoneY: number,
   hubCol: number,
   hubRow: number,
-  timeS: number,
 ) {
   const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
   const zoneRadius = ALERTS_MODIFIER_ZONE_PIXEL_RADIUS;
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const x = offsetX + col * GRID_SPACING;
-      const y = offsetY + row * GRID_SPACING;
-
       if (
-        isInsideModifierZone(x, y, zoneX, zoneY, zoneRadius) &&
+        isInsideModifierZone(
+          offsetX + col * GRID_SPACING,
+          offsetY + row * GRID_SPACING,
+          zoneX,
+          zoneY,
+          zoneRadius,
+        ) &&
         isDiamondGreenDot(col, row, hubCol, hubRow)
       ) {
-        const visibility = diamondGreenVisibility(
-          col,
-          row,
-          hubCol,
-          hubRow,
-          timeS,
-        );
-        const baseRadius = diamondGreenRadius(col, row, hubCol, hubRow);
-        const radius = baseRadius * (0.88 + 0.12 * visibility);
-
-        drawGreenGlowCircle(ctx, x, y, radius, visibility);
         continue;
       }
 
+      const x = offsetX + col * GRID_SPACING;
+      const y = offsetY + row * GRID_SPACING;
       const { radius, alpha } = gridDotAppearance(
         x,
         y,
@@ -132,6 +126,49 @@ function drawModifierGrid(
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+}
+
+function drawDiamondGreenDots(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  zoneX: number,
+  zoneY: number,
+  hubCol: number,
+  hubRow: number,
+  timeS: number,
+) {
+  const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
+  const zoneRadius = ALERTS_MODIFIER_ZONE_PIXEL_RADIUS;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (
+        !isInsideModifierZone(
+          offsetX + col * GRID_SPACING,
+          offsetY + row * GRID_SPACING,
+          zoneX,
+          zoneY,
+          zoneRadius,
+        ) ||
+        !isDiamondGreenDot(col, row, hubCol, hubRow)
+      ) {
+        continue;
+      }
+
+      const x = offsetX + col * GRID_SPACING;
+      const y = offsetY + row * GRID_SPACING;
+      const visibility = Math.min(
+        1,
+        diamondGreenVisibility(col, row, hubCol, hubRow, timeS) *
+          ALERTS_GREEN_VISIBILITY_BOOST,
+      );
+      const baseRadius = diamondGreenRadius(col, row, hubCol, hubRow);
+      const radius = baseRadius * (0.92 + 0.14 * visibility);
+
+      drawGreenGlowCircle(ctx, x, y, radius, visibility);
     }
   }
 }
@@ -170,8 +207,17 @@ function drawScene(
     dt,
   );
 
+  drawModifierMutedGrid(
+    ctx,
+    width,
+    height,
+    zoneCenter.x,
+    zoneCenter.y,
+    hub.col,
+    hub.row,
+  );
   drawModifierZoneCircle(ctx, zoneCenter.x, zoneCenter.y);
-  drawModifierGrid(
+  drawDiamondGreenDots(
     ctx,
     width,
     height,

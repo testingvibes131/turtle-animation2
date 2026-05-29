@@ -30,13 +30,14 @@ import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCent
 const PORTFOLIO_HUB_RADIUS = GRID_MAIN_DOT_RADIUS * 2;
 const SPINE_RADIUS_MIN = GRID_DOT_RADIUS * 0.65;
 const SPINE_RADIUS_MAX = GRID_CONNECTOR_DOT_RADIUS * 1.15;
-/** Hub row vs canvas center — lower = more room for triangle below. */
-const HUB_ROW_OFFSET = 1;
+/** Hub row vs canvas center (0 = vertically centered on card). */
+const HUB_ROW_OFFSET = 0;
 const SIDE_RED_DOT_COUNT = 2;
 
 const PORTFOLIO_TURTLE_WIDTH = COMMAND_CENTER_TURTLE_WIDTH * 1.5;
 const PORTFOLIO_TURTLE_HEIGHT = COMMAND_CENTER_TURTLE_HEIGHT * 1.5;
-const PORTFOLIO_TURTLE_OFFSET_Y = GRID_SPACING;
+/** Turtle anchor at hub — centered on spine/triangle junction. */
+const PORTFOLIO_TURTLE_OFFSET_Y = 0;
 const PORTFOLIO_TRIANGLE_WHITE = { r: 249, g: 249, b: 249 };
 const PORTFOLIO_TRIANGLE_WHITE_OPACITY = 0.5;
 /** Triangle rows top → bottom: 1, 3, 5 dots. */

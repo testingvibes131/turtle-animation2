@@ -12,8 +12,8 @@ export function PartnersLogos() {
       aria-label="Partner protocols"
     >
       <DashedRule />
-      <div className="py-[clamp(20px,2.4vw,36px)]">
-        <LogoMarquee logos={protocolLogos} repeats={4} />
+      <div className="pointer-events-auto py-[clamp(20px,2.4vw,36px)]">
+        <LogoMarquee logos={protocolLogos} />
       </div>
     </section>
   );

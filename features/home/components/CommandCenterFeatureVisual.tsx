@@ -10,25 +10,25 @@ type Props = {
 };
 
 export function CommandCenterFeatureVisual({ visual, image }: Props) {
-  if (visual === "portfolio") {
-    return <PortfolioFeatureCanvas />;
+  switch (visual) {
+    case "deals":
+      // Diligenced Deals — composition 3 (glass zone + green diamond)
+      return <AlertsFeatureCanvas />;
+    case "portfolio":
+      // Aggregated Portfolio — composition 1 (connector ring + flying turtle)
+      return <CommandCenterFeatureCanvas />;
+    case "alerts":
+      // Personalized Alerts — composition 2 (spine + triangle + turtle)
+      return <PortfolioFeatureCanvas />;
+    default:
+      return (
+        <Image
+          src={image}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="(max-width: 1024px) 100vw, 480px"
+        />
+      );
   }
-
-  if (visual === "deals") {
-    return <CommandCenterFeatureCanvas />;
-  }
-
-  if (visual === "alerts") {
-    return <AlertsFeatureCanvas />;
-  }
-
-  return (
-    <Image
-      src={image}
-      alt=""
-      fill
-      className="object-cover"
-      sizes="(max-width: 1024px) 100vw, 480px"
-    />
-  );
 }

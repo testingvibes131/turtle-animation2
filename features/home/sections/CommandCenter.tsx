@@ -1,6 +1,7 @@
 import { CtaPill } from "@/components/ui/CtaPill";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { SectionShell } from "@/components/layout/SectionShell";
+import { CommandCenterCardShell } from "@/features/home/components/CommandCenterCardShell";
 import { CommandCenterFeatureVisual } from "@/features/home/components/CommandCenterFeatureVisual";
 import { commandCenterFeatures } from "@/features/home/data/updates";
 
@@ -24,7 +25,7 @@ export function CommandCenter() {
         <div className="flex flex-col gap-[clamp(16px,1.4vw,20px)] lg:items-end">
           {commandCenterFeatures.map((feature) => (
             <RevealOnScroll key={feature.title}>
-              <article className="flex w-full max-w-[480px] flex-col gap-[clamp(14px,1.4vw,20px)] rounded-[clamp(14px,1.2vw,17px)] border border-white/10 bg-surface-1 p-[clamp(10px,0.9vw,12px)] pb-[clamp(32px,3vw,48px)] shadow-[0_4px_10px_rgba(0,0,0,0.25)]">
+              <CommandCenterCardShell>
                 <div
                   className="relative w-full overflow-hidden rounded-[clamp(10px,0.9vw,13px)]"
                   style={{ aspectRatio: "570 / 499" }}
@@ -42,7 +43,7 @@ export function CommandCenter() {
                     {feature.description}
                   </p>
                 </div>
-              </article>
+              </CommandCenterCardShell>
             </RevealOnScroll>
           ))}
         </div>

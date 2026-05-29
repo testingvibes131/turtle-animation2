@@ -85,6 +85,11 @@ body {
   width: max-content;
   gap: clamp(28px, 4vw, 56px);
   animation: logo-marquee-scroll 54s linear infinite;
+  will-change: transform;
+}
+
+.logo-marquee:hover .logo-marquee__track {
+  animation-play-state: paused;
 }
 
 .logo-marquee__track > * {
@@ -93,14 +98,9 @@ body {
 
 .logo-marquee .logo {
   width: auto;
-  height: clamp(14px, 1.5vw, 18px);
   object-fit: contain;
   opacity: 0.75;
   transition: opacity 0.3s ease;
-}
-
-.logo-marquee .logo--tall {
-  height: clamp(22px, 2.4vw, 30px);
 }
 
 .logo-marquee:hover .logo {
