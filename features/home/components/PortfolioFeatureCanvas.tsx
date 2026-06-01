@@ -16,7 +16,6 @@ import {
   GRID_MIN_VISIBLE_ALPHA,
   GRID_MIN_VISIBLE_RADIUS,
   GRID_MUTED_ALPHA,
-  GRID_MODIFIER_ZONE_PIXEL_RADIUS,
   GRID_SPACING,
   isInsideModifierZone,
   smoothstep,
@@ -33,39 +32,62 @@ import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCent
 /** Hub row vs canvas center (0 = vertically centered on card). */
 const HUB_ROW_OFFSET = 0;
 
-/** Top→bottom sweep; all columns in sync (row phase only). */
-const CASCADE_SPEED = 0.95;
-const CASCADE_STAGGER = 0.17;
-const ROW_CASCADE_ALPHA_MIN = 0.38;
-const ROW_CASCADE_SCALE_MIN = 0.48;
-const ROW_CASCADE_SCALE_MAX = 1.85;
+/** Row-units of lit tail behind the sweeping front (big → small). */
+const WAVE_TAIL_ROWS = 3.85;
+/** Max per-column wave delay (row-units), chosen pseudo-randomly per column. */
+const WAVE_COL_STAGGER_MAX_ROWS = 4;
+const COL_WAVE_OFFSET_SALT = 29;
+const WAVE_SPEED = 2.5;
+/** Rest at base grey between sweeps (seconds). */
+const WAVE_CYCLE_PAUSE_S = 0.65;
+const BASE_DOT_ALPHA = GRID_MUTED_ALPHA * 0.55;
+const WAVE_WHITE_ALPHA = 0.92;
+/** Peak scale for dots at full wave brightness (base stays 1×). */
+const WAVE_WHITE_SCALE_MAX = 1.55;
 const ALERTS_DOT_GLOW_OPACITY = 0.92;
 const STICK_PEAK_HASH_SALT = 47;
 const PICK_COLOR_HASH_SALT = 61;
 /** ~70% green / 30% red per alert wave. */
 const GREEN_PICK_CHANCE = 0.7;
-const TWO_PI = Math.PI * 2;
-/** Row pulse must be at crest (avoids sticking while wave is still rising/falling). */
-const STICK_PULSE_MIN = 0.97;
-/** Wider fade band than shared grid (default 4 cells → 7 cells). */
-const ALERTS_MODIFIER_FALLOFF_PIXEL = 7 * GRID_SPACING;
+/** Glow extends past core — skip edge cells so halos are not clipped. */
+const DOT_GLOW_OUTER_SCALE = 1.15 * 1.38;
+const DRAWABLE_CORE_RADIUS = GRID_DOT_RADIUS;
 /** Pure white core for alerts grid (default white glow is muted gray). */
 const ALERTS_WHITE_TONE = { r: 255, g: 255, b: 255 };
-/** Icon size vs glow core — grid diameter alone is too small to read. */
 const MAGNIFY_DOT_DIAMETER_SCALE = 2.6;
 const ALERT_ICON_SIZE_SCALE = 1.65;
 const MAGNIFY_DOT_MIN_DIAMETER = 14;
 const MAGNIFY_DOT_HIGHLIGHT_ALPHA = 1;
-const ALERT_ICON_FADE_S = 0.34;
-/** White/green/red glow extends past dot center — keep centers inside clip bounds. */
-const DOT_GLOW_OUTER_SCALE = 1.15 * 1.38;
-const MAX_DOT_GLOW_OUTER_RADIUS =
-  GRID_DOT_RADIUS * ROW_CASCADE_SCALE_MAX * DOT_GLOW_OUTER_SCALE;
-const CANVAS_EDGE_INSET = Math.ceil(
-  Math.max(MAX_DOT_GLOW_OUTER_RADIUS, (MAGNIFY_DOT_MIN_DIAMETER * ALERT_ICON_SIZE_SCALE) / 2),
-);
+const ALERT_ICON_FADE_S = 0.55;
+const HIGHLIGHT_STICK_BOOST_MIN = 0.88;
+/** Picked dot: hold full white after the wave peak. */
+const HIGHLIGHT_WHITE_HOLD_S = 0.45;
+/** Then crossfade white → green/red. */
+const HIGHLIGHT_COLOR_REVEAL_S = 1.05;
+/** Keep alert visible before returning to base grey. */
+const HIGHLIGHT_HOLD_AFTER_REVEAL_S = 2.2;
+const HIGHLIGHT_LATCH_TOTAL_S =
+  HIGHLIGHT_WHITE_HOLD_S +
+  HIGHLIGHT_COLOR_REVEAL_S +
+  HIGHLIGHT_HOLD_AFTER_REVEAL_S;
+const HIGHLIGHT_PULSE_CYCLES = 2;
+const HIGHLIGHT_PULSE_HZ = 3.2;
+const HIGHLIGHT_PULSE_RADIUS = 0.2;
+const HIGHLIGHT_PULSE_ALPHA = 0.14;
+const HIGHLIGHT_SPARKLE_SALT = 83;
+/** Small opacity twinkle after latch (seconds). */
+const HIGHLIGHT_SPARKLE_DURATION_S = 0.9;
+const HIGHLIGHT_SPARKLE_AMOUNT = 0.11;
+const HIGHLIGHT_SPARKLE_BUCKET_HZ = 52;
+const HIGHLIGHT_SPARKLE_FLICKER_HZ_A = 98;
+const HIGHLIGHT_SPARKLE_FLICKER_HZ_B = 142;
 
 type HighlightColor = "green" | "red";
+
+type HighlightLatch = {
+  color: HighlightColor;
+  startS: number;
+};
 
 type WaveHighlightPlan = {
   picks: Set<string>;
@@ -95,114 +117,108 @@ function getHubPosition(width: number, height: number): PixelPoint {
   };
 }
 
-function cellCascadePhase(row: number, timeS: number) {
-  return timeS * CASCADE_SPEED - row * CASCADE_STAGGER;
+function isInHubZone(dotX: number, dotY: number, hubX: number, hubY: number) {
+  return isInsideModifierZone(dotX, dotY, hubX, hubY);
 }
 
-function rowCascadePhase(row: number, timeS: number) {
-  return cellCascadePhase(row, timeS);
-}
-
-/** One full top→bottom sweep (all rows share this cycle). */
-function globalSweepCycle(timeS: number) {
-  return Math.floor((timeS * CASCADE_SPEED) / TWO_PI);
-}
-
-function rowSweepCycle(row: number, timeS: number) {
-  return Math.floor(rowCascadePhase(row, timeS) / TWO_PI);
-}
-
-function clearRowStuck(
-  stuck: Set<string>,
-  stuckColors: Map<string, HighlightColor>,
-  row: number,
-) {
-  const prefix = `${row},`;
-  for (const key of [...stuck]) {
-    if (!key.startsWith(prefix)) continue;
-    stuck.delete(key);
-    stuckColors.delete(key);
-  }
-}
-
-function rowPulse(row: number, timeS: number) {
-  return 0.5 + 0.5 * Math.sin(cellCascadePhase(row, timeS));
-}
-
-function isRowAtWaveCrest(row: number, timeS: number) {
-  return rowPulse(row, timeS) >= STICK_PULSE_MIN;
-}
-
-function rowCascadeFactors(row: number, timeS: number) {
-  const pulse = rowPulse(row, timeS);
-  return {
-    alpha: ROW_CASCADE_ALPHA_MIN + (1 - ROW_CASCADE_ALPHA_MIN) * pulse,
-    scale:
-      ROW_CASCADE_SCALE_MIN +
-      (ROW_CASCADE_SCALE_MAX - ROW_CASCADE_SCALE_MIN) * pulse,
-  };
-}
-
-function peakCascadeFactors() {
-  return { alpha: 1, scale: ROW_CASCADE_SCALE_MAX };
-}
-
-/** Hub falloff: 1 inside modifier zone, smooth fade to 0 at falloff edge. */
-function alertsDotFalloffScale(
-  dotX: number,
-  dotY: number,
-  hubX: number,
-  hubY: number,
-) {
-  if (isInsideModifierZone(dotX, dotY, hubX, hubY)) {
-    return 1;
-  }
-
-  const dist = Math.hypot(dotX - hubX, dotY - hubY);
-  const outside = dist - GRID_MODIFIER_ZONE_PIXEL_RADIUS;
-  if (outside >= ALERTS_MODIFIER_FALLOFF_PIXEL) {
-    return 0;
-  }
-
-  const t = smoothstep(outside / ALERTS_MODIFIER_FALLOFF_PIXEL);
-  return 1 - t;
-}
-
-/** Narrow pulse excursion as hub falloff fades (keeps edge dots small/dim). */
-function pulseModulatedByFalloff(value: number, falloffScale: number) {
-  return 1 + (value - 1) * falloffScale;
-}
-
-/** Falloff disc + glow halo so edge dots are not clipped at the circle boundary. */
-function isDotInsideFalloffVisibleArea(
-  dotX: number,
-  dotY: number,
-  hubX: number,
-  hubY: number,
-  glowOuterRadius: number,
-) {
-  const dist = Math.hypot(dotX - hubX, dotY - hubY);
+function columnWaveOffset(col: number) {
   return (
-    dist <=
-    GRID_MODIFIER_ZONE_PIXEL_RADIUS +
-      ALERTS_MODIFIER_FALLOFF_PIXEL +
-      glowOuterRadius
+    cellOrganicUnit(0, col + COL_WAVE_OFFSET_SALT) * WAVE_COL_STAGGER_MAX_ROWS
   );
 }
 
-function isInsideCanvasGlowMargin(
+function waveColumnStagger() {
+  return WAVE_COL_STAGGER_MAX_ROWS;
+}
+
+function waveTravelSpan(rows: number) {
+  return Math.max(1, rows) + WAVE_TAIL_ROWS + waveColumnStagger();
+}
+
+function waveCycleSpan(rows: number) {
+  return waveTravelSpan(rows) + WAVE_CYCLE_PAUSE_S * WAVE_SPEED;
+}
+
+/** Leading edge row index (sweeps top → bottom); null during inter-cycle pause. */
+function waveFrontRow(timeS: number, rows: number): number | null {
+  const travelSpan = waveTravelSpan(rows);
+  const phase = (timeS * WAVE_SPEED) % waveCycleSpan(rows);
+  if (phase >= travelSpan) return null;
+  return phase;
+}
+
+function globalSweepCycle(timeS: number, rows: number) {
+  return Math.floor((timeS * WAVE_SPEED) / waveCycleSpan(rows));
+}
+
+/**
+ * Comet tail behind the front: brightest/largest at the leading row,
+ * monotonically dimmer and smaller toward rows the wave already passed.
+ * Each column has a pseudo-random phase offset along the sweep.
+ */
+function cellWaveProfile(
+  row: number,
+  col: number,
+  waveFront: number | null,
+) {
+  if (waveFront === null) {
+    return { alpha: 0, scale: 0 };
+  }
+
+  const front = waveFront - columnWaveOffset(col);
+  const behind = front - row;
+  if (behind < 0 || behind > WAVE_TAIL_ROWS) {
+    return { alpha: 0, scale: 0 };
+  }
+
+  const t = 1 - behind / WAVE_TAIL_ROWS;
+  return {
+    alpha: smoothstep(t),
+    scale: t,
+  };
+}
+
+function glowOuterRadius(coreRadius: number) {
+  return coreRadius * DOT_GLOW_OUTER_SCALE;
+}
+
+function isDrawableGridCell(
   x: number,
   y: number,
   width: number,
   height: number,
-  outerRadius: number,
+  coreRadius = DRAWABLE_CORE_RADIUS,
 ) {
+  const outer = glowOuterRadius(coreRadius);
   return (
-    x >= outerRadius &&
-    x <= width - outerRadius &&
-    y >= outerRadius &&
-    y <= height - outerRadius
+    x - outer >= 0 &&
+    x + outer <= width &&
+    y - outer >= 0 &&
+    y + outer <= height
   );
+}
+
+/** Skip top row, bottom two rows, and side columns (glow would clip at edges). */
+function isAlertsGridCell(
+  row: number,
+  col: number,
+  rows: number,
+  cols: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  coreRadius = DRAWABLE_CORE_RADIUS,
+) {
+  if (
+    row === 0 ||
+    row >= rows - 3 ||
+    col === 0 ||
+    col === cols - 1
+  ) {
+    return false;
+  }
+  return isDrawableGridCell(x, y, width, height, coreRadius);
 }
 
 function pickedHighlightColor(
@@ -223,7 +239,6 @@ function waveHighlightScore(row: number, col: number, waveCycle: number) {
   );
 }
 
-/** Exactly one highlight per global wave (deterministic hub cell per cycle). */
 function buildWaveHighlightPicks(
   rows: number,
   cols: number,
@@ -231,6 +246,8 @@ function buildWaveHighlightPicks(
   offsetY: number,
   hubX: number,
   hubY: number,
+  width: number,
+  height: number,
   waveCycle: number,
 ) {
   const picks = new Set<string>();
@@ -243,7 +260,10 @@ function buildWaveHighlightPicks(
     for (let col = 0; col < cols; col++) {
       const x = offsetX + col * GRID_SPACING;
       const y = offsetY + row * GRID_SPACING;
-      if (!isInFullStrengthHub(x, y, hubX, hubY)) continue;
+      if (!isInHubZone(x, y, hubX, hubY)) continue;
+      if (!isAlertsGridCell(row, col, rows, cols, x, y, width, height)) {
+        continue;
+      }
 
       const score = waveHighlightScore(row, col, waveCycle);
       if (score >= bestScore) continue;
@@ -262,33 +282,127 @@ function buildWaveHighlightPicks(
   return { picks, colors };
 }
 
-/** Full-strength hub only — fade band never reaches max size/opacity. */
-function isInFullStrengthHub(
-  dotX: number,
-  dotY: number,
-  hubX: number,
-  hubY: number,
-) {
-  return isInsideModifierZone(dotX, dotY, hubX, hubY);
+function highlightRevealMix(elapsed: number) {
+  if (elapsed < HIGHLIGHT_WHITE_HOLD_S) {
+    return { whiteMix: 1, colorMix: 0 };
+  }
+  if (elapsed < HIGHLIGHT_WHITE_HOLD_S + HIGHLIGHT_COLOR_REVEAL_S) {
+    const t = clamp01(
+      (elapsed - HIGHLIGHT_WHITE_HOLD_S) / HIGHLIGHT_COLOR_REVEAL_S,
+    );
+    const blend = smoothstep(smoothstep(t));
+    return { whiteMix: 1 - blend, colorMix: blend };
+  }
+  return { whiteMix: 0, colorMix: 1 };
 }
 
-function pruneInvalidStuckCells(
-  stuck: Set<string>,
-  stuckColors: Map<string, HighlightColor>,
-  offsetX: number,
-  offsetY: number,
-  hubX: number,
-  hubY: number,
+/** Two pulse loops at latch start, then steady glow. */
+function highlightPulse(
+  elapsed: number,
+  whiteMix: number,
+  colorMix: number,
 ) {
-  for (const key of [...stuck]) {
-    const comma = key.indexOf(",");
-    const row = Number(key.slice(0, comma));
-    const col = Number(key.slice(comma + 1));
-    const x = offsetX + col * GRID_SPACING;
-    const y = offsetY + row * GRID_SPACING;
-    if (!isInFullStrengthHub(x, y, hubX, hubY)) {
-      stuck.delete(key);
-      stuckColors.delete(key);
+  const intensity = Math.max(whiteMix, colorMix);
+  if (intensity < 0.02) {
+    return { scale: 1, alpha: 1 };
+  }
+
+  const pulseDuration = HIGHLIGHT_PULSE_CYCLES / HIGHLIGHT_PULSE_HZ;
+  if (elapsed >= pulseDuration) {
+    return { scale: 1, alpha: 1 };
+  }
+
+  const wave = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 2 * HIGHLIGHT_PULSE_HZ);
+  const settleT = clamp01((elapsed - pulseDuration * 0.82) / (pulseDuration * 0.18));
+  const envelope = (1 - smoothstep(settleT)) * intensity;
+  return {
+    scale: 1 + HIGHLIGHT_PULSE_RADIUS * wave * envelope,
+    alpha: 1 + HIGHLIGHT_PULSE_ALPHA * wave * envelope,
+  };
+}
+
+function highlightSparkleAlpha(
+  elapsed: number,
+  row: number,
+  col: number,
+  intensity: number,
+) {
+  if (intensity < 0.02 || elapsed >= HIGHLIGHT_SPARKLE_DURATION_S) {
+    return 1;
+  }
+
+  const envelope = 1 - smoothstep(elapsed / HIGHLIGHT_SPARKLE_DURATION_S);
+  const bucket = Math.floor(elapsed * HIGHLIGHT_SPARKLE_BUCKET_HZ);
+  const u0 = cellOrganicUnit(row, col + HIGHLIGHT_SPARKLE_SALT + bucket);
+  const u1 = cellOrganicUnit(row + 11, col + HIGHLIGHT_SPARKLE_SALT + bucket * 3);
+  const flicker =
+    0.55 +
+    0.3 *
+      Math.sin(
+        elapsed * Math.PI * 2 * HIGHLIGHT_SPARKLE_FLICKER_HZ_A + u0 * Math.PI * 2,
+      ) +
+    0.15 *
+      Math.sin(
+        elapsed * Math.PI * 2 * HIGHLIGHT_SPARKLE_FLICKER_HZ_B + u1 * Math.PI * 2,
+      );
+  const glint = u0 > 0.78 ? 0.22 * envelope * intensity : 0;
+  return 1 + (HIGHLIGHT_SPARKLE_AMOUNT * flicker + glint) * envelope * intensity;
+}
+
+function highlightVisualMods(
+  elapsed: number,
+  row: number,
+  col: number,
+  whiteMix: number,
+  colorMix: number,
+) {
+  const intensity = Math.max(whiteMix, colorMix);
+  const pulse = highlightPulse(elapsed, whiteMix, colorMix);
+  const sparkle = highlightSparkleAlpha(elapsed, row, col, intensity);
+  return {
+    scale: pulse.scale,
+    alpha: pulse.alpha * sparkle,
+  };
+}
+
+function highlightIconRevealDelayS() {
+  return HIGHLIGHT_WHITE_HOLD_S + HIGHLIGHT_COLOR_REVEAL_S * 0.5;
+}
+
+function drawHighlightGlow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  row: number,
+  col: number,
+  color: HighlightColor,
+  elapsed: number,
+  whiteMix: number,
+  colorMix: number,
+  peakAlpha: number,
+) {
+  const mods = highlightVisualMods(elapsed, row, col, whiteMix, colorMix);
+  const radius =
+    DRAWABLE_CORE_RADIUS *
+    (WAVE_WHITE_SCALE_MAX + 0.15 * colorMix) *
+    mods.scale;
+  const peakA = peakAlpha * mods.alpha;
+
+  if (whiteMix > 0.01) {
+    drawWhiteGlowCircle(
+      ctx,
+      x,
+      y,
+      radius,
+      peakA * whiteMix,
+      ALERTS_WHITE_TONE,
+    );
+  }
+  if (colorMix > 0.01) {
+    if (color === "green") {
+      drawGreenGlowCircle(ctx, x, y, radius, peakA * colorMix);
+    } else {
+      drawRedGlowCircle(ctx, x, y, radius, peakA * colorMix);
     }
   }
 }
@@ -350,69 +464,72 @@ function syncAlertIconStates(
   }
 }
 
-function updatePeakStuckCells(
-  stuck: Set<string>,
-  stuckColors: Map<string, HighlightColor>,
-  rowCycles: Map<number, number>,
+function updateHighlightLatch(
+  latch: Map<string, HighlightLatch>,
   wavePlan: WaveHighlightPlan,
   rows: number,
   cols: number,
   timeS: number,
-  offsetX: number,
-  offsetY: number,
-  hubX: number,
-  hubY: number,
 ) {
-  pruneInvalidStuckCells(stuck, stuckColors, offsetX, offsetY, hubX, hubY);
+  const waveFront = waveFrontRow(timeS, rows);
+
+  for (const [key, entry] of [...latch]) {
+    if (timeS - entry.startS >= HIGHLIGHT_LATCH_TOTAL_S) {
+      latch.delete(key);
+    }
+  }
 
   for (let row = 0; row < rows; row++) {
-    const cycle = rowSweepCycle(row, timeS);
-    if (rowCycles.get(row) !== cycle) {
-      rowCycles.set(row, cycle);
-      clearRowStuck(stuck, stuckColors, row);
-    }
-
-    if (!isRowAtWaveCrest(row, timeS)) continue;
-
     for (let col = 0; col < cols; col++) {
       const key = cellKey(row, col);
+      if (latch.has(key)) continue;
       if (!wavePlan.picks.has(key)) continue;
 
-      const x = offsetX + col * GRID_SPACING;
-      const y = offsetY + row * GRID_SPACING;
-      if (!isInFullStrengthHub(x, y, hubX, hubY)) continue;
+      const { alpha } = cellWaveProfile(row, col, waveFront);
+      if (alpha < HIGHLIGHT_STICK_BOOST_MIN) continue;
 
-      if (!stuck.has(key)) {
-        const color = wavePlan.colors.get(key);
-        if (color) stuckColors.set(key, color);
-      }
-      stuck.add(key);
+      const color = wavePlan.colors.get(key) ?? "green";
+      latch.set(key, { color, startS: timeS });
     }
   }
 }
 
-function drawCascadingFalloffGrid(
+function latchKeysShowingIcon(
+  latch: Map<string, HighlightLatch>,
+  timeS: number,
+) {
+  const keys = new Set<string>();
+  const iconDelay = highlightIconRevealDelayS();
+  for (const [key, entry] of latch) {
+    if (timeS - entry.startS >= iconDelay) {
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function drawAlertsGrid(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  hubX: number,
-  hubY: number,
   timeS: number,
-  stuckAtPeak: Set<string>,
-  stuckColors: Map<string, HighlightColor>,
+  rows: number,
+  highlightLatch: Map<string, HighlightLatch>,
   alertIconStates: Map<string, AlertIconState>,
 ) {
-  const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
+  const { offsetX, offsetY, cols } = getGridDimensions(width, height);
   const glowAlphaScale = ALERTS_DOT_GLOW_OPACITY / GRID_MUTED_ALPHA;
-  const peakGlowRadius = GRID_DOT_RADIUS * ROW_CASCADE_SCALE_MAX;
+  const baseAlpha = BASE_DOT_ALPHA * glowAlphaScale;
+  const peakAlpha = WAVE_WHITE_ALPHA * glowAlphaScale;
+  const waveFront = waveFrontRow(timeS, rows);
   const peakIconDiameter =
     Math.max(
       MAGNIFY_DOT_MIN_DIAMETER,
-      peakGlowRadius * 2 * MAGNIFY_DOT_DIAMETER_SCALE,
+      DRAWABLE_CORE_RADIUS * 2 * MAGNIFY_DOT_DIAMETER_SCALE,
     ) * ALERT_ICON_SIZE_SCALE;
 
   for (const [key, state] of alertIconStates) {
-    const iconAlpha = alertIconFadeAlpha(state, timeS);
+    let iconAlpha = alertIconFadeAlpha(state, timeS);
     if (iconAlpha < 0.01) continue;
 
     const comma = key.indexOf(",");
@@ -420,51 +537,105 @@ function drawCascadingFalloffGrid(
     const col = Number(key.slice(comma + 1));
     const x = offsetX + col * GRID_SPACING;
     const y = offsetY + row * GRID_SPACING;
-    const iconOuterRadius = peakIconDiameter / 2;
-    if (!isInsideCanvasGlowMargin(x, y, width, height, iconOuterRadius)) {
+    if (!isAlertsGridCell(row, col, rows, cols, x, y, width, height)) {
       continue;
+    }
+
+    let iconDiameter = peakIconDiameter;
+    const latch = highlightLatch.get(key);
+    if (latch) {
+      const elapsed = timeS - latch.startS;
+      const { whiteMix, colorMix } = highlightRevealMix(elapsed);
+      const mods = highlightVisualMods(elapsed, row, col, whiteMix, colorMix);
+      iconDiameter *= mods.scale;
+      iconAlpha *= mods.alpha;
     }
 
     drawCommandCenterAlertDot(
       ctx,
       x,
       y,
-      peakIconDiameter,
+      iconDiameter,
       iconAlpha,
       state.color,
     );
   }
 
   for (let row = 0; row < rows; row++) {
-    const rowCascade = rowCascadeFactors(row, timeS);
-
     for (let col = 0; col < cols; col++) {
+      const { alpha: waveAlpha, scale: waveScale } = cellWaveProfile(
+        row,
+        col,
+        waveFront,
+      );
       const x = offsetX + col * GRID_SPACING;
       const y = offsetY + row * GRID_SPACING;
       const key = cellKey(row, col);
       const iconState = alertIconStates.get(key);
-      const isStuckPeak =
-        stuckAtPeak.has(key) && isInFullStrengthHub(x, y, hubX, hubY);
+      const latch = highlightLatch.get(key);
       const isHighlightFadingOut = iconState?.phase === "out";
-      const cascade =
-        isStuckPeak || isHighlightFadingOut
-          ? peakCascadeFactors()
-          : rowCascade;
-      const highlightColor = isStuckPeak
-        ? stuckColors.get(key)
-        : isHighlightFadingOut
-          ? iconState.color
-          : null;
 
-      const falloffScale = alertsDotFalloffScale(x, y, hubX, hubY);
-      if (falloffScale <= 0) continue;
+      if (
+        !isAlertsGridCell(
+          row,
+          col,
+          rows,
+          cols,
+          x,
+          y,
+          width,
+          height,
+          DRAWABLE_CORE_RADIUS,
+        )
+      ) {
+        continue;
+      }
 
-      const pulseScale = pulseModulatedByFalloff(cascade.scale, falloffScale);
-      const pulseAlpha = pulseModulatedByFalloff(cascade.alpha, falloffScale);
-      const glowRadius = GRID_DOT_RADIUS * falloffScale * pulseScale;
-      const glowOuterRadius = glowRadius * DOT_GLOW_OUTER_SCALE;
+      if (latch) {
+        const elapsed = timeS - latch.startS;
+        const { whiteMix, colorMix } = highlightRevealMix(elapsed);
+        drawHighlightGlow(
+          ctx,
+          x,
+          y,
+          row,
+          col,
+          latch.color,
+          elapsed,
+          whiteMix,
+          colorMix,
+          peakAlpha,
+        );
+        continue;
+      }
+
+      if (isHighlightFadingOut) {
+        const glowRadius = DRAWABLE_CORE_RADIUS * WAVE_WHITE_SCALE_MAX;
+        if (iconState.color === "red") {
+          drawRedGlowCircle(
+            ctx,
+            x,
+            y,
+            glowRadius,
+            peakAlpha * alertIconFadeAlpha(iconState, timeS),
+          );
+        } else {
+          drawGreenGlowCircle(
+            ctx,
+            x,
+            y,
+            glowRadius,
+            peakAlpha * alertIconFadeAlpha(iconState, timeS),
+          );
+        }
+        continue;
+      }
+
+      const glowRadius =
+        DRAWABLE_CORE_RADIUS *
+        (1 + waveScale * (WAVE_WHITE_SCALE_MAX - 1));
       const glowAlpha =
-        GRID_MUTED_ALPHA * falloffScale * pulseAlpha * glowAlphaScale;
+        baseAlpha + (peakAlpha - baseAlpha) * waveAlpha;
 
       if (
         glowRadius < GRID_MIN_VISIBLE_RADIUS ||
@@ -473,28 +644,14 @@ function drawCascadingFalloffGrid(
         continue;
       }
 
-      if (
-        !isDotInsideFalloffVisibleArea(x, y, hubX, hubY, glowOuterRadius) ||
-        !isInsideCanvasGlowMargin(x, y, width, height, glowOuterRadius)
-      ) {
-        continue;
-      }
-
-      if (highlightColor === "red") {
-        drawRedGlowCircle(ctx, x, y, glowRadius, glowAlpha);
-      } else if (highlightColor === "green") {
-        drawGreenGlowCircle(ctx, x, y, glowRadius, glowAlpha);
-      } else {
-        drawWhiteGlowCircle(
-          ctx,
-          x,
-          y,
-          glowRadius,
-          glowAlpha,
-          ALERTS_WHITE_TONE,
-        );
-      }
-
+      drawWhiteGlowCircle(
+        ctx,
+        x,
+        y,
+        glowRadius,
+        glowAlpha,
+        ALERTS_WHITE_TONE,
+      );
     }
   }
 }
@@ -504,14 +661,12 @@ export function PortfolioFeatureCanvas() {
     loadCommandCenterAlertDotImage();
   }, []);
 
-  const stuckAtPeakRef = useRef(new Set<string>());
-  const stuckColorsRef = useRef(new Map<string, HighlightColor>());
+  const highlightLatchRef = useRef(new Map<string, HighlightLatch>());
   const alertIconStatesRef = useRef(new Map<string, AlertIconState>());
   const waveHighlightPlanRef = useRef<WaveHighlightPlan>({
     picks: new Set(),
     colors: new Map(),
   });
-  const rowCyclesRef = useRef(new Map<number, number>());
   const globalWaveCycleRef = useRef(-1);
   const layoutKeyRef = useRef("");
 
@@ -520,19 +675,18 @@ export function PortfolioFeatureCanvas() {
       const layoutKey = `${width}x${height}`;
       if (layoutKeyRef.current !== layoutKey) {
         layoutKeyRef.current = layoutKey;
-        stuckAtPeakRef.current = new Set();
-        stuckColorsRef.current = new Map();
+        highlightLatchRef.current = new Map();
         alertIconStatesRef.current = new Map();
         waveHighlightPlanRef.current = { picks: new Set(), colors: new Map() };
-        rowCyclesRef.current = new Map();
         globalWaveCycleRef.current = -1;
       }
 
       const hub = getHubPosition(width, height);
       const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
-      const waveCycle = globalSweepCycle(timeS);
+      const waveCycle = globalSweepCycle(timeS, rows);
       if (globalWaveCycleRef.current !== waveCycle) {
         globalWaveCycleRef.current = waveCycle;
+        highlightLatchRef.current.clear();
         waveHighlightPlanRef.current = buildWaveHighlightPicks(
           rows,
           cols,
@@ -540,51 +694,50 @@ export function PortfolioFeatureCanvas() {
           offsetY,
           hub.x,
           hub.y,
+          width,
+          height,
           waveCycle,
         );
       }
 
-      updatePeakStuckCells(
-        stuckAtPeakRef.current,
-        stuckColorsRef.current,
-        rowCyclesRef.current,
+      updateHighlightLatch(
+        highlightLatchRef.current,
         waveHighlightPlanRef.current,
         rows,
         cols,
         timeS,
-        offsetX,
-        offsetY,
-        hub.x,
-        hub.y,
       );
+      const iconLatchKeys = latchKeysShowingIcon(
+        highlightLatchRef.current,
+        timeS,
+      );
+      const iconColors = new Map<string, HighlightColor>();
+      for (const key of iconLatchKeys) {
+        const entry = highlightLatchRef.current.get(key);
+        if (entry) iconColors.set(key, entry.color);
+      }
       syncAlertIconStates(
         alertIconStatesRef.current,
-        stuckAtPeakRef.current,
-        stuckColorsRef.current,
+        iconLatchKeys,
+        iconColors,
         timeS,
       );
 
       ctx.clearRect(0, 0, width, height);
-      drawCascadingFalloffGrid(
+      drawAlertsGrid(
         ctx,
         width,
         height,
-        hub.x,
-        hub.y,
         timeS,
-        stuckAtPeakRef.current,
-        stuckColorsRef.current,
+        rows,
+        highlightLatchRef.current,
         alertIconStatesRef.current,
       );
     },
   );
 
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0"
-      style={{ padding: CANVAS_EDGE_INSET }}
-    >
+    <div ref={containerRef} className="absolute inset-0">
       <canvas ref={canvasRef} className="block h-full w-full" />
     </div>
   );
