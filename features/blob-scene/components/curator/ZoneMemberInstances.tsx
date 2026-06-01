@@ -12,6 +12,7 @@ import {
 } from "@/features/blob-scene/lib/curators/zones";
 import {
   connectedMemberSet,
+  zoneLayoutSignature,
   ZONE_MEMBER_SCALE,
   ZONE_PARTNER_SCALE,
 } from "@/features/blob-scene/lib/curators/zoneOverlay";
@@ -46,6 +47,7 @@ export function ZoneMemberInstances({
     pointRadius,
     liveVertices,
     getTowardCamera,
+    getHubLayoutAxis,
     zoneUsedRef,
     zonesSnapshotRef,
     blobAnimTimeRef,
@@ -124,7 +126,9 @@ export function ZoneMemberInstances({
       slotCacheRef.current.clear();
     }
 
-    const toward = getTowardCamera();
+    const toward = activeZoneRef.current
+      ? getHubLayoutAxis()
+      : getTowardCamera();
     const nextZones = assignStableCuratorZones(
       vertices.positions,
       vertices.count,
@@ -155,10 +159,7 @@ export function ZoneMemberInstances({
     zonesSnapshotRef.current = nextZones;
 
     const sig = nextZones
-      .map(
-        (z) =>
-          `${z.curator.name}:${z.hub}:${z.partners.join(",")}:${z.members.length}`,
-      )
+      .map((z) => `${z.curator.name}:${zoneLayoutSignature(z)}`)
       .join("|");
     if (sig !== zonesSigRef.current) {
       zonesSigRef.current = sig;

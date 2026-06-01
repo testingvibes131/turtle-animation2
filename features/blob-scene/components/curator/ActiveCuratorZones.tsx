@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CuratorPlexusLines } from "@/features/blob-scene/components/curator/CuratorPlexusLines";
 import { CuratorHubBillboard } from "@/features/blob-scene/components/curator/CuratorHubBillboard";
 import { PartnerOrbitRings } from "@/features/blob-scene/components/curator/PartnerOrbitRings";
@@ -11,7 +11,10 @@ import {
   type CuratorZoneAssignment,
   type HubAnchorOptions,
 } from "@/features/blob-scene/lib/curators/zones";
-import { orbitTargetsForZone } from "@/features/blob-scene/lib/curators/zoneOverlay";
+import {
+  orbitTargetsForZone,
+  zonesLayoutEqual,
+} from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
 
 export function ActiveCuratorZones() {
@@ -22,6 +25,7 @@ export function ActiveCuratorZones() {
     getHubLayoutAxis,
     blobAnimTimeRef,
     activeZone,
+    setActiveZone,
   } = useBlobScene();
 
   const [zones, setZones] = useState<CuratorZoneAssignment[]>([]);
@@ -30,15 +34,22 @@ export function ActiveCuratorZones() {
     activeZone &&
     zones.find((z) => z.curator.name === activeZone.curator.name);
 
-  const orbitTargets =
-    activeZone && displayZone
-      ? orbitTargetsForZone(activeZone, new Set(displayZone.partners))
-      : [];
+  /** Keep hover snapshot aligned with live zone layout (hub/edges drift while rotating). */
+  useEffect(() => {
+    if (!activeZone || !displayZone) return;
+    if (zonesLayoutEqual(activeZone, displayZone)) return;
+    setActiveZone({ ...displayZone });
+  }, [activeZone, displayZone, setActiveZone]);
 
-  const activeLineGroups =
-    activeZone != null
-      ? [{ color: activeZone.curator.color, edges: activeZone.edges }]
-      : [];
+  const zoneVisual = displayZone ?? activeZone;
+
+  const orbitTargets = zoneVisual
+    ? orbitTargetsForZone(zoneVisual, new Set(zoneVisual.partners))
+    : [];
+
+  const activeLineGroups = zoneVisual
+    ? [{ color: zoneVisual.curator.color, edges: zoneVisual.edges }]
+    : [];
 
   return (
     <>
@@ -68,21 +79,22 @@ export function ActiveCuratorZones() {
             blobAnimTimeRef={blobAnimTimeRef}
           />
         )}
-      {activeLineGroups.length > 0 && displayZone && activeZone ? (
+      {activeLineGroups.length > 0 && zoneVisual ? (
         <group renderOrder={RENDER_PLEXUS_LINES}>
           <CuratorPlexusLines
-            key={`plexus-${activeZone.curator.name}-${activeZone.edges.map(([a, b]) => `${a}-${b}`).join(",")}`}
+            key={`plexus-${zoneVisual.curator.name}-${zoneVisual.hub}-${zoneVisual.edges.map(([a, b]) => `${a}-${b}`).join(",")}`}
             groups={activeLineGroups}
             vertices={vertices}
             params={params}
-            hubIndex={displayZone.hub}
-            hubZoneDeg={curatorZoneClockDeg(displayZone.curator.name)}
+            hubIndex={zoneVisual.hub}
+            hubZoneDeg={curatorZoneClockDeg(zoneVisual.curator.name)}
             hubPickOptions={
               {
                 frontMinDot: params.frontMinDot,
                 blobCenterLean: params.blobCenterLean,
                 zoneCenterOffsetRight: params.zoneCenterOffsetRight,
                 hubOffsetSpheres: params.hubOffsetSpheres,
+                hubLogoOutsetSpheres: params.hubLogoOutsetSpheres,
                 hubPickMesh: vertices,
               } satisfies HubAnchorOptions
             }

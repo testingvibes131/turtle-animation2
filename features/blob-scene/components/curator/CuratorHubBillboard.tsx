@@ -86,6 +86,7 @@ export function CuratorHubBillboard({
         blobCenterLean: params.blobCenterLean,
         zoneCenterOffsetRight: params.zoneCenterOffsetRight,
         hubOffsetSpheres: params.hubOffsetSpheres,
+        hubLogoOutsetSpheres: params.hubLogoOutsetSpheres,
         hubPickMesh: vertices,
         hubPickBlob: blobParams,
       },

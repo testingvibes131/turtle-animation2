@@ -78,6 +78,8 @@ export type ZonePickOptions = {
   zoneCenterOffsetRight?: number;
   /** Hub arc distance from zone center in “sphere spacings” (0 = balanced hub). */
   hubOffsetSpheres?: number;
+  /** Push logo + plexus hub outward along the anchor (sphere spacings; 0 = on surface). */
+  hubLogoOutsetSpheres?: number;
 };
 
 /** Fields used for fixed hub anchor direction (logo / plexus origin). */
@@ -87,6 +89,7 @@ export type HubAnchorOptions = Pick<
   | "blobCenterLean"
   | "zoneCenterOffsetRight"
   | "hubOffsetSpheres"
+  | "hubLogoOutsetSpheres"
   | "hubPickMesh"
   | "hubPickBlob"
 >;

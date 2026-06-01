@@ -540,6 +540,18 @@ export function computeHubAnchorDirection(
     .normalize();
 }
 
+function hubLogoOutsetWorld(
+  mesh: IcosahedronVertexData,
+  blobParams: PerlinBlobParams,
+  options: HubAnchorOptions,
+): number {
+  const outsetSpheres = Math.max(0, options.hubLogoOutsetSpheres ?? 0);
+  if (outsetSpheres <= 0) return 0;
+  const radius = blobParams.radius ?? 1;
+  const spacing = estimateVertexSpacing(radius, mesh.count);
+  return outsetSpheres * spacing;
+}
+
 /** Logo / plexus hub point on the deformed surface along the anchor direction. */
 export function displacedHubAnchorPosition(
   mesh: IcosahedronVertexData,
@@ -554,6 +566,8 @@ export function displacedHubAnchorPosition(
   computeHubAnchorDirection(layoutAxis, zoneDeg, options, _hubDir);
   const len = target.length();
   target.copy(_hubDir).multiplyScalar(len);
+  const outset = hubLogoOutsetWorld(mesh, blobParams, options);
+  if (outset > 0) target.addScaledVector(_hubDir, outset);
 }
 
 /** Topology hub: member closest to the fixed anchor direction. */

@@ -22,6 +22,7 @@ export type BlobVisualParams = PerlinBlobParams & {
   hubConnectionMul: number;
   zoneCenterOffsetRight: number;
   hubOffsetSpheres: number;
+  hubLogoOutsetSpheres: number;
   noiseSlopeMinOpacity: number;
   noiseSlopeMaxOpacity: number;
 };
@@ -49,6 +50,7 @@ const DEFAULTS = {
   hubConnectionMul: 1.5,
   zoneCenterOffsetRight: 0.3,
   hubOffsetSpheres: 0,
+  hubLogoOutsetSpheres: 10,
   noiseSlopeMinOpacity: 0.42,
   noiseSlopeMaxOpacity: 1,
 } satisfies Omit<BlobVisualParams, "time">;
@@ -167,6 +169,13 @@ export function useBlobControls(): BlobVisualParams {
       step: 1,
       label: "hub offset (0 = zone center)",
     },
+    hubLogoOutsetSpheres: {
+      value: DEFAULTS.hubLogoOutsetSpheres,
+      min: 0,
+      max: 24,
+      step: 1,
+      label: "logo / hub outward",
+    },
   });
 
   const depthSize = useControls("Depth size", {
@@ -253,6 +262,7 @@ export function useBlobControls(): BlobVisualParams {
       debugHoverZone: hoverCluster.debugHoverZone,
       zoneCenterOffsetRight: hoverCluster.zoneCenterOffsetRight,
       hubOffsetSpheres: Math.round(hoverCluster.hubOffsetSpheres),
+      hubLogoOutsetSpheres: Math.round(hoverCluster.hubLogoOutsetSpheres),
       depthFadeMinOpacity: depthFade.depthFadeMinOpacity,
       depthSizeNearOffset: depthSize.depthSizeNearOffset,
       depthSizeFarOffset: depthSize.depthSizeFarOffset,

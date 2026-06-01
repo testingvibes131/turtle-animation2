@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
+import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import {
   buildZoneHubEdgesRandom,
   findZoneForMemberVertex,
@@ -137,12 +138,17 @@ export function useBlobInteraction({
       const zone = pickAtClient(e.clientX, e.clientY);
       setActiveZone((prev) => {
         if (!zone) return null;
-        if (prev?.curator.name === zone.curator.name) return prev;
 
         const snap =
           zonesSnapshotRef.current.find(
             (z) => z.curator.name === zone.curator.name,
           ) ?? zone;
+
+        if (prev?.curator.name === zone.curator.name) {
+          if (zonesLayoutEqual(prev, snap)) return prev;
+          return { ...snap };
+        }
+
         const toward = getTowardCamera();
         const targetCount = Math.max(
           1,
