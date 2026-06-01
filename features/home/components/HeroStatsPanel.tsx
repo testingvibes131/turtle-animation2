@@ -1,7 +1,10 @@
 /** Figma hero stats stack (1374:44456) — bottom-right of section 1. */
 
 const widgetShell =
-  "backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b]";
+  "overflow-hidden backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b]";
+
+const metricCardShell = `${widgetShell} rounded-[20px]`;
+const statsPillShell = `${widgetShell} rounded-[100px]`;
 
 function WidgetDivider() {
   return <div className="h-px w-full shrink-0 bg-[rgba(249,249,249,0.06)]" aria-hidden="true" />;
@@ -60,7 +63,7 @@ function RateRow({ period, activeIndex, value, tone }: RateRowProps) {
 function CoordinatedCapitalCard() {
   return (
     <div
-      className={`${widgetShell} flex h-[174px] w-full max-w-[300px] flex-col justify-center p-5`}
+      className={`${metricCardShell} flex h-[174px] w-full max-w-[300px] flex-col justify-center p-5`}
     >
       <div className="flex h-full w-full max-w-[260px] flex-col justify-between">
         <div className="flex w-full flex-col gap-[15px]">
@@ -85,7 +88,7 @@ function CoordinatedCapitalCard() {
 
 function DefiTvlCard() {
   return (
-    <div className={`${widgetShell} flex h-[174px] w-full max-w-[300px] flex-col p-5`}>
+    <div className={`${metricCardShell} flex h-[174px] w-full max-w-[300px] flex-col p-5`}>
       <div className="flex h-full w-full flex-col justify-between">
         <div className="flex w-full flex-col gap-[15px]">
           <p className="truncate text-[14px] font-medium leading-[1.2] text-ink-subtle">
@@ -116,7 +119,7 @@ const networkStats = [
 function NetworkStatsBar() {
   return (
     <div
-      className={`${widgetShell} flex w-full max-w-[min(978px,100%)] items-center rounded-[100px] px-6 py-5 sm:px-10`}
+      className={`${statsPillShell} flex w-full max-w-[min(978px,100%)] items-center px-6 py-5 sm:px-10`}
     >
       <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-3">
         {networkStats.map((stat) => (
