@@ -25,7 +25,7 @@ export function RadarCta() {
 
         <div className="inline-flex flex-wrap justify-center gap-2.5">
           <CtaPill href="#" label="Explore Deals" className="w-[240px]" />
-          <CtaPill href="#" label="Launch with Turtle" variant="primary" className="w-[240px]" />
+          <CtaPill href="#" label="Launch with Turtle" className="w-[240px]" />
         </div>
       </RevealOnScroll>
     </section>

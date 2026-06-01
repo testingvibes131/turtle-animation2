@@ -7,6 +7,7 @@ import { GlowDivider } from "@/components/ui/GlowDivider";
 import { BackedBy } from "@/features/home/sections/BackedBy";
 import { CaseStudies } from "@/features/home/sections/CaseStudies";
 import { CommandCenter } from "@/features/home/sections/CommandCenter";
+import { BlobScrollBlock } from "@/features/home/sections/BlobScrollBlock";
 import { GreedyParanoidSection } from "@/features/home/sections/GreedyParanoidSection";
 import { HeroSection } from "@/features/home/sections/HeroSection";
 import { LatestUpdates } from "@/features/home/sections/LatestUpdates";
@@ -25,8 +26,10 @@ export function LandingPage() {
     <>
       <SiteHeader />
       <main className="bg-surface-0 text-ink-primary">
-        <HeroSection />
-        <GreedyParanoidSection />
+        <BlobScrollBlock>
+          <HeroSection />
+          <GreedyParanoidSection />
+        </BlobScrollBlock>
         <CommandCenter />
         <Pipeline />
         <CaseStudies />

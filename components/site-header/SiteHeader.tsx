@@ -2,17 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useHeaderVisibility } from "@/components/site-header/useHeaderVisibility";
 
 const navLinks = [
-  { href: "#", label: "Home" },
+  { href: "/", label: "Home" },
   { href: "#", label: "Products" },
   { href: "#", label: "Blog" },
   { href: "#", label: "Docs" },
 ];
 
+/** Figma CentralMenu shell (1374:44550 / 1374:44551) */
+const headerMenuShell =
+  "inline-flex items-center overflow-hidden rounded-[20px] border-[0.6px] border-solid border-[rgba(249,249,249,0.06)] bg-[rgba(249,249,249,0.02)]";
+
+function isNavActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href.startsWith("#")) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function SiteHeader() {
   useHeaderVisibility();
+  const pathname = usePathname();
 
   return (
     <header className="site-header sticky top-0 z-50 w-full bg-surface-0/70 px-6 pb-4 pt-5 backdrop-blur-md md:px-10 lg:px-[60px]">
@@ -38,35 +50,39 @@ export function SiteHeader() {
           />
         </Link>
 
-        <div className="hidden items-center gap-2 rounded-2xl bg-surface-1 px-[11px] md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className="p-3 text-small leading-none text-[#8c8c8c] transition-colors hover:text-ink-primary"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <div className="flex items-center gap-[30px]">
+          <div
+            className={`${headerMenuShell} hidden px-[10px] py-3 md:inline-flex`}
+          >
+            {navLinks.map((link) => {
+              const active = isNavActive(pathname, link.href);
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className={[
+                    "px-[23px] text-[12px] font-normal leading-none transition-colors",
+                    active
+                      ? "text-green-400"
+                      : "text-ink-subtle hover:text-ink-primary",
+                  ].join(" ")}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
 
-        <Link
-          href="#"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-stone-50/0 py-1 pl-1 pr-[11px] outline outline-1 outline-offset-[-1px] outline-stone-50/10 transition-colors hover:bg-[#73F36C]/10"
-        >
-          <span className="relative grid size-7 place-items-center overflow-hidden rounded-full bg-gradient-to-r from-neutral-900/60 to-green-400/0 shadow-[inset_0px_0px_2.3px_0px_rgba(115,243,108,1)] outline outline-[0.67px] outline-offset-[-0.67px] outline-white/40">
-            <Image
-              src="/footer/turtle-iso.svg"
-              alt=""
-              width={28}
-              height={29}
-              className="block h-[29px] w-7 translate-y-1.5"
-            />
-          </span>
-          <span className="text-small font-medium leading-none text-stone-50">
-            Open App
-          </span>
-        </Link>
+          <Link
+            href="#"
+            className={`${headerMenuShell} px-5 py-3 transition-colors hover:bg-[#73F36C]/10`}
+          >
+            <span className="text-[12px] font-normal leading-[1.2] text-green-400">
+              Enter App
+            </span>
+          </Link>
+        </div>
       </nav>
     </header>
   );

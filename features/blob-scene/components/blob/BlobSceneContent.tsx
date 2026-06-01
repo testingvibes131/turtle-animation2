@@ -15,14 +15,19 @@ import {
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
+import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 
 type BlobSceneContentProps = {
   params: BlobVisualParams;
-  offsetX: number;
+  scrollMotion: BlobScrollMotion;
 };
 
-export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
+export function BlobSceneContent({
+  params,
+  scrollMotion,
+}: BlobSceneContentProps) {
+  const { offsetX, offsetY, scale, rotationY } = scrollMotion;
   const blobGroupRef = useRef<THREE.Group>(null);
   const zoneUsedRef = useRef<Set<number>>(new Set());
   const zonesSnapshotRef = useRef<BlobSceneContextValue["zonesSnapshotRef"]["current"]>([]);
@@ -115,19 +120,20 @@ export function BlobSceneContent({ params, offsetX }: BlobSceneContentProps) {
     params,
   );
 
-  useLayoutEffect(() => {
-    const group = blobGroupRef.current;
-    if (group) group.position.x = offsetX;
-  }, [offsetX]);
-
   return (
     <BlobSceneProvider value={contextValue}>
-      <group ref={blobGroupRef} position={[offsetX, 0, 0]}>
-        <BlobPointCloud
-          blobGroupRef={blobGroupRef}
-          tickAnimationTime={tickAnimationTime}
-        />
-        <ActiveCuratorZones />
+      <group
+        position={[offsetX, offsetY, 0]}
+        rotation={[0, rotationY, 0]}
+        scale={[scale, scale, scale]}
+      >
+        <group ref={blobGroupRef}>
+          <BlobPointCloud
+            blobGroupRef={blobGroupRef}
+            tickAnimationTime={tickAnimationTime}
+          />
+          <ActiveCuratorZones />
+        </group>
       </group>
     </BlobSceneProvider>
   );

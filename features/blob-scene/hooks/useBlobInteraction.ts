@@ -4,6 +4,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
+import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import {
   buildZoneHubEdgesRandom,
@@ -57,7 +58,17 @@ export function useBlobInteraction({
   frozenLayoutAxisRef,
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
+  const interactionEnabled = useBlobInteractionEnabled();
+  const interactionEnabledRef = useRef(interactionEnabled);
+  interactionEnabledRef.current = interactionEnabled;
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
+
+  useEffect(() => {
+    if (interactionEnabled) return;
+    setActiveZone(null);
+    frozenAnimTimeRef.current = null;
+    frozenLayoutAxisRef.current = null;
+  }, [interactionEnabled, frozenAnimTimeRef, frozenLayoutAxisRef, setActiveZone]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -122,6 +133,7 @@ export function useBlobInteraction({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (!interactionEnabledRef.current) return;
       const zone = pickAtClient(e.clientX, e.clientY);
       setActiveZone((prev) => {
         if (!zone) return null;
@@ -157,6 +169,7 @@ export function useBlobInteraction({
     };
 
     const onPointerLeave = () => {
+      if (!interactionEnabledRef.current) return;
       setActiveZone(null);
       frozenAnimTimeRef.current = null;
       frozenLayoutAxisRef.current = null;

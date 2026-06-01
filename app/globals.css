@@ -3,6 +3,8 @@
 :root {
   --background: #141514;
   --foreground: #f9f9f9;
+  /* SiteHeader: pt-5 + pb-4 + nav row */
+  --site-header-height: 4.75rem;
 }
 
 @theme inline {

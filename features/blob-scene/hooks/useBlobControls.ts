@@ -29,9 +29,9 @@ export type BlobVisualParams = PerlinBlobParams & {
 const DEFAULTS = {
   radius: 0.7,
   detail: 24,
-  noiseScale: 14,
+  noiseScale: 4.25,
   displacementDivisor: 38,
-  perlinPeriod: 0.5,
+  perlinPeriod: 0.3,
   timeSpeed: 0,
   pointSizeRatio: 0.13,
   rotationSpeed: 0.04,

@@ -27,3 +27,90 @@ export function computeBlobOffsetX(
   // Camera looks at origin; blob at +X so ~cropFraction of diameter clears the right edge.
   return halfViewWidth - extent + cropFraction * diameter;
 }
+
+export function computeBlobOffsetXForScroll(
+  camera: THREE.PerspectiveCamera,
+  viewportAspect: number,
+  extent: number,
+  /** 0 = hero (left), 1 = section 2 (right). */
+  scrollProgress: number,
+): number {
+  const right = computeBlobOffsetX(
+    camera,
+    viewportAspect,
+    extent,
+    BLOB_RIGHT_CROP_FRACTION,
+  );
+  // Mirror the final right placement across the viewport center.
+  const left = -right;
+  const t = Math.min(1, Math.max(0, scrollProgress));
+  return left + (right - left) * t;
+}
+
+/** Hero (section 1) scale; section 2 uses 1. */
+export const BLOB_HERO_SCALE = 1.35;
+
+/** Full Y-axis turn while scrolling hero → section 2. */
+export const BLOB_SCROLL_ROTATION_Y = Math.PI * 2;
+
+function clampScrollProgress(scrollProgress: number): number {
+  return Math.min(1, Math.max(0, scrollProgress));
+}
+
+export function computeBlobScaleForScroll(scrollProgress: number): number {
+  const t = clampScrollProgress(scrollProgress);
+  return BLOB_HERO_SCALE + (1 - BLOB_HERO_SCALE) * t;
+}
+
+export function computeBlobRotationYForScroll(scrollProgress: number): number {
+  const t = clampScrollProgress(scrollProgress);
+  return t * BLOB_SCROLL_ROTATION_Y;
+}
+
+/** Fraction of blob diameter that sits below the viewport bottom in the hero. */
+export const BLOB_HERO_BELOW_VIEWPORT_FRACTION = 1 / 3;
+
+/**
+ * Hero: shift down so BLOB_HERO_BELOW_VIEWPORT_FRACTION of the diameter is off-screen.
+ */
+export function computeBlobOffsetYForScroll(
+  camera: THREE.PerspectiveCamera,
+  extent: number,
+  scrollProgress: number,
+): number {
+  const t = clampScrollProgress(scrollProgress);
+  const scale = computeBlobScaleForScroll(scrollProgress);
+  const scaledExtent = extent * scale;
+  const dist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const halfViewHeight = dist * Math.tan(vFov / 2);
+  const below = BLOB_HERO_BELOW_VIEWPORT_FRACTION * scaledExtent * 2;
+  const heroOffsetY = -halfViewHeight + scaledExtent - below;
+  return heroOffsetY * (1 - t);
+}
+
+export type BlobScrollMotion = {
+  offsetX: number;
+  offsetY: number;
+  scale: number;
+  rotationY: number;
+};
+
+export function computeBlobScrollMotion(
+  camera: THREE.PerspectiveCamera,
+  viewportAspect: number,
+  extent: number,
+  scrollProgress: number,
+): BlobScrollMotion {
+  return {
+    offsetX: computeBlobOffsetXForScroll(
+      camera,
+      viewportAspect,
+      extent,
+      scrollProgress,
+    ),
+    offsetY: computeBlobOffsetYForScroll(camera, extent, scrollProgress),
+    scale: computeBlobScaleForScroll(scrollProgress),
+    rotationY: computeBlobRotationYForScroll(scrollProgress),
+  };
+}
