@@ -33,7 +33,7 @@ const DEFAULTS = {
   noiseScale: 4.25,
   displacementDivisor: 38,
   perlinPeriod: 0.3,
-  timeSpeed: 0,
+  timeSpeed: 0.01,
   pointSizeRatio: 0.13,
   rotationSpeed: 0.04,
   depthFadeMinOpacity: 0,

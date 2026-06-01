@@ -14,6 +14,8 @@ import {
   useBlobAnimationFreeze,
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
+import { useBlobScrollShowcase } from "@/features/blob-scene/hooks/useBlobScrollShowcase";
+import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
@@ -113,11 +115,15 @@ export function BlobSceneContent({
     frozenLayoutAxisRef,
   });
 
+  useBlobScrollShowcase({ zonesSnapshotRef, setActiveZone });
+
+  const interactionEnabled = useBlobInteractionEnabled();
   const { tickAnimationTime } = useBlobAnimationFreeze(
     activeZone,
     blobAnimTimeRef,
     frozenAnimTimeRef,
     params,
+    interactionEnabled,
   );
 
   return (

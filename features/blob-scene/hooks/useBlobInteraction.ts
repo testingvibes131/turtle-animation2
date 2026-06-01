@@ -4,7 +4,10 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
-import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobInteractionEnabled,
+  useBlobScrollShowcaseActive,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import {
@@ -60,16 +63,25 @@ export function useBlobInteraction({
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
   const interactionEnabled = useBlobInteractionEnabled();
+  const showcaseActive = useBlobScrollShowcaseActive();
   const interactionEnabledRef = useRef(interactionEnabled);
   interactionEnabledRef.current = interactionEnabled;
+  const showcaseActiveRef = useRef(showcaseActive);
+  showcaseActiveRef.current = showcaseActive;
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useEffect(() => {
-    if (interactionEnabled) return;
+    if (interactionEnabled || showcaseActive) return;
     setActiveZone(null);
     frozenAnimTimeRef.current = null;
     frozenLayoutAxisRef.current = null;
-  }, [interactionEnabled, frozenAnimTimeRef, frozenLayoutAxisRef, setActiveZone]);
+  }, [
+    interactionEnabled,
+    showcaseActive,
+    frozenAnimTimeRef,
+    frozenLayoutAxisRef,
+    setActiveZone,
+  ]);
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -211,15 +223,20 @@ export function useBlobAnimationFreeze(
   blobAnimTimeRef: RefObject<number>,
   frozenAnimTimeRef: RefObject<number | null>,
   params: BlobSceneContextValue["params"],
+  /** Only freeze Perlin time for manual hover after the scroll tour. */
+  freezeTime: boolean,
 ) {
   const activeZoneRef = useRef(activeZone);
   activeZoneRef.current = activeZone;
+  const freezeTimeRef = useRef(freezeTime);
+  freezeTimeRef.current = freezeTime;
 
   return {
     activeZoneRef,
     tickAnimationTime: (clockTime: number) => {
-      const hovered = activeZoneRef.current;
-      if (hovered) {
+      const shouldFreeze =
+        freezeTimeRef.current && activeZoneRef.current != null;
+      if (shouldFreeze) {
         if (frozenAnimTimeRef.current === null) {
           frozenAnimTimeRef.current = clockTime;
         }
