@@ -9,7 +9,11 @@ import {
 } from "@/features/home/components/pipelineRadarDraw";
 import { usePipelineRadarLoop } from "@/features/home/hooks/usePipelineRadarLoop";
 
-export function PipelineRadarCanvas() {
+type Props = {
+  className?: string;
+};
+
+export function PipelineRadarCanvas({ className = "" }: Props) {
   const blipIntensitiesRef = useRef(createBlipIntensityState());
 
   const { containerRef, canvasRef } = usePipelineRadarLoop(
@@ -35,7 +39,12 @@ export function PipelineRadarCanvas() {
   return (
     <div
       ref={containerRef}
-      className="relative mx-auto aspect-square w-full max-w-[530px]"
+      className={[
+        "relative mx-auto aspect-square w-full max-w-[530px]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="img"
       aria-label="Animated radar display"
     >

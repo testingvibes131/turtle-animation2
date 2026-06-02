@@ -1,7 +1,7 @@
 "use client";
 
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
-import { PipelineRadarCanvas } from "@/features/home/components/PipelineRadarCanvas";
+import { PipelineRadarComposition } from "@/features/home/components/PipelineRadarComposition";
 import { pipelineSteps } from "@/features/home/data/pipelineSteps";
 import { usePipelineScroll } from "@/features/home/hooks/usePipelineScroll";
 
@@ -25,7 +25,7 @@ export function Pipeline() {
         </RevealOnScroll>
 
         <div className="mx-auto mt-[clamp(16px,2vw,32px)] w-full">
-          <PipelineRadarCanvas />
+          <PipelineRadarComposition />
         </div>
 
         <div className="pipeline-cards mt-[clamp(16px,1.6vw,28px)] flex w-full flex-col gap-[clamp(8px,0.8vw,10px)] lg:flex-row lg:items-stretch">
