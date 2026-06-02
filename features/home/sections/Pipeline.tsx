@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
+import { PipelineRadarCanvas } from "@/features/home/components/PipelineRadarCanvas";
 import { pipelineSteps } from "@/features/home/data/pipelineSteps";
 import { usePipelineScroll } from "@/features/home/hooks/usePipelineScroll";
 
@@ -24,17 +24,8 @@ export function Pipeline() {
           </h2>
         </RevealOnScroll>
 
-        <div
-          className="relative mx-auto mt-[clamp(16px,2vw,32px)] w-full"
-          style={{ maxWidth: "min(100%, 920px)", aspectRatio: "1738 / 749" }}
-        >
-          <Image
-            src="/pipeline/pipeline-illustration.png"
-            alt=""
-            fill
-            className="object-contain"
-            sizes="920px"
-          />
+        <div className="mx-auto mt-[clamp(16px,2vw,32px)] w-full">
+          <PipelineRadarCanvas />
         </div>
 
         <div className="pipeline-cards mt-[clamp(16px,1.6vw,28px)] flex w-full flex-col gap-[clamp(8px,0.8vw,10px)] lg:flex-row lg:items-stretch">
