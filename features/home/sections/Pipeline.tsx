@@ -58,7 +58,21 @@ export function Pipeline() {
                     "flex-basis 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease",
                 }}
               >
-                <span className="pipeline-dot" />
+                <svg
+                  className="pipeline-dot"
+                  viewBox="0 0 20 20"
+                  aria-hidden
+                >
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="9.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                  />
+                  <circle cx="10" cy="10" r="6" fill="currentColor" />
+                </svg>
                 <div
                   className="flex w-full flex-col"
                   style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
