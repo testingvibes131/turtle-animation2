@@ -1,4 +1,6 @@
 export type PipelineRadarDeal = {
+  /** Index into `PIPELINE_RADAR_BLIPS` — card highlights when that blip is scanned. */
+  blipIndex: number;
   label: string;
   /** Yield value without the APY suffix. */
   apy: string;
@@ -30,6 +32,7 @@ const { ausd, base, curvance, eth, hype, lido, altura, usdc, usdt, yo } =
 
 export const pipelineRadarLeftDeals: PipelineRadarDeal[] = [
   {
+    blipIndex: 5,
     label: "Lend AUS on earn AUSD/AUSD",
     apy: "8",
     protocol: { name: "Curvance", icon: curvance },
@@ -37,6 +40,7 @@ export const pipelineRadarLeftDeals: PipelineRadarDeal[] = [
     tokens: [ausd],
   },
   {
+    blipIndex: 3,
     label: "Lido Earn USD",
     apy: "4.7",
     protocol: { name: "Lido", icon: lido },
@@ -44,6 +48,7 @@ export const pipelineRadarLeftDeals: PipelineRadarDeal[] = [
     tokens: [usdc, usdt],
   },
   {
+    blipIndex: 4,
     label: "Felix Hype",
     apy: "4.5",
     protocol: { name: "Hyperliquid", icon: hype },
@@ -54,6 +59,7 @@ export const pipelineRadarLeftDeals: PipelineRadarDeal[] = [
 
 export const pipelineRadarRightDeals: PipelineRadarDeal[] = [
   {
+    blipIndex: 1,
     label: "Aave V3 Ethereum USDC",
     apy: "3.3",
     protocol: { name: "-", icon: "/logos/Aave.png" },
@@ -61,6 +67,7 @@ export const pipelineRadarRightDeals: PipelineRadarDeal[] = [
     tokens: [eth],
   },
   {
+    blipIndex: 2,
     label: "Altura Vault",
     apy: "29.7",
     protocol: { name: "Altura", icon: altura },
@@ -68,6 +75,7 @@ export const pipelineRadarRightDeals: PipelineRadarDeal[] = [
     tokens: [hype],
   },
   {
+    blipIndex: 0,
     label: "YoUSD",
     apy: "15.4",
     protocol: { name: "yo", icon: yo },

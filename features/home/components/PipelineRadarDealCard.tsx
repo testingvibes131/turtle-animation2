@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useState } from "react";
+import { usePipelineRadarScan } from "@/features/home/context/PipelineRadarScanContext";
 import type { PipelineRadarDeal } from "@/features/home/data/pipelineRadarDeals";
 
 type Props = PipelineRadarDeal & {
@@ -9,12 +10,13 @@ type Props = PipelineRadarDeal & {
 };
 
 const shellClass =
-  "w-full max-w-[348px] rounded-[20px] border border-[rgba(249,249,249,0.1)] bg-gradient-to-b from-[#141514] to-[#191919] px-5 py-[22px] outline-none transition-[border-color,box-shadow] duration-300 focus-visible:border-[rgba(115,243,108,0.35)] focus-visible:shadow-[0_0_0_1px_rgba(115,243,108,0.2)]";
+  "pipeline-radar-deal-card w-full max-w-[348px] rounded-[20px] border border-[rgba(249,249,249,0.1)] bg-gradient-to-b from-[#141514] to-[#191919] px-5 py-[22px] outline-none transition-[border-color,box-shadow,background] duration-300 focus-visible:border-[rgba(115,243,108,0.35)] focus-visible:shadow-[0_0_0_1px_rgba(115,243,108,0.2)]";
 
 /**
  * Figma Deal Card (1323:37198) — closed Default (1400:113468) → open Hover (1295:27885).
  */
 export function PipelineRadarDealCard({
+  blipIndex,
   label,
   apy,
   protocol,
@@ -23,6 +25,8 @@ export function PipelineRadarDealCard({
   className = "",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const scannedBlips = usePipelineRadarScan();
+  const isScanned = scannedBlips[blipIndex] === true;
 
   const openCard = useCallback(() => setOpen(true), []);
   const closeCard = useCallback(() => setOpen(false), []);
@@ -31,6 +35,7 @@ export function PipelineRadarDealCard({
     <article
       className={[shellClass, className].filter(Boolean).join(" ")}
       data-state={open ? "open" : "closed"}
+      data-scanned={isScanned ? "true" : "false"}
       tabIndex={0}
       onMouseEnter={openCard}
       onMouseLeave={closeCard}

@@ -220,6 +220,19 @@ body {
   }
 }
 
+/* ---------- pipeline radar deal cards (scan highlight) ---------- */
+.pipeline-radar-deal-card[data-scanned="true"] {
+  border-color: rgba(115, 243, 108, 0.22);
+  background:
+    linear-gradient(
+      0deg,
+      rgba(115, 243, 108, 0.1) 0%,
+      rgba(115, 243, 108, 0.1) 100%
+    ),
+    linear-gradient(180deg, #141514 0%, #191919 100%);
+  box-shadow: 0 0 24px 0 rgba(115, 243, 108, 0.08);
+}
+
 @media (min-width: 1024px) {
   .scroll-stage {
     min-height: 400vh;
@@ -372,10 +385,6 @@ body {
   animation-direction: reverse;
 }
 
-.partner-marquee:hover .partner-marquee__track {
-  animation-play-state: paused;
-}
-
 @keyframes partner-scroll {
   from {
     transform: translate3d(0, 0, 0);
@@ -408,22 +417,15 @@ body {
   opacity: 0.9;
 }
 
-.partner-logo[data-logo="susquehanna"],
+.partner-logo[data-logo="sig"],
 .partner-logo[data-logo="frachtis"],
 .partner-logo[data-logo="moonhill"],
 .partner-logo[data-logo="trident"],
-.partner-logo[data-logo="theia"] {
+.partner-logo[data-logo="fivet"] {
   max-height: clamp(16px, 1.7vw, 24px);
   max-width: 62%;
 }
 
-.partner-logo[data-logo="iota"],
-.partner-logo[data-logo="tuip"] {
-  max-height: clamp(26px, 2.8vw, 40px);
-  max-width: 60%;
-}
-
-.partner-logo[data-logo="laser-digital"],
 .partner-logo[data-logo="selini"] {
   max-height: clamp(30px, 3.2vw, 46px);
   max-width: 85%;

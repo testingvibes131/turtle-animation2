@@ -4,23 +4,55 @@ export type BackedByPartner = {
   logoKey: string;
 };
 
+function partner(filename: string, alt: string, logoKey?: string): BackedByPartner {
+  return {
+    src: `/partners/${encodeURIComponent(filename)}`,
+    alt,
+    logoKey:
+      logoKey ??
+      alt
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, ""),
+  };
+}
+
 export const backedByRow1: BackedByPartner[] = [
-  { src: "/partners/logo-01-susquehanna.png", alt: "Susquehanna", logoKey: "susquehanna" },
-  { src: "/partners/logo-02-laser-digital.png", alt: "Laser Digital", logoKey: "laser-digital" },
-  { src: "/partners/logo-03-selini.png", alt: "Selini", logoKey: "selini" },
-  { src: "/partners/logo-04-wise.png", alt: "Wise", logoKey: "l2iv" },
-  { src: "/partners/logo-05-group5.svg", alt: "Theia", logoKey: "theia" },
-  { src: "/partners/logo-06-tuip.png", alt: "Tuip", logoKey: "tuip" },
-  { src: "/partners/logo-07-iota.png", alt: "Iota", logoKey: "iota" },
+  partner("SIG.svg", "SIG", "sig"),
+  partner("Amber 1.svg", "Amber"),
+  partner("Archimed-Capital 1.svg", "Archimed Capital"),
+  partner("Auros 1.svg", "Auros"),
+  partner("Bohdi.svg", "Bohdi"),
+  partner("ChorusOne.svg", "Chorus One"),
+  partner("Consensys.svg", "Consensys", "consensys"),
+  partner("FalconX 1.svg", "FalconX"),
+  partner("Fasanara 1.svg", "Fasanara"),
+  partner("Figment 1.svg", "Figment"),
 ];
 
 export const backedByRow2: BackedByPartner[] = [
-  { src: "/partners/logo-01-susquehanna.png", alt: "Susquehanna", logoKey: "susquehanna" },
-  { src: "/partners/logo-08-fivet.png", alt: "FiveT", logoKey: "fivet" },
-  { src: "/partners/logo-09-consensys.svg", alt: "Consensys", logoKey: "consensys" },
-  { src: "/partners/logo-10-frachtis.svg", alt: "Frachtis", logoKey: "frachtis" },
-  { src: "/partners/logo-11-moonhill.png", alt: "Moonhill Capital", logoKey: "moonhill" },
-  { src: "/partners/logo-12-trident.png", alt: "Trident Digital", logoKey: "trident" },
+  partner("Fratchis 1.svg", "Frachtis", "frachtis"),
+  partner("GSR.svg", "GSR"),
+  partner("Gami-Capital 1.svg", "Gami Capital"),
+  partner("Group 1321314620.svg", "FiveT", "fivet"),
+  partner("L2-Iterative-Ventures 1.svg", "L2 Iterative Ventures", "l2iv"),
+  partner("Moonhill 1.svg", "Moonhill Capital", "moonhill"),
+  partner("Reflexive 1.svg", "Reflexive"),
+  partner("Relay 1.svg", "Relay"),
+  partner("Selini.svg", "Selini", "selini"),
+  partner("Shorewoods 1.svg", "Shorewood"),
 ];
 
-export const backedByRow3 = backedByRow1;
+export const backedByRow3: BackedByPartner[] = [
+  partner("SNZ 1.svg", "SNZ"),
+  partner("Spartan 1.svg", "Spartan"),
+  partner("TowerCapital 1.svg", "Tower Capital"),
+  partner("Trident 1.svg", "Trident Digital", "trident"),
+  partner("Triton 1.svg", "Triton"),
+  partner("VarysCapital 1.svg", "Varys Capital"),
+  partner("white_logo_no_padding 1.svg", "Vector", "vector"),
+  partner("bitscale 2.svg", "Bitscale"),
+  partner("coinix 1.svg", "Coinix"),
+  partner("crypto-com-1 1.svg", "Crypto.com"),
+  partner("flowdesk 1.svg", "Flowdesk"),
+];

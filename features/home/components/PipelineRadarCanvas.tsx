@@ -11,10 +11,16 @@ import { usePipelineRadarLoop } from "@/features/home/hooks/usePipelineRadarLoop
 
 type Props = {
   className?: string;
+  onBlipIntensities?: (intensities: readonly number[]) => void;
 };
 
-export function PipelineRadarCanvas({ className = "" }: Props) {
+export function PipelineRadarCanvas({
+  className = "",
+  onBlipIntensities,
+}: Props) {
   const blipIntensitiesRef = useRef(createBlipIntensityState());
+  const onBlipIntensitiesRef = useRef(onBlipIntensities);
+  onBlipIntensitiesRef.current = onBlipIntensities;
 
   const { containerRef, canvasRef } = usePipelineRadarLoop(
     ({ ctx, width, height, dt, timeS, reducedMotion }) => {
@@ -25,6 +31,7 @@ export function PipelineRadarCanvas({ className = "" }: Props) {
         leadingAngle,
         reducedMotion,
       );
+      onBlipIntensitiesRef.current?.(blipIntensitiesRef.current);
       drawPipelineRadar(
         ctx,
         width,

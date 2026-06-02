@@ -59,6 +59,8 @@ export const PIPELINE_RADAR_SWEEP_CENTER_ALPHA = 0.09;
 
 export const PIPELINE_RADAR_BLIP_RAMP_UP_S = 0.08;
 export const PIPELINE_RADAR_BLIP_DECAY_S = 0.55;
+/** Intensity at or above this counts as “scanned” for deal-card highlight. */
+export const PIPELINE_RADAR_BLIP_SCAN_THRESHOLD = 0.22;
 
 /** Clockwise from 3 o'clock (canvas +x). */
 export type PipelineRadarBlipSpec = {
