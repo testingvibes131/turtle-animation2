@@ -5,8 +5,8 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import {
+  useBlobHeroShowcaseActive,
   useBlobInteractionEnabled,
-  useBlobScrollShowcaseActive,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
@@ -63,21 +63,21 @@ export function useBlobInteraction({
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
   const interactionEnabled = useBlobInteractionEnabled();
-  const showcaseActive = useBlobScrollShowcaseActive();
+  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const interactionEnabledRef = useRef(interactionEnabled);
   interactionEnabledRef.current = interactionEnabled;
-  const showcaseActiveRef = useRef(showcaseActive);
-  showcaseActiveRef.current = showcaseActive;
+  const heroShowcaseActiveRef = useRef(heroShowcaseActive);
+  heroShowcaseActiveRef.current = heroShowcaseActive;
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useEffect(() => {
-    if (interactionEnabled || showcaseActive) return;
+    if (interactionEnabled || heroShowcaseActive) return;
     setActiveZone(null);
     frozenAnimTimeRef.current = null;
     frozenLayoutAxisRef.current = null;
   }, [
     interactionEnabled,
-    showcaseActive,
+    heroShowcaseActive,
     frozenAnimTimeRef,
     frozenLayoutAxisRef,
     setActiveZone,
@@ -223,7 +223,7 @@ export function useBlobAnimationFreeze(
   blobAnimTimeRef: RefObject<number>,
   frozenAnimTimeRef: RefObject<number | null>,
   params: BlobSceneContextValue["params"],
-  /** Only freeze Perlin time for manual hover after the scroll tour. */
+  /** Freeze Perlin time while hovered after interaction is enabled. */
   freezeTime: boolean,
 ) {
   const activeZoneRef = useRef(activeZone);

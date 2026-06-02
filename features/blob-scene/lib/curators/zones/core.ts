@@ -552,6 +552,33 @@ function hubLogoOutsetWorld(
   return outsetSpheres * spacing;
 }
 
+/** Closest camera-cap vertex to a hub anchor direction (landing / fixed slot). */
+export function pickCapVertexNearestHubAnchor(
+  mesh: IcosahedronVertexData,
+  positions: Float32Array,
+  layoutAxis: THREE.Vector3,
+  zoneDeg: number,
+  options: HubAnchorOptions,
+  blobParams: PerlinBlobParams,
+  towardCamera: THREE.Vector3,
+): number {
+  computeHubAnchorDirection(layoutAxis, zoneDeg, options, _hubDir);
+  let best = 0;
+  let bestDot = -Infinity;
+  for (let i = 0; i < mesh.count; i++) {
+    if (!passesCameraCap(positions, i, towardCamera, options.frontMinDot)) {
+      continue;
+    }
+    memberDirection(positions, mesh, blobParams, i, _dir);
+    const d = _dir.dot(_hubDir);
+    if (d > bestDot) {
+      bestDot = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
 /** Logo / plexus hub point on the deformed surface along the anchor direction. */
 export function displacedHubAnchorPosition(
   mesh: IcosahedronVertexData,

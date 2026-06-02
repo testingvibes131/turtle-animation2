@@ -27,7 +27,7 @@ const POINT_COLOR = 0x2c2d2b;
 const DEBUG_PICKABLE_COLOR = 0x2973ff;
 const BLOB_POINT_SCALE_MUL = 1.25;
 const DEBUG_PICKABLE_SCALE_MUL = 1.08;
-const SPHERE_GEO = new THREE.SphereGeometry(1, 10, 8);
+const createSphereGeo = () => new THREE.SphereGeometry(1, 10, 8);
 const _dummy = new THREE.Object3D();
 const _worldPos = new THREE.Vector3();
 
@@ -52,6 +52,10 @@ export function BlobPointCloud({
     scalesRef,
     getTowardCamera,
   } = useBlobScene();
+
+  const liveGeo = useMemo(() => createSphereGeo(), []);
+  const deadGeo = useMemo(() => createSphereGeo(), []);
+  const debugGeo = useMemo(() => createSphereGeo(), []);
 
   const liveMeshRef = useRef<THREE.InstancedMesh>(null);
   const deadMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -180,6 +184,7 @@ export function BlobPointCloud({
           );
         }
       }
+      liveMesh.count = liveIndices.length;
       liveMesh.instanceMatrix.needsUpdate = true;
     }
 
@@ -208,6 +213,7 @@ export function BlobPointCloud({
           );
         }
       }
+      deadMesh.count = deadIndices.length;
       deadMesh.instanceMatrix.needsUpdate = true;
     }
 
@@ -259,19 +265,19 @@ export function BlobPointCloud({
     <>
       <instancedMesh
         ref={liveMeshRef}
-        args={[SPHERE_GEO, liveMaterial, liveIndices.length]}
+        args={[liveGeo, liveMaterial, liveIndices.length]}
         frustumCulled={false}
         renderOrder={RENDER_SPHERE}
       />
       <instancedMesh
         ref={deadMeshRef}
-        args={[SPHERE_GEO, deadMaterial, deadIndices.length]}
+        args={[deadGeo, deadMaterial, deadIndices.length]}
         frustumCulled={false}
         renderOrder={RENDER_SPHERE}
       />
       <instancedMesh
         ref={debugPickableMeshRef}
-        args={[SPHERE_GEO, debugPickableMaterial, liveIndices.length]}
+        args={[debugGeo, debugPickableMaterial, liveIndices.length]}
         frustumCulled={false}
         renderOrder={RENDER_DEBUG_PICKABLE}
       />

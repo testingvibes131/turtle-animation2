@@ -34,11 +34,14 @@ const ZONE_INNER_TINT_OPACITY = 0.1;
 
 type ZoneMemberInstancesProps = {
   activeZone: CuratorZoneAssignment | null;
+  /** Hero demo: only draw spokes’ endpoint dots (no full-zone gray wash). */
+  connectedOnly?: boolean;
   onZonesChange: (zones: CuratorZoneAssignment[]) => void;
 };
 
 export function ZoneMemberInstances({
   activeZone,
+  connectedOnly = false,
   onZonesChange,
 }: ZoneMemberInstancesProps) {
   const {
@@ -63,7 +66,8 @@ export function ZoneMemberInstances({
   const zonesSigRef = useRef("");
   const activeZoneRef = useRef(activeZone);
   activeZoneRef.current = activeZone;
-
+  const connectedOnlyRef = useRef(connectedOnly);
+  connectedOnlyRef.current = connectedOnly;
   const maxInstances = vertices.count;
 
   const { capGrayMaterial, zoneInnerDimMaterial, highlightMaterials } =
@@ -152,8 +156,14 @@ export function ZoneMemberInstances({
     );
 
     const used = new Set<number>();
-    for (const z of nextZones) {
-      for (const m of z.members) used.add(m);
+    if (connectedOnlyRef.current && activeZoneRef.current) {
+      for (const vi of connectedMemberSet(activeZoneRef.current)) {
+        used.add(vi);
+      }
+    } else {
+      for (const z of nextZones) {
+        for (const m of z.members) used.add(m);
+      }
     }
     zoneUsedRef.current = used;
     zonesSnapshotRef.current = nextZones;
@@ -257,22 +267,33 @@ export function ZoneMemberInstances({
       }
     };
 
+    const heroConnectedOnly = connectedOnlyRef.current;
+
     for (const zone of nextZones) {
       const fullMesh = meshRefs.current.get(zone.curator.name);
       if (!fullMesh || !capGrayMesh) continue;
-      const needsInnerDim = Boolean(activeName && zoneInnerDimMesh);
+      const needsInnerDim = Boolean(
+        activeName && zoneInnerDimMesh && !heroConnectedOnly,
+      );
 
       const partners = new Set(zone.partners);
       const isSelected = activeName === zone.curator.name;
+      if (heroConnectedOnly && !isSelected) continue;
+
       const hovered = activeZoneRef.current;
       const connected =
         isSelected && hovered?.curator.name === zone.curator.name
           ? connectedMemberSet(hovered)
           : connectedMemberSet(zone);
+      const displayHub =
+        isSelected && hovered?.hub != null && hovered.hub >= 0
+          ? hovered.hub
+          : zone.hub;
       let fullSlot = 0;
 
       for (const vi of zone.members) {
-        if (vi === zone.hub) continue;
+        if (vi === displayHub) continue;
+        if (heroConnectedOnly && isSelected && !connected.has(vi)) continue;
         if (isSelected && connected.has(vi)) {
           const scaleMul = partners.has(vi)
             ? ZONE_PARTNER_SCALE

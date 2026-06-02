@@ -28,5 +28,6 @@ export {
   displacedHubAnchorPosition,
   findZoneForPickedVertex,
   isHubInAllowedZone,
+  pickCapVertexNearestHubAnchor,
   pickZoneAtCapRay,
 } from "@/features/blob-scene/lib/curators/zones/core";

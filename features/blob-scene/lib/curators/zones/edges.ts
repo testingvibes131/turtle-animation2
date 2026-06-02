@@ -25,19 +25,26 @@ export function buildZoneHubEdges(
   const used = new Set<number>([hub]);
   const edges: CuratorEdge[] = [];
 
-  for (const p of partners) {
-    if (edges.length >= targetCount) return edges;
-    edges.push([hub, p]);
-    used.add(p);
-  }
-
   const maxAngleRad = THREE.MathUtils.degToRad(options.maxAngleFromHubDeg);
   const minHubDot = Math.cos(maxAngleRad * 1.12);
   const frontMin = options.frontMinDot;
   const live = options.liveVertices;
+  const centerWeight = options.capCenterScoreWeight ?? 0;
 
   _hubDir.copy(vertexDirection(positions, hub));
   _layoutForward.copy(towardCamera).normalize();
+
+  for (const p of partners) {
+    if (edges.length >= targetCount) return edges;
+    if (used.has(p)) continue;
+    _dir.copy(vertexDirection(positions, p));
+    const forwardDot = _dir.dot(_layoutForward);
+    if (forwardDot < frontMin) continue;
+    const hubAlign = _dir.dot(_hubDir);
+    if (hubAlign < minHubDot) continue;
+    edges.push([hub, p]);
+    used.add(p);
+  }
 
   const ranked: { index: number; score: number }[] = [];
   for (const m of members) {
@@ -47,7 +54,11 @@ export function buildZoneHubEdges(
     if (_dir.dot(_layoutForward) < frontMin) continue;
     const hubAlign = _dir.dot(_hubDir);
     if (hubAlign < minHubDot) continue;
-    ranked.push({ index: m, score: hubAlign });
+    const forwardDot = _dir.dot(_layoutForward);
+    ranked.push({
+      index: m,
+      score: hubAlign + centerWeight * forwardDot,
+    });
   }
 
   ranked.sort((a, b) => b.score - a.score || a.index - b.index);

@@ -10,10 +10,7 @@ import {
   applySquareContainMap,
   getLogoDisplayScale,
 } from "@/features/blob-scene/lib/curators/logoContentScale";
-import {
-  curatorZoneClockDeg,
-  displacedHubAnchorPosition,
-} from "@/features/blob-scene/lib/curators/zones";
+import { displacedHubAnchorPosition } from "@/features/blob-scene/lib/curators/zones";
 import {
   type IcosahedronVertexData,
   type PerlinBlobParams,
@@ -34,6 +31,7 @@ const HUB_LOGO_SIZE_MUL = 1.5 * 1.1;
 type CuratorHubBillboardProps = {
   hubIndex: number;
   curatorName: string;
+  hubZoneDeg: number;
   vertices: IcosahedronVertexData;
   params: BlobVisualParams;
   getTowardCamera: () => THREE.Vector3;
@@ -43,6 +41,7 @@ type CuratorHubBillboardProps = {
 export function CuratorHubBillboard({
   hubIndex,
   curatorName,
+  hubZoneDeg,
   vertices,
   params,
   getTowardCamera,
@@ -80,7 +79,7 @@ export function CuratorHubBillboard({
       vertices,
       hubIndex,
       getTowardCamera(),
-      curatorZoneClockDeg(curatorName),
+      hubZoneDeg,
       {
         frontMinDot: params.frontMinDot,
         blobCenterLean: params.blobCenterLean,

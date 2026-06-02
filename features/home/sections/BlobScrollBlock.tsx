@@ -4,18 +4,8 @@ import { Leva } from "leva";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
-import {
-  blobInteractionEnabledFromScroll,
-  blobInteractionEndScroll,
-  blobShowcaseActiveFromScroll,
-  blobShowcaseEndScroll,
-  blobShowcaseProgress,
-  blobShowcaseTourCompleteFromScroll,
-  BLOB_INTERACTION_SECTION2_FRAC,
-  BLOB_SHOWCASE_FRAC_OF_INTERACTION_PATH,
-  curatorIndexForShowcaseProgress,
-} from "@/features/blob-scene/lib/scroll/blobShowcase";
+import { blobInteractionEnabledFromScroll } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
+import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
 
 /**
  * One blob canvas for hero + section 2: sticky backdrop with scrollable content overlaid.
@@ -23,11 +13,8 @@ import {
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const blockRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [showcaseProgress, setShowcaseProgress] = useState(0);
-  const [showcaseActive, setShowcaseActive] = useState(false);
+  const [heroShowcaseActive, setHeroShowcaseActive] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
-  const tourFinishedLoggedRef = useRef(false);
-  const hoverEnabledLoggedRef = useRef(false);
 
   useEffect(() => {
     const block = blockRef.current;
@@ -43,50 +30,12 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const scrolled = -block.getBoundingClientRect().top;
       const metrics = { scrolled, heroScroll, section2Scroll };
 
-      const showcase = blobShowcaseProgress(metrics);
-      const tourComplete = blobShowcaseTourCompleteFromScroll(metrics);
+      const progress = Math.min(1, Math.max(0, scrolled / heroScroll));
       const interaction = blobInteractionEnabledFromScroll(metrics);
-      const showcaseEnd = blobShowcaseEndScroll(metrics);
-      const interactionEnd = blobInteractionEndScroll(metrics);
 
-      if (tourComplete && !tourFinishedLoggedRef.current) {
-        tourFinishedLoggedRef.current = true;
-        const curator =
-          CURATORS[curatorIndexForShowcaseProgress(1)]?.name ?? "?";
-        console.log("[blob tour] finished", {
-          scrolled: Math.round(scrolled),
-          showcaseEnd: Math.round(showcaseEnd),
-          interactionEnd: Math.round(interactionEnd),
-          gapPx: Math.round(interactionEnd - showcaseEnd),
-          showcaseProgress: showcase,
-          lastCurator: curator,
-          pathToHoverFrac: BLOB_SHOWCASE_FRAC_OF_INTERACTION_PATH,
-          section2HoverFrac: BLOB_INTERACTION_SECTION2_FRAC,
-          heroScroll: Math.round(heroScroll),
-          section2Scroll: Math.round(section2Scroll),
-        });
-      }
-      if (!tourComplete && scrolled < showcaseEnd * 0.9) {
-        tourFinishedLoggedRef.current = false;
-      }
-
-      if (interaction && !hoverEnabledLoggedRef.current) {
-        hoverEnabledLoggedRef.current = true;
-        console.log("[blob tour] hover enabled (tour off, pointer on)", {
-          scrolled: Math.round(scrolled),
-          showcaseEnd: Math.round(showcaseEnd),
-          interactionLine: Math.round(interactionEnd),
-          section2HoverFrac: BLOB_INTERACTION_SECTION2_FRAC,
-        });
-      }
-      if (!interaction) {
-        hoverEnabledLoggedRef.current = false;
-      }
-
-      setScrollProgress(Math.min(1, Math.max(0, scrolled / heroScroll)));
-      setShowcaseProgress(showcase);
+      setScrollProgress(progress);
       setInteractionEnabled(interaction);
-      setShowcaseActive(blobShowcaseActiveFromScroll(metrics));
+      setHeroShowcaseActive(blobHeroShowcaseActive(progress, interaction));
     };
 
     updateScroll();
@@ -110,8 +59,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         >
           <BlobScrollProgressProvider
             progress={scrollProgress}
-            showcaseProgress={showcaseProgress}
-            showcaseActive={showcaseActive}
+            heroShowcaseActive={heroShowcaseActive}
             interactionEnabled={interactionEnabled}
           >
             <BlobExperience />

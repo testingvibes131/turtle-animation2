@@ -71,6 +71,8 @@ export type ZonePickOptions = {
   blobCenterLean?: number;
   /** Scales `curator.opportunities` when building hub plexus edges (partners + zone members). */
   hubConnectionMul?: number;
+  /** Added to hub-alignment when ranking member spokes (pulls picks off the cap rim). */
+  capCenterScoreWeight?: number;
   /** Deformed mesh snapshot for hub medoid (irregular zone visual center). */
   hubPickMesh?: IcosahedronVertexData;
   hubPickBlob?: PerlinBlobParams;
