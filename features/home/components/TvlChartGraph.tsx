@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { cornerSwaps, peakOffInGrown } from "@/features/home/data/tvlChartCliff";
 import { tvlChartDots } from "@/features/home/data/tvlChartDots";
 
 const VB_W = 534;
@@ -9,13 +10,27 @@ const STAGGER_MS = 1400;
 const FADE_MS = 280;
 const DOT_RADIUS = 2;
 
+const IDLE_HOLD_MS = 3000;
+const IDLE_MORPH_MS = 1400;
+const IDLE_BLINK_MS = 180;
+
+type IdleShape = "base" | "grown";
+
 type TvlChartGraphProps = {
   animating: boolean;
   animationKey: number;
   className?: string;
-  /** When "shell", chart fills the Union card's right lobe. */
   size?: "default" | "shell";
 };
+
+function idleCycleMs() {
+  return 2 * (IDLE_HOLD_MS + IDLE_MORPH_MS);
+}
+
+function litInShape(index: number, shape: IdleShape) {
+  if (peakOffInGrown.has(index)) return shape === "base";
+  return true;
+}
 
 export function TvlChartGraph({
   animating,
@@ -41,6 +56,13 @@ export function TvlChartGraph({
     let width = 0;
     let height = 0;
     let scale = 1;
+    let revealDone = reducedMotion;
+    let idleStartedAt = 0;
+
+    const peakStagger = cornerSwaps.map(
+      (_, i) => (i / Math.max(cornerSwaps.length - 1, 1)) * (IDLE_MORPH_MS - IDLE_BLINK_MS),
+    );
+    const peakPairIndex = new Map(cornerSwaps.map((s, i) => [s.peak, i]));
 
     const syncSize = () => {
       width = wrap.clientWidth;
@@ -60,11 +82,54 @@ export function TvlChartGraph({
 
     const scaleX = () => width / VB_W;
     const scaleY = () => (shell ? height / VB_H : width / VB_W);
-    const dotR = () => DOT_RADIUS * (shell ? (scaleX() + scaleY()) / 2 : scale);
+    const baseDotR = () => DOT_RADIUS * (shell ? (scaleX() + scaleY()) / 2 : scale);
 
     const delays = tvlChartDots.map(
       (_, index) => (index / Math.max(tvlChartDots.length - 1, 1)) * STAGGER_MS,
     );
+
+    const idlePhase = (now: number) => {
+      const t = ((now - idleStartedAt) % idleCycleMs() + idleCycleMs()) % idleCycleMs();
+      if (t < IDLE_HOLD_MS) return { kind: "hold" as const, shape: "base" as const };
+      if (t < IDLE_HOLD_MS + IDLE_MORPH_MS) {
+        return {
+          kind: "morph" as const,
+          morphT: t - IDLE_HOLD_MS,
+          to: "grown" as const,
+        };
+      }
+      if (t < 2 * IDLE_HOLD_MS + IDLE_MORPH_MS) {
+        return { kind: "hold" as const, shape: "grown" as const };
+      }
+      return {
+        kind: "morph" as const,
+        morphT: t - (2 * IDLE_HOLD_MS + IDLE_MORPH_MS),
+        to: "base" as const,
+      };
+    };
+
+    /** Only the peak toggles; the face neighbor below stays lit (no dead cell between). */
+    const peakMorphAlpha = (index: number, to: IdleShape, morphT: number) => {
+      const pairIdx = peakPairIndex.get(index);
+      if (pairIdx === undefined) return 1;
+
+      const local = morphT - peakStagger[pairIdx];
+      const goal = to === "base" ? 1 : 0;
+
+      if (local < 0) return to === "base" ? 0 : 1;
+      if (local >= IDLE_BLINK_MS) return goal;
+      if (goal === 0) return 1 - (local / IDLE_BLINK_MS) * 0.96;
+      return (local / IDLE_BLINK_MS) * 0.96 + 0.04;
+    };
+
+    const idleAlpha = (index: number, now: number) => {
+      const phase = idlePhase(now);
+      if (phase.kind === "hold") {
+        return litInShape(index, phase.shape) ? 1 : 0.04;
+      }
+      if (!peakOffInGrown.has(index)) return 1;
+      return peakMorphAlpha(index, phase.to, phase.morphT);
+    };
 
     const drawAt = (now: number, startedAt: number) => {
       ctx.clearRect(0, 0, width, height);
@@ -77,26 +142,34 @@ export function TvlChartGraph({
         }
         if (alpha <= 0) continue;
 
+        if (!reducedMotion && revealDone) {
+          alpha *= idleAlpha(index, now);
+        }
+
         const dot = tvlChartDots[index];
         ctx.globalAlpha = alpha * 0.95;
         ctx.fillStyle = "#73F36C";
         ctx.beginPath();
-        ctx.arc(dot.cx * scaleX(), dot.cy * scaleY(), dotR(), 0, Math.PI * 2);
+        ctx.arc(dot.cx * scaleX(), dot.cy * scaleY(), baseDotR(), 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
     };
 
-    syncSize();
-    const startedAt = performance.now();
-    const totalMs = reducedMotion ? 0 : STAGGER_MS + FADE_MS;
-
-    const frame = (now: number) => {
+    const tick = (now: number) => {
       drawAt(now, startedAt);
-      if (now - startedAt < totalMs) {
-        rafRef.current = requestAnimationFrame(frame);
+      if (!reducedMotion) {
+        if (!revealDone && now - startedAt >= STAGGER_MS + FADE_MS) {
+          revealDone = true;
+          idleStartedAt = now;
+        }
+        rafRef.current = requestAnimationFrame(tick);
       }
     };
+
+    syncSize();
+    const startedAt = performance.now();
+    idleStartedAt = startedAt + STAGGER_MS + FADE_MS;
 
     const ro = new ResizeObserver(() => {
       syncSize();
@@ -106,7 +179,7 @@ export function TvlChartGraph({
 
     cancelAnimationFrame(rafRef.current);
     drawAt(startedAt, startedAt);
-    if (!reducedMotion) rafRef.current = requestAnimationFrame(frame);
+    if (!reducedMotion) rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
