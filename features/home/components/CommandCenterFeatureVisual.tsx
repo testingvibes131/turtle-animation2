@@ -18,7 +18,7 @@ export function CommandCenterFeatureVisual({ visual, image }: Props) {
       // Aggregated Portfolio — connector ring + flying turtle
       return <CommandCenterFeatureCanvas />;
     case "alerts":
-      // Personalized Alerts — vignette grid, row + column size waves
+      // Personalized Alerts — vignette dot grid
       return <AlertsFeatureCanvas />;
     default:
       return (
