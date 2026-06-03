@@ -16,6 +16,7 @@ import {
   ZONE_MEMBER_SCALE,
   ZONE_PARTNER_SCALE,
 } from "@/features/blob-scene/lib/curators/zoneOverlay";
+import { HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL } from "@/features/blob-scene/lib/scroll/heroShowcase";
 import {
   attachBlobPointFade,
   ensureInstanceOpacityBuffer,
@@ -24,6 +25,7 @@ import {
 import { updateMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { noiseSlopeOpacityMul } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { RENDER_PARTNER_SPHERE } from "@/features/blob-scene/lib/rendering/renderOrder";
+import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { computeZoneMarkerLayout } from "@/features/blob-scene/lib/geometry/zoneMarkerTransform";
 import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
@@ -55,6 +57,7 @@ export function ZoneMemberInstances({
     zonesSnapshotRef,
     blobAnimTimeRef,
     depthFadeUniforms,
+    connectedMarkerLayoutsRef,
   } = useBlobScene();
 
   const meshRefs = useRef<Map<string, THREE.InstancedMesh>>(new Map());
@@ -119,6 +122,8 @@ export function ZoneMemberInstances({
   };
 
   useFrame((state) => {
+    connectedMarkerLayoutsRef.current.clear();
+
     if (vertexCountRef.current !== vertices.count) {
       slotCacheRef.current.clear();
       vertexCountRef.current = vertices.count;
@@ -198,6 +203,7 @@ export function ZoneMemberInstances({
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
     const extent = params.radius + maxDisp;
     const camDist = state.camera.position.length();
+    const overlayActive = Boolean(activeZoneRef.current);
     updateMarkerDepthFadeUniforms(
       depthFadeUniforms,
       state.camera,
@@ -207,7 +213,7 @@ export function ZoneMemberInstances({
         closeNear: 0,
         closeFar: 0,
       },
-      params.depthFadeMinOpacity,
+      overlayActive ? 1 : params.depthFadeMinOpacity,
     );
 
     const capGrayMesh = capGrayMeshRef.current;
@@ -243,6 +249,7 @@ export function ZoneMemberInstances({
       vertexIndex: number,
       scaleMul: number,
       opacityMul = 1,
+      publishForOrbitRing = false,
     ) => {
       const layout = computeZoneMarkerLayout(
         vertices,
@@ -259,9 +266,20 @@ export function ZoneMemberInstances({
         params.depthSizeMaxMul,
       );
       _dummy.position.copy(layout.localPosition);
+      _dummy.quaternion.identity();
       _dummy.scale.setScalar(layout.sphereScale);
       _dummy.updateMatrix();
       mesh.setMatrixAt(slot, _dummy.matrix);
+      if (publishForOrbitRing) {
+        let published = connectedMarkerLayoutsRef.current.get(vertexIndex);
+        if (!published) {
+          published = createConnectedMarkerLayout();
+          connectedMarkerLayoutsRef.current.set(vertexIndex, published);
+        }
+        published.localPosition.copy(layout.localPosition);
+        published.worldPosition.copy(layout.worldPosition);
+        published.sphereScale = layout.sphereScale;
+      }
       if (mesh.geometry.getAttribute("instanceOpacity")) {
         setInstanceOpacityAt(mesh, slot, opacityMul);
       }
@@ -295,10 +313,13 @@ export function ZoneMemberInstances({
         if (vi === displayHub) continue;
         if (heroConnectedOnly && isSelected && !connected.has(vi)) continue;
         if (isSelected && connected.has(vi)) {
-          const scaleMul = partners.has(vi)
+          const baseScale = partners.has(vi)
             ? ZONE_PARTNER_SCALE
             : ZONE_MEMBER_SCALE;
-          write(fullMesh, fullSlot, vi, scaleMul, 1);
+          const scaleMul = heroConnectedOnly
+            ? baseScale * HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL
+            : baseScale;
+          write(fullMesh, fullSlot, vi, scaleMul, 1, true);
           fullSlot++;
         } else if (isSelected && needsInnerDim && activeCurator) {
           const op = noiseOpacity(vi);

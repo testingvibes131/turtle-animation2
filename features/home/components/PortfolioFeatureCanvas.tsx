@@ -34,15 +34,18 @@ const HUB_ROW_OFFSET = 0;
 /** Wave + highlight animation only on this many center columns. */
 const WAVE_ACTIVE_COL_COUNT = 10;
 
-/** Trail length ≈ half the drawable column (row-units). */
-const WAVE_TAIL_ROW_FRAC = 0.5;
-const WAVE_TAIL_MIN_ROWS = 7;
-/** Softer brightness falloff behind the front. */
-const WAVE_TAIL_ALPHA_POWER = 0.42;
+/** Lit trail length — max dots behind the comet front. */
+const WAVE_TAIL_MAX_ROWS = 7;
+/** >1 pushes more opacity to the comet front vs the tail. */
+const WAVE_TAIL_ALPHA_POWER = 1.35;
+/** Peak white glow for the traveling wave (kept ≤1 so trail alpha can vary). */
+const WAVE_TRAIL_PEAK_ALPHA = 1;
 /** Scale at tail end; front row ramps to 1 (then × WAVE_WHITE_SCALE_MAX). */
 const WAVE_TAIL_SCALE_MIN = 0.1;
 /** Soft fade (row-units) at comet leading edge and tail — avoids hard cell pops. */
 const WAVE_EDGE_SOFT_ROWS = 0.9;
+/** Match draw loop — trail end / highlight timing follows rendered alpha. */
+const WAVE_TRAIL_LIT_ALPHA = 0.01;
 /** Max per-column wave delay (row-units), chosen pseudo-randomly per column. */
 const WAVE_COL_STAGGER_MAX_ROWS = 4;
 const COL_WAVE_OFFSET_SALT = 29;
@@ -51,7 +54,7 @@ const WAVE_SPEED = 2.5;
 const WAVE_CYCLE_PAUSE_S = 0.65;
 const WAVE_WHITE_ALPHA = 0.92;
 /** Peak scale for dots at full wave brightness (base stays 1×). */
-const WAVE_WHITE_SCALE_MAX = 1.55;
+const WAVE_WHITE_SCALE_MAX = 1.68;
 const ALERTS_DOT_GLOW_OPACITY = 0.92;
 const STICK_PEAK_HASH_SALT = 47;
 const PICK_COLOR_HASH_SALT = 61;
@@ -62,18 +65,21 @@ const DOT_GLOW_OUTER_SCALE = 1.15 * 1.38;
 const DRAWABLE_CORE_RADIUS = GRID_DOT_RADIUS;
 /** Softer wave dots — muted cool white, not pure #fff. */
 const ALERTS_WHITE_TONE = { r: 180, g: 180, b: 188 };
+/** Brighter core for the comet front (trail keeps ALERTS_WHITE_TONE via lower alpha). */
+const WAVE_TRAIL_WHITE_TONE = { r: 252, g: 252, b: 255 };
 /** Extra halo spread for comet trail dots. */
 const ALERTS_WAVE_GLOW_OUTER_SCALE = 1.28;
-const ALERTS_WAVE_GLOW_ALPHA_SCALE = 0.78;
+const ALERTS_WAVE_GLOW_ALPHA_SCALE = 1;
+const WAVE_TRAIL_PEAK_OPACITY_BOOST = 1.12;
 const MAGNIFY_DOT_DIAMETER_SCALE = 2.6;
 const ALERT_ICON_SIZE_SCALE = 3.3;
 const MAGNIFY_DOT_MIN_DIAMETER = 14;
 const MAGNIFY_DOT_HIGHLIGHT_ALPHA = 1;
-const ALERT_ICON_FADE_S = 0.55;
-/** Picked dot: hold full white after the wave peak. */
-const HIGHLIGHT_WHITE_HOLD_S = 0.45;
+const ALERT_ICON_FADE_S = 0.26;
+/** Picked dot: brief white hold at wave peak. */
+const HIGHLIGHT_WHITE_HOLD_S = 0.08;
 /** Then crossfade white → green/red. */
-const HIGHLIGHT_COLOR_REVEAL_S = 1.05;
+const HIGHLIGHT_COLOR_REVEAL_S = 0.36;
 /** Keep alert visible before returning to base grey. */
 const HIGHLIGHT_HOLD_AFTER_REVEAL_S = 2.2;
 const HIGHLIGHT_LATCH_TOTAL_S =
@@ -94,6 +100,8 @@ const HIGHLIGHT_SPARKLE_FLICKER_HZ_B = 142;
 /** Circular vignette from card center (fraction of min canvas side). */
 const ALERTS_FALLOFF_OUTER_FRAC = 0.48;
 const ALERTS_FALLOFF_INNER_FRAC = 0.28;
+/** Delay after comet first hits the pick before highlight / icon turn on. */
+const HIGHLIGHT_AFTER_VISIT_DELAY_S = 1;
 
 type HighlightColor = "green" | "red";
 
@@ -176,10 +184,9 @@ function waveColumnStagger() {
   return WAVE_COL_STAGGER_MAX_ROWS;
 }
 
-/** Lit tail length in row-units (~half column). */
-function waveTailRows(rows: number) {
-  const drawableRows = Math.max(1, rows - 4);
-  return Math.max(WAVE_TAIL_MIN_ROWS, drawableRows * WAVE_TAIL_ROW_FRAC);
+/** Lit tail length in row-units (capped at WAVE_TAIL_MAX_ROWS). */
+function waveTailRows(_rows: number) {
+  return WAVE_TAIL_MAX_ROWS;
 }
 
 function waveTravelSpan(rows: number) {
@@ -242,22 +249,50 @@ function cellWaveProfile(
   const edge = waveCometEdgeFade(behind, tailSpan);
   const t = clamp01(1 - behind / tailSpan);
   const tShaped = smoothstep(Math.pow(t, WAVE_TAIL_ALPHA_POWER));
-  const alpha = tShaped * edge;
+  const alpha = tShaped * tShaped * edge;
   const scale =
     WAVE_TAIL_SCALE_MIN + (1 - WAVE_TAIL_SCALE_MIN) * smoothstep(t);
   return { alpha, scale };
 }
 
-/** Picked cell: continuous tail has cleared this row (highlight + PNG trigger). */
-function isPickedCellPostTrailTip(
+function isWaveLitAtCell(
   row: number,
   col: number,
   waveFront: number,
   rows: number,
 ) {
-  const tailSpan = waveTailRows(rows);
-  const behind = columnWaveFront(waveFront, col) - row;
-  return behind > tailSpan;
+  return (
+    cellWaveProfile(row, col, waveFront, rows).alpha >= WAVE_TRAIL_LIT_ALPHA
+  );
+}
+
+function recordPickVisitStart(
+  visitStartRef: { current: number | null },
+  wavePlan: WaveHighlightPlan,
+  waveFront: number | null,
+  rows: number,
+  cols: number,
+  timeS: number,
+) {
+  if (visitStartRef.current !== null || waveFront === null) return;
+
+  for (const key of wavePlan.picks) {
+    const { row, col } = parseCellKey(key);
+    if (!isWaveActiveColumn(col, cols)) continue;
+    if (isWaveLitAtCell(row, col, waveFront, rows)) {
+      visitStartRef.current = timeS;
+      return;
+    }
+  }
+}
+
+/** Turn on highlight HIGHLIGHT_AFTER_VISIT_DELAY_S after the comet first hits the pick. */
+function isPickedCellHighlightReady(
+  visitStartS: number | null,
+  timeS: number,
+) {
+  if (visitStartS === null) return false;
+  return timeS - visitStartS >= HIGHLIGHT_AFTER_VISIT_DELAY_S;
 }
 
 /** Maps wave scale 0.1→1 to glow radius from 10% to full peak size. */
@@ -339,13 +374,6 @@ function pickedHighlightColor(
     : "red";
 }
 
-function waveHighlightScore(row: number, col: number, waveCycle: number) {
-  return cellOrganicUnit(
-    row,
-    col + STICK_PEAK_HASH_SALT + waveCycle * 911,
-  );
-}
-
 function buildWaveHighlightPicks(
   rows: number,
   cols: number,
@@ -361,7 +389,8 @@ function buildWaveHighlightPicks(
   const colors = new Map<string, HighlightColor>();
 
   let chosen: { row: number; col: number } | null = null;
-  let bestScore = Infinity;
+  let bestDist = Infinity;
+  let bestTie = Infinity;
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -373,11 +402,13 @@ function buildWaveHighlightPicks(
         continue;
       }
 
-      const score = waveHighlightScore(row, col, waveCycle);
-      if (score >= bestScore) continue;
-
-      bestScore = score;
-      chosen = { row, col };
+      const dist = Math.hypot(x - hubX, y - hubY);
+      const tie = cellOrganicUnit(row, col + STICK_PEAK_HASH_SALT + waveCycle * 911);
+      if (dist < bestDist || (dist === bestDist && tie < bestTie)) {
+        bestDist = dist;
+        bestTie = tie;
+        chosen = { row, col };
+      }
     }
   }
 
@@ -398,7 +429,7 @@ function highlightRevealMix(elapsed: number) {
     const t = clamp01(
       (elapsed - HIGHLIGHT_WHITE_HOLD_S) / HIGHLIGHT_COLOR_REVEAL_S,
     );
-    const blend = smoothstep(smoothstep(t));
+    const blend = smoothstep(t);
     return { whiteMix: 1 - blend, colorMix: blend };
   }
   return { whiteMix: 0, colorMix: 1 };
@@ -484,26 +515,13 @@ function parseCellKey(key: string) {
 function updateIconRevealReady(
   iconReady: Set<string>,
   wavePlan: WaveHighlightPlan,
-  cols: number,
+  visitStartS: number | null,
   timeS: number,
-  rows: number,
-  offsetX: number,
-  offsetY: number,
-  width: number,
-  height: number,
 ) {
-  const waveFront = waveFrontRow(timeS, rows);
-  if (waveFront === null) return;
+  if (!isPickedCellHighlightReady(visitStartS, timeS)) return;
 
   for (const key of wavePlan.picks) {
-    if (iconReady.has(key)) continue;
-    const { row, col } = parseCellKey(key);
-    if (!isWaveActiveColumn(col, cols)) continue;
-    if (
-      isPickedCellPostTrailTip(row, col, waveFront, rows)
-    ) {
-      iconReady.add(key);
-    }
+    iconReady.add(key);
   }
 }
 
@@ -606,32 +624,21 @@ function syncAlertIconStates(
 function updateHighlightLatch(
   latch: Map<string, HighlightLatch>,
   wavePlan: WaveHighlightPlan,
-  rows: number,
   cols: number,
+  visitStartS: number | null,
   timeS: number,
-  offsetX: number,
-  offsetY: number,
-  width: number,
-  height: number,
 ) {
-  const waveFront = waveFrontRow(timeS, rows);
-  if (waveFront === null) return;
-
   for (const [key, entry] of [...latch]) {
     if (timeS - entry.startS >= HIGHLIGHT_LATCH_TOTAL_S) {
       latch.delete(key);
     }
   }
 
+  if (!isPickedCellHighlightReady(visitStartS, timeS)) return;
+
   for (const key of wavePlan.picks) {
     if (latch.has(key)) continue;
-    const { row, col } = parseCellKey(key);
-    if (!isWaveActiveColumn(col, cols)) continue;
-    if (
-      !isPickedCellPostTrailTip(row, col, waveFront, rows)
-    ) {
-      continue;
-    }
+    if (!isWaveActiveColumn(parseCellKey(key).col, cols)) continue;
 
     const color = wavePlan.colors.get(key) ?? "green";
     latch.set(key, { color, startS: timeS });
@@ -650,7 +657,7 @@ function drawAlertsGrid(
   const { offsetX, offsetY, cols } = getGridDimensions(width, height);
   const { x: centerX, y: centerY } = getCompositionCenter(width, height);
   const glowAlphaScale = ALERTS_DOT_GLOW_OPACITY / GRID_MUTED_ALPHA;
-  const peakAlpha = WAVE_WHITE_ALPHA * glowAlphaScale;
+  const highlightPeakAlpha = WAVE_WHITE_ALPHA * glowAlphaScale;
   const waveFront = waveFrontRow(timeS, rows);
   const peakIconDiameter =
     Math.max(
@@ -712,7 +719,7 @@ function drawAlertsGrid(
           elapsed,
           whiteMix,
           colorMix,
-          peakAlpha,
+          highlightPeakAlpha,
           composition,
         );
         continue;
@@ -721,7 +728,7 @@ function drawAlertsGrid(
       if (isHighlightFadingOut) {
         const glowRadius = DRAWABLE_CORE_RADIUS * WAVE_WHITE_SCALE_MAX;
         const fadeAlpha =
-          peakAlpha * alertIconFadeAlpha(iconState, timeS) * composition;
+          highlightPeakAlpha * alertIconFadeAlpha(iconState, timeS) * composition;
         if (iconState.color === "red") {
           drawRedGlowCircle(ctx, x, y, glowRadius, fadeAlpha);
         } else {
@@ -730,18 +737,19 @@ function drawAlertsGrid(
         continue;
       }
 
-      if (waveAlpha < 0.01) {
+      if (waveAlpha < WAVE_TRAIL_LIT_ALPHA) {
         drawMutedGridDot(ctx, x, y, GRID_MUTED_ALPHA * composition);
         continue;
       }
 
       const glowRadius =
         DRAWABLE_CORE_RADIUS * waveGlowRadiusMultiplier(waveScale);
-      const glowAlpha = peakAlpha * waveAlpha * composition;
+      const trailAlpha =
+        WAVE_TRAIL_PEAK_ALPHA * waveAlpha * composition * ALERTS_WAVE_GLOW_ALPHA_SCALE;
 
       if (
         glowRadius < GRID_MIN_VISIBLE_RADIUS ||
-        glowAlpha < GRID_MIN_VISIBLE_ALPHA
+        trailAlpha < GRID_MIN_VISIBLE_ALPHA
       ) {
         continue;
       }
@@ -751,9 +759,10 @@ function drawAlertsGrid(
         x,
         y,
         glowRadius,
-        glowAlpha * ALERTS_WAVE_GLOW_ALPHA_SCALE,
-        ALERTS_WHITE_TONE,
+        trailAlpha,
+        WAVE_TRAIL_WHITE_TONE,
         ALERTS_WAVE_GLOW_OUTER_SCALE,
+        WAVE_TRAIL_PEAK_OPACITY_BOOST,
       );
     }
   }
@@ -808,6 +817,7 @@ export function PortfolioFeatureCanvas() {
     colors: new Map(),
   });
   const globalWaveCycleRef = useRef(-1);
+  const pickVisitStartRef = useRef<number | null>(null);
   const layoutKeyRef = useRef("");
 
   const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
@@ -820,6 +830,7 @@ export function PortfolioFeatureCanvas() {
         alertIconStatesRef.current = new Map();
         waveHighlightPlanRef.current = { picks: new Set(), colors: new Map() };
         globalWaveCycleRef.current = -1;
+        pickVisitStartRef.current = null;
       }
 
       const hub = getHubPosition(width, height);
@@ -829,6 +840,7 @@ export function PortfolioFeatureCanvas() {
         globalWaveCycleRef.current = waveCycle;
         highlightLatchRef.current.clear();
         iconRevealReadyRef.current.clear();
+        pickVisitStartRef.current = null;
         waveHighlightPlanRef.current = buildWaveHighlightPicks(
           rows,
           cols,
@@ -842,27 +854,28 @@ export function PortfolioFeatureCanvas() {
         );
       }
 
-      updateHighlightLatch(
-        highlightLatchRef.current,
+      const waveFront = waveFrontRow(timeS, rows);
+      recordPickVisitStart(
+        pickVisitStartRef,
         waveHighlightPlanRef.current,
+        waveFront,
         rows,
         cols,
         timeS,
-        offsetX,
-        offsetY,
-        width,
-        height,
+      );
+
+      updateHighlightLatch(
+        highlightLatchRef.current,
+        waveHighlightPlanRef.current,
+        cols,
+        pickVisitStartRef.current,
+        timeS,
       );
       updateIconRevealReady(
         iconRevealReadyRef.current,
         waveHighlightPlanRef.current,
-        cols,
+        pickVisitStartRef.current,
         timeS,
-        rows,
-        offsetX,
-        offsetY,
-        width,
-        height,
       );
       const iconColors = new Map<string, HighlightColor>();
       for (const key of iconRevealReadyRef.current) {

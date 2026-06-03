@@ -11,6 +11,7 @@ import * as THREE from "three";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import type { MarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import type { CuratorZoneAssignment } from "@/features/blob-scene/lib/curators/zones";
+import type { ConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 export type BlobSceneContextValue = {
@@ -33,6 +34,10 @@ export type BlobSceneContextValue = {
   getTowardCamera: () => THREE.Vector3;
   /** Camera-facing layout axis; frozen for the active hover zone. */
   getHubLayoutAxis: () => THREE.Vector3;
+  /** Per-frame layouts for connected dots (orbit rings read after zone write). */
+  connectedMarkerLayoutsRef: MutableRefObject<
+    Map<number, ConnectedMarkerLayout>
+  >;
 };
 
 const BlobSceneContext = createContext<BlobSceneContextValue | null>(null);

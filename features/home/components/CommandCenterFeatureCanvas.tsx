@@ -39,95 +39,147 @@ import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCent
 const CONNECTOR_LINE_WIDTH = 1;
 const CONNECTOR_LINE_COLOR = "rgba(171, 174, 170, 1)";
 const CONNECTOR_LINE_DASH: [number, number] = [2, 3];
-const CONNECTOR_MOVE_S = 0.11;
-const CONNECTOR_STAGGER_MAX = 0.18;
+const CONNECTOR_PRESENCE_IN_S = 0.5;
+const CONNECTOR_STAGGER_MAX = 0.19;
+/** Only retarget a spoke when the new cell is clearly better for that sector. */
+const CONNECTOR_SECTOR_SWITCH_RAD = 0.34;
+/** Damped follow for spoke tips and line origin (higher = snappier). */
+const CONNECTOR_FOLLOW_RATE = 7;
+const CONNECTOR_ORIGIN_FOLLOW_RATE = 14;
 const CONNECTOR_RING_MIN = 0.72;
-const CONNECTOR_RING_SKIP_FRACTION = 0.3;
+const CONNECTOR_COUNT = 5;
+const TAU = Math.PI * 2;
 
 type InsideCell = GridCell & PixelPoint;
 
-type ConnectorEntry = InsideCell & {
-  phase: "in" | "out";
-  animStart: number;
-  moveDuration: number;
+type ConnectorSlot = {
+  row: number;
+  col: number;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  presenceStart: number;
 };
 
-function cellOrganicDelay(row: number, col: number) {
-  return cellOrganicUnit(row, col) * CONNECTOR_STAGGER_MAX;
-}
+type SmoothedPoint = PixelPoint & { initialized: boolean };
 
-function cellMoveDuration(row: number, col: number) {
-  const u = cellOrganicUnit(col + 17, row + 31);
-  return CONNECTOR_MOVE_S * (0.8 + u * 0.45);
-}
-
-function connectorLineProgress(entry: ConnectorEntry, timeS: number) {
-  const elapsed = timeS - entry.animStart;
-  if (elapsed < 0) return entry.phase === "out" ? 1 : 0;
-  const t = smoothstep(clamp01(elapsed / entry.moveDuration));
-  return entry.phase === "in" ? t : 1 - t;
-}
-
-function beginConnectorPhase(
-  entry: ConnectorEntry,
-  phase: "in" | "out",
-  timeS: number,
-) {
-  entry.phase = phase;
-  entry.animStart = timeS + cellOrganicDelay(entry.row, entry.col);
-  entry.moveDuration = cellMoveDuration(entry.row, entry.col);
-}
-
-function syncConnectorAnimations(
-  entries: Map<string, ConnectorEntry>,
-  connectorCells: InsideCell[],
-  timeS: number,
-) {
-  const connectorKeys = new Set(
-    connectorCells.map((c) => cellKey(c.row, c.col)),
+function slotStaggerDelay(slotIndex: number, row: number, col: number) {
+  return (
+    (slotIndex / CONNECTOR_COUNT) * CONNECTOR_STAGGER_MAX +
+    cellOrganicUnit(row, col) * CONNECTOR_STAGGER_MAX * 0.45
   );
+}
 
-  for (const entry of entries.values()) {
-    if (
-      entry.phase === "in" &&
-      !connectorKeys.has(cellKey(entry.row, entry.col))
-    ) {
-      beginConnectorPhase(entry, "out", timeS);
-    }
+function dampedFollow(current: number, target: number, dt: number, rate: number) {
+  const k = 1 - Math.exp(-rate * dt);
+  return current + (target - current) * k;
+}
+
+function stepSmoothedPoint(point: SmoothedPoint, target: PixelPoint, dt: number, rate: number) {
+  if (!point.initialized) {
+    point.x = target.x;
+    point.y = target.y;
+    point.initialized = true;
+    return;
   }
+  point.x = dampedFollow(point.x, target.x, dt, rate);
+  point.y = dampedFollow(point.y, target.y, dt, rate);
+}
 
-  for (const [key, entry] of [...entries.entries()]) {
-    if (entry.phase === "out" && connectorLineProgress(entry, timeS) <= 0) {
-      entries.delete(key);
-    }
+function createConnectorSlot(cell: InsideCell, timeS: number): ConnectorSlot {
+  return {
+    row: cell.row,
+    col: cell.col,
+    x: cell.x,
+    y: cell.y,
+    targetX: cell.x,
+    targetY: cell.y,
+    presenceStart: timeS,
+  };
+}
+
+function sectorTargetAngle(slotIndex: number) {
+  return (slotIndex / CONNECTOR_COUNT) * TAU - Math.PI / 2;
+}
+
+function cellSectorDelta(
+  cell: InsideCell,
+  hubX: number,
+  hubY: number,
+  slotIndex: number,
+) {
+  const angle = Math.atan2(cell.y - hubY, cell.x - hubX);
+  return connectorAngleDelta(angle, sectorTargetAngle(slotIndex));
+}
+
+function shouldRetargetSlot(
+  slot: ConnectorSlot,
+  cell: InsideCell,
+  hubX: number,
+  hubY: number,
+  slotIndex: number,
+) {
+  const currentDelta = cellSectorDelta(
+    { row: slot.row, col: slot.col, x: slot.x, y: slot.y },
+    hubX,
+    hubY,
+    slotIndex,
+  );
+  const nextDelta = cellSectorDelta(cell, hubX, hubY, slotIndex);
+  return nextDelta < currentDelta - CONNECTOR_SECTOR_SWITCH_RAD;
+}
+
+function retargetConnectorSlot(slot: ConnectorSlot, cell: InsideCell) {
+  slot.row = cell.row;
+  slot.col = cell.col;
+  slot.targetX = cell.x;
+  slot.targetY = cell.y;
+}
+
+function slotPresence(slot: ConnectorSlot, timeS: number, slotIndex: number) {
+  const delay = slotStaggerDelay(slotIndex, slot.row, slot.col);
+  const elapsed = timeS - slot.presenceStart - delay;
+  if (elapsed <= 0) return 0;
+  return smoothstep(clamp01(elapsed / CONNECTOR_PRESENCE_IN_S));
+}
+
+function advanceSlotMotion(slots: (ConnectorSlot | null)[], dt: number) {
+  for (const slot of slots) {
+    if (!slot) continue;
+    slot.x = dampedFollow(slot.x, slot.targetX, dt, CONNECTOR_FOLLOW_RATE);
+    slot.y = dampedFollow(slot.y, slot.targetY, dt, CONNECTOR_FOLLOW_RATE);
   }
+}
 
-  for (const cell of connectorCells) {
-    const key = cellKey(cell.row, cell.col);
-    const existing = entries.get(key);
+function syncConnectorSlots(
+  slots: (ConnectorSlot | null)[],
+  connectorCells: InsideCell[],
+  hubX: number,
+  hubY: number,
+  timeS: number,
+) {
+  for (let i = 0; i < CONNECTOR_COUNT; i++) {
+    const cell = connectorCells[i];
+    if (!cell) continue;
 
-    if (!existing) {
-      const entry: ConnectorEntry = {
-        ...cell,
-        phase: "in",
-        animStart: 0,
-        moveDuration: CONNECTOR_MOVE_S,
-      };
-      beginConnectorPhase(entry, "in", timeS);
-      entries.set(key, entry);
+    const slot = slots[i];
+    if (!slot) {
+      slots[i] = createConnectorSlot(cell, timeS);
       continue;
     }
 
-    existing.x = cell.x;
-    existing.y = cell.y;
-
-    if (existing.phase === "out") {
-      const progress = connectorLineProgress(existing, timeS);
-      if (progress > 0) {
-        existing.phase = "in";
-        existing.animStart = timeS - (1 - progress) * existing.moveDuration;
-      }
+    if (slot.row === cell.row && slot.col === cell.col) {
+      slot.targetX = cell.x;
+      slot.targetY = cell.y;
+      continue;
     }
+
+    if (!shouldRetargetSlot(slot, cell, hubX, hubY, i)) {
+      continue;
+    }
+
+    retargetConnectorSlot(slot, cell);
   }
 }
 
@@ -144,71 +196,111 @@ function isOnConnectorOuterRing(
   );
 }
 
-function isConnectorRingSelected(row: number, col: number) {
-  return (
-    cellOrganicUnit(row + 53, col + 97) >= CONNECTOR_RING_SKIP_FRACTION
-  );
-}
-
 function isConnectorRingDot(
-  row: number,
-  col: number,
   dotX: number,
   dotY: number,
   zoneX: number,
   zoneY: number,
 ) {
-  return (
-    isOnConnectorOuterRing(dotX, dotY, zoneX, zoneY) &&
-    isConnectorRingSelected(row, col)
-  );
+  return isOnConnectorOuterRing(dotX, dotY, zoneX, zoneY);
+}
+
+function connectorAngleDelta(a: number, b: number) {
+  let delta = a - b;
+  while (delta > Math.PI) delta -= TAU;
+  while (delta < -Math.PI) delta += TAU;
+  return Math.abs(delta);
+}
+
+/** Pick ~CONNECTOR_COUNT spokes evenly around the hub ring. */
+function pickConnectorCells(
+  candidates: InsideCell[],
+  hubX: number,
+  hubY: number,
+): InsideCell[] {
+  if (candidates.length <= CONNECTOR_COUNT) return candidates;
+
+  const picked: InsideCell[] = [];
+  const used = new Set<string>();
+
+  for (let i = 0; i < CONNECTOR_COUNT; i++) {
+    const targetAngle = (i / CONNECTOR_COUNT) * TAU - Math.PI / 2;
+    let best: InsideCell | null = null;
+    let bestDelta = Infinity;
+    let bestTie = Infinity;
+
+    for (const cell of candidates) {
+      const key = cellKey(cell.row, cell.col);
+      if (used.has(key)) continue;
+
+      const angle = Math.atan2(cell.y - hubY, cell.x - hubX);
+      const delta = connectorAngleDelta(angle, targetAngle);
+      const tie = cellOrganicUnit(cell.row, cell.col);
+      if (delta < bestDelta || (delta === bestDelta && tie < bestTie)) {
+        bestDelta = delta;
+        bestTie = tie;
+        best = cell;
+      }
+    }
+
+    if (best) {
+      used.add(cellKey(best.row, best.col));
+      picked.push(best);
+    }
+  }
+
+  return picked;
 }
 
 function drawZoneConnectors(
   ctx: CanvasRenderingContext2D,
   center: PixelPoint,
-  entries: Map<string, ConnectorEntry>,
+  slots: (ConnectorSlot | null)[],
   timeS: number,
 ) {
-  if (entries.size === 0) return;
-
   ctx.save();
   ctx.lineWidth = CONNECTOR_LINE_WIDTH;
   ctx.strokeStyle = CONNECTOR_LINE_COLOR;
   ctx.setLineDash(CONNECTOR_LINE_DASH);
 
-  for (const entry of entries.values()) {
-    const progress = connectorLineProgress(entry, timeS);
-    if (progress <= 0) continue;
+  slots.forEach((slot, slotIndex) => {
+    if (!slot) return;
 
-    const endX = center.x + (entry.x - center.x) * progress;
-    const endY = center.y + (entry.y - center.y) * progress;
+    const presence = slotPresence(slot, timeS, slotIndex);
+    if (presence <= 0.001) return;
 
+    const endX = center.x + (slot.x - center.x) * presence;
+    const endY = center.y + (slot.y - center.y) * presence;
+
+    ctx.globalAlpha = 0.55 + presence * 0.45;
     ctx.beginPath();
     ctx.moveTo(center.x, center.y);
     ctx.lineTo(endX, endY);
     ctx.stroke();
-  }
+  });
 
+  ctx.globalAlpha = 1;
   ctx.restore();
 }
 
 function drawConnectorDots(
   ctx: CanvasRenderingContext2D,
-  entries: Map<string, ConnectorEntry>,
+  slots: (ConnectorSlot | null)[],
   timeS: number,
 ) {
-  for (const entry of entries.values()) {
-    const progress = connectorLineProgress(entry, timeS);
-    if (progress <= 0) continue;
+  slots.forEach((slot, slotIndex) => {
+    if (!slot) return;
+
+    const presence = slotPresence(slot, timeS, slotIndex);
+    if (presence <= 0.001) return;
 
     drawGreenGlowCircle(
       ctx,
-      entry.x,
-      entry.y,
-      GRID_CONNECTOR_DOT_RADIUS * progress,
+      slot.x,
+      slot.y,
+      GRID_CONNECTOR_DOT_RADIUS * presence,
     );
-  }
+  });
 }
 
 function drawScene(
@@ -220,7 +312,8 @@ function drawScene(
   timeS: number,
   zoneHubRef: { current: GridCell | null },
   zoneCenterState: ReturnType<typeof createZoneCenterState>,
-  connectorEntriesRef: { current: Map<string, ConnectorEntry> },
+  connectorSlotsRef: { current: (ConnectorSlot | null)[] },
+  connectorOriginRef: { current: SmoothedPoint },
 ) {
   ctx.clearRect(0, 0, width, height);
 
@@ -249,36 +342,56 @@ function drawScene(
   );
   const zoneX = zoneCenter.x;
   const zoneY = zoneCenter.y;
-  const center = { x: mainX, y: mainY };
-  const connectorCells: InsideCell[] = [];
+  const ringHubX = zoneX;
+  const ringHubY = zoneY;
+  const ringCandidates: InsideCell[] = [];
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const x = offsetX + col * GRID_SPACING;
       const y = offsetY + row * GRID_SPACING;
-      if (isConnectorRingDot(row, col, x, y, zoneX, zoneY)) {
-        connectorCells.push({ row, col, x, y });
+      if (isConnectorRingDot(x, y, ringHubX, ringHubY)) {
+        ringCandidates.push({ row, col, x, y });
       }
     }
   }
 
-  syncConnectorAnimations(
-    connectorEntriesRef.current,
-    connectorCells,
+  const connectorCells = pickConnectorCells(
+    ringCandidates,
+    ringHubX,
+    ringHubY,
+  );
+
+  const connectorSlots = connectorSlotsRef.current;
+  syncConnectorSlots(connectorSlots, connectorCells, ringHubX, ringHubY, timeS);
+  advanceSlotMotion(connectorSlots, dt);
+
+  const connectorOrigin = connectorOriginRef.current;
+  stepSmoothedPoint(
+    connectorOrigin,
+    { x: mainX, y: mainY },
+    dt,
+    CONNECTOR_ORIGIN_FOLLOW_RATE,
+  );
+
+  drawZoneConnectors(
+    ctx,
+    { x: connectorOrigin.x, y: connectorOrigin.y },
+    connectorSlots,
     timeS,
   );
-  const connectorEntries = connectorEntriesRef.current;
-
-  drawZoneConnectors(ctx, center, connectorEntries, timeS);
-  drawConnectorDots(ctx, connectorEntries, timeS);
+  drawConnectorDots(ctx, connectorSlots, timeS);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const x = offsetX + col * GRID_SPACING;
       const y = offsetY + row * GRID_SPACING;
       const key = cellKey(row, col);
-      const entry = connectorEntries.get(key);
-      if (entry && connectorLineProgress(entry, timeS) > 0) {
+      const isActiveConnector = connectorSlots.some((slot, slotIndex) => {
+        if (!slot || cellKey(slot.row, slot.col) !== key) return false;
+        return slotPresence(slot, timeS, slotIndex) > 0.04;
+      });
+      if (isActiveConnector) {
         continue;
       }
 
@@ -299,13 +412,31 @@ function drawScene(
   }
 }
 
+const PORTFOLIO_TURTLE_MOTION = {
+  friction: 0.978,
+  accel: 420,
+  maxSpeed: 92,
+  noiseTimeScale: 0.52,
+  wallBounce: 0.84,
+} as const;
+
 export function CommandCenterFeatureCanvas() {
   const mainDotRef = useRef(
-    new FlyingMainDot({ minX: 0, minY: 0, maxX: 0, maxY: 0 }),
+    new FlyingMainDot(
+      { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+      PORTFOLIO_TURTLE_MOTION,
+    ),
   );
   const zoneHubRef = useRef<GridCell | null>(null);
   const zoneCenterStateRef = useRef(createZoneCenterState());
-  const connectorEntriesRef = useRef(new Map<string, ConnectorEntry>());
+  const connectorSlotsRef = useRef<(ConnectorSlot | null)[]>(
+    Array.from({ length: CONNECTOR_COUNT }, () => null),
+  );
+  const connectorOriginRef = useRef<SmoothedPoint>({
+    x: 0,
+    y: 0,
+    initialized: false,
+  });
 
   const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
     ({ ctx, width, height, dt, timeS }) => {
@@ -318,7 +449,8 @@ export function CommandCenterFeatureCanvas() {
         timeS,
         zoneHubRef,
         zoneCenterStateRef.current,
-        connectorEntriesRef,
+        connectorSlotsRef,
+        connectorOriginRef,
       );
     },
   );

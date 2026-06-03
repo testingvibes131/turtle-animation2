@@ -139,7 +139,7 @@ function NetworkStatsBar() {
 export function HeroStatsPanel() {
   return (
     <aside
-      className="pointer-events-none z-10 flex w-full max-w-full flex-col items-end gap-5 px-6 pb-10 md:px-10 lg:px-[60px]"
+      className="pointer-events-none z-10 flex w-full flex-col items-end gap-5 pb-10"
       aria-label="Platform statistics"
     >
       <div className="flex w-full max-w-[615px] flex-col items-end gap-[15px] sm:flex-row sm:justify-end">

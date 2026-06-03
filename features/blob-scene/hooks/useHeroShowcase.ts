@@ -1,13 +1,12 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useRef, type RefObject } from "react";
-import type * as THREE from "three";
+import { useEffect, useRef } from "react";
 import { useBlobHeroShowcaseActive } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import {
   pickCapVertexNearestHubAnchor,
-  type CuratorZoneAssignment,
   type HubAnchorOptions,
 } from "@/features/blob-scene/lib/curators/zones";
 import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
@@ -15,25 +14,25 @@ import {
   buildHeroShowcaseSpokeTargets,
   heroHubPassesCap,
   heroShowcaseEdgesFromTargets,
+  heroShowcaseSpokeCandidateIndices,
   heroShowcaseSpokesEqual,
 } from "@/features/blob-scene/lib/scroll/heroShowcaseEdges";
 import {
-  heroShowcaseCuratorIndex,
-  heroShowcaseCuratorName,
-  HERO_SHOWCASE_CLOCK_DEG,
   heroShowcaseConnectionCount,
+  heroShowcaseCurator,
+  heroShowcaseCuratorIndex,
+  HERO_SHOWCASE_CLOCK_DEG,
   HERO_SHOWCASE_FRONT_MIN_DOT,
+  HERO_SHOWCASE_LOGO_OUTSET_MUL,
 } from "@/features/blob-scene/lib/scroll/heroShowcase";
+import { heroShowcaseZoneAssignment } from "@/features/blob-scene/lib/scroll/heroShowcaseZone";
 
 type Args = {
   vertices: IcosahedronVertexData;
   params: BlobVisualParams;
-  zonesSnapshotRef: RefObject<readonly CuratorZoneAssignment[]>;
-  blobAnimTimeRef: RefObject<number>;
-  getTowardCamera: () => THREE.Vector3;
-  setActiveZone: React.Dispatch<
-    React.SetStateAction<CuratorZoneAssignment | null>
-  >;
+  blobAnimTimeRef: React.RefObject<number>;
+  getHubLayoutAxis: () => THREE.Vector3;
+  setActiveZone: BlobSceneContextValue["setActiveZone"];
 };
 
 function heroHubPickOptions(
@@ -46,7 +45,8 @@ function heroHubPickOptions(
     blobCenterLean: params.blobCenterLean,
     zoneCenterOffsetRight: params.zoneCenterOffsetRight,
     hubOffsetSpheres: params.hubOffsetSpheres,
-    hubLogoOutsetSpheres: params.hubLogoOutsetSpheres,
+    hubLogoOutsetSpheres:
+      params.hubLogoOutsetSpheres * HERO_SHOWCASE_LOGO_OUTSET_MUL,
     hubPickMesh: vertices,
     hubPickBlob: { ...params, time: animTime },
   };
@@ -56,9 +56,9 @@ function pickHeroHub(
   vertices: IcosahedronVertexData,
   params: BlobVisualParams,
   animTime: number,
-  getTowardCamera: () => THREE.Vector3,
+  getHubLayoutAxis: () => THREE.Vector3,
 ): number {
-  const toward = getTowardCamera();
+  const toward = getHubLayoutAxis();
   const hubPick = heroHubPickOptions(vertices, params, animTime);
   return pickCapVertexNearestHubAnchor(
     vertices,
@@ -71,13 +71,12 @@ function pickHeroHub(
   );
 }
 
-/** Hero: logo + 3–5 spokes at 45°; frozen targets so lines don’t blink off while animating. */
+/** Hero: logo + spokes in the 45° cap wedge (not curator zone partitions). */
 export function useHeroShowcase({
   vertices,
   params,
-  zonesSnapshotRef,
   blobAnimTimeRef,
-  getTowardCamera,
+  getHubLayoutAxis,
   setActiveZone,
 }: Args) {
   const heroActive = useBlobHeroShowcaseActive();
@@ -90,11 +89,18 @@ export function useHeroShowcase({
   const frozenSpokesRef = useRef<number[]>([]);
   const connectionCountRef = useRef(heroShowcaseConnectionCount());
   const heroEpochMsRef = useRef(0);
+  const spokeCandidatesRef = useRef<number[]>([]);
 
   const resetSpokes = () => {
     frozenSpokesRef.current = [];
     frozenCuratorRef.current = null;
   };
+
+  useEffect(() => {
+    spokeCandidatesRef.current = heroShowcaseSpokeCandidateIndices(
+      vertices.count,
+    );
+  }, [vertices.count]);
 
   useEffect(() => {
     if (!heroActive) {
@@ -112,14 +118,14 @@ export function useHeroShowcase({
       vertices,
       params,
       blobAnimTimeRef.current,
-      getTowardCamera,
+      getHubLayoutAxis,
     );
   }, [
     heroActive,
     vertices,
     params,
     blobAnimTimeRef,
-    getTowardCamera,
+    getHubLayoutAxis,
     setActiveZone,
   ]);
 
@@ -134,33 +140,22 @@ export function useHeroShowcase({
       resetSpokes();
     }
 
-    const toward = getTowardCamera();
+    const curator = heroShowcaseCurator(elapsedMs);
+    const toward = getHubLayoutAxis();
     const animTime = blobAnimTimeRef.current;
     const hubPick = heroHubPickOptions(vertices, params, animTime);
 
     let hub = heroHubRef.current;
-    if (
-      hub < 0 ||
-      !heroHubPassesCap(vertices.positions, hub, toward)
-    ) {
-      hub = pickHeroHub(vertices, params, animTime, getTowardCamera);
+    if (hub < 0 || !heroHubPassesCap(vertices.positions, hub, toward)) {
+      hub = pickHeroHub(vertices, params, animTime, getHubLayoutAxis);
       heroHubRef.current = hub;
       resetSpokes();
     }
 
     if (hub < 0) return;
 
-    const curatorName = heroShowcaseCuratorName(elapsedMs);
-    const zone = zonesSnapshotRef.current.find(
-      (z) => z.curator.name === curatorName,
-    );
-    if (!zone) {
-      setActiveZone((prev) => (prev === null ? prev : null));
-      return;
-    }
-
-    if (frozenCuratorRef.current !== curatorName) {
-      frozenCuratorRef.current = curatorName;
+    if (frozenCuratorRef.current !== curator.name) {
+      frozenCuratorRef.current = curator.name;
       frozenSpokesRef.current = [];
     }
 
@@ -168,7 +163,7 @@ export function useHeroShowcase({
       frozenSpokesRef.current = buildHeroShowcaseSpokeTargets(
         vertices.positions,
         hub,
-        zone.members,
+        spokeCandidatesRef.current,
         toward,
         hubPick,
         connectionCountRef.current,
@@ -176,7 +171,12 @@ export function useHeroShowcase({
     }
 
     const edges = heroShowcaseEdgesFromTargets(hub, frozenSpokesRef.current);
-    const heroZone: CuratorZoneAssignment = { ...zone, hub, edges };
+    const heroZone = heroShowcaseZoneAssignment(
+      curator,
+      hub,
+      frozenSpokesRef.current,
+      edges,
+    );
 
     setActiveZone((prev) => {
       if (!prev) return heroZone;

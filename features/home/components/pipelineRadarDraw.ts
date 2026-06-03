@@ -394,11 +394,12 @@ function drawBlip(
   scale: number,
   intensity: number,
 ) {
-  if (intensity <= 0.01) return;
+  const fade = smoothstep(clamp01(intensity));
+  if (fade <= 0.01) return;
   const r = spec.radius * scale;
   const { x, y } = polarToXY(cx, cy, r, spec.angle);
-  const coreR = spec.coreRadius * scale;
-  drawGreenGlowCircle(ctx, x, y, coreR, intensity);
+  const coreR = spec.coreRadius * scale * (0.7 + 0.3 * fade);
+  drawGreenGlowCircle(ctx, x, y, coreR, fade);
 }
 
 export type BlipIntensityState = number[];

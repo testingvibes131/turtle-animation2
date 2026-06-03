@@ -48,6 +48,7 @@ function PlexusLineBatch({
   hubPickOptions,
   getTowardCamera,
   blobAnimTimeRef,
+  lockDashDistances = false,
 }: {
   color: number;
   edges: CuratorEdge[];
@@ -58,6 +59,8 @@ function PlexusLineBatch({
   hubPickOptions: HubAnchorOptions;
   getTowardCamera: () => THREE.Vector3;
   blobAnimTimeRef?: React.MutableRefObject<number>;
+  /** Hero: recompute dash phase only when edges change, not every frame. */
+  lockDashDistances?: boolean;
 }) {
   const size = useThree((s) => s.size);
   const linePositionsRef = useRef<Float32Array | null>(null);
@@ -115,10 +118,22 @@ function PlexusLineBatch({
     };
   }, [bundle]);
 
+  const edgesKey = useMemo(
+    () =>
+      `${hubIndex}:${edges.map(([a, b]) => `${a}-${b}`).join(",")}`,
+    [hubIndex, edges],
+  );
+
+  const committedEdgesKeyRef = useRef("");
+
   useFrame((state) => {
     const b = bundleRef.current;
     const arr = linePositionsRef.current;
     if (!b || !arr || edges.length === 0) return;
+
+    if (lockDashDistances && committedEdgesKeyRef.current === edgesKey) {
+      return;
+    }
 
     const blobParams: PerlinBlobParams = {
       ...params,
@@ -154,6 +169,8 @@ function PlexusLineBatch({
     b.geometry.setPositions(arr);
     b.lines.computeLineDistances();
     b.lines.renderOrder = RENDER_PLEXUS_LINES;
+
+    committedEdgesKeyRef.current = lockDashDistances ? edgesKey : "";
   });
 
   if (!bundle) return null;
@@ -170,6 +187,7 @@ export function CuratorPlexusLines({
   hubPickOptions,
   getTowardCamera,
   blobAnimTimeRef,
+  lockDashDistances = false,
 }: {
   groups: ColoredPlexusGroup[];
   vertices: IcosahedronVertexData;
@@ -179,6 +197,7 @@ export function CuratorPlexusLines({
   hubPickOptions: HubAnchorOptions;
   getTowardCamera: () => THREE.Vector3;
   blobAnimTimeRef?: React.MutableRefObject<number>;
+  lockDashDistances?: boolean;
 }) {
   return (
     <>
@@ -194,6 +213,7 @@ export function CuratorPlexusLines({
           hubPickOptions={hubPickOptions}
           getTowardCamera={getTowardCamera}
           blobAnimTimeRef={blobAnimTimeRef}
+          lockDashDistances={lockDashDistances}
         />
       ))}
     </>

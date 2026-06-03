@@ -208,15 +208,7 @@ body {
 
 /* ---------- pipeline radar deal cards (scan highlight) ---------- */
 .pipeline-radar-deal-card[data-scanned="true"] {
-  border-color: rgba(115, 243, 108, 0.22);
-  background:
-    linear-gradient(
-      0deg,
-      rgba(115, 243, 108, 0.1) 0%,
-      rgba(115, 243, 108, 0.1) 100%
-    ),
-    linear-gradient(180deg, #141514 0%, #191919 100%);
-  box-shadow: 0 0 24px 0 rgba(115, 243, 108, 0.08);
+  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
 }
 
 @media (min-width: 1024px) {

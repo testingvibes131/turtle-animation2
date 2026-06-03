@@ -8,6 +8,7 @@ import {
   useBlobHeroShowcaseActive,
   useBlobInteractionEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import {
@@ -226,16 +227,34 @@ export function useBlobAnimationFreeze(
   /** Freeze Perlin time while hovered after interaction is enabled. */
   freezeTime: boolean,
 ) {
+  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const activeZoneRef = useRef(activeZone);
   activeZoneRef.current = activeZone;
   const freezeTimeRef = useRef(freezeTime);
   freezeTimeRef.current = freezeTime;
+  const heroShowcaseActiveRef = useRef(heroShowcaseActive);
+  heroShowcaseActiveRef.current = heroShowcaseActive;
+  const frozenZoneSigRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!heroShowcaseActive || !activeZone) {
+      if (!heroShowcaseActive) frozenZoneSigRef.current = null;
+      return;
+    }
+    const sig = zoneLayoutSignature(activeZone);
+    if (frozenZoneSigRef.current !== sig) {
+      frozenZoneSigRef.current = sig;
+      frozenAnimTimeRef.current = null;
+    }
+  }, [heroShowcaseActive, activeZone, frozenAnimTimeRef]);
 
   return {
     activeZoneRef,
     tickAnimationTime: (clockTime: number) => {
+      const zone = activeZoneRef.current;
       const shouldFreeze =
-        freezeTimeRef.current && activeZoneRef.current != null;
+        zone != null &&
+        (freezeTimeRef.current || heroShowcaseActiveRef.current);
       if (shouldFreeze) {
         if (frozenAnimTimeRef.current === null) {
           frozenAnimTimeRef.current = clockTime;

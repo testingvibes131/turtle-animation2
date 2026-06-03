@@ -9,11 +9,28 @@ import {
   gridCellToPixel,
 } from "@/features/home/components/commandCenterCanvas";
 
-export const ZONE_CENTER_LERP = 9;
+export const ZONE_CENTER_LERP = 8;
 
 const FLY_FRICTION = 0.965;
 const FLY_ACCEL = 780;
 const FLY_MAX_SPEED = 150;
+
+export type FlyingMainDotOptions = {
+  friction?: number;
+  accel?: number;
+  maxSpeed?: number;
+  /** < 1 slows steering noise for smoother drift. */
+  noiseTimeScale?: number;
+  wallBounce?: number;
+};
+
+const FLY_DEFAULTS = {
+  friction: FLY_FRICTION,
+  accel: FLY_ACCEL,
+  maxSpeed: FLY_MAX_SPEED,
+  noiseTimeScale: 1,
+  wallBounce: 0.72,
+} as const;
 
 function noise1(t: number) {
   const a = Math.sin(t * 0.91 + 0.2) * 0.45;
@@ -98,9 +115,11 @@ export class FlyingMainDot {
   private time = 0;
   private bounds: PixelRect;
   private boundsKey = "";
+  private readonly fly: typeof FLY_DEFAULTS;
 
-  constructor(bounds: PixelRect) {
+  constructor(bounds: PixelRect, options: FlyingMainDotOptions = {}) {
     this.bounds = bounds;
+    this.fly = { ...FLY_DEFAULTS, ...options };
     this.x = (bounds.minX + bounds.maxX) / 2;
     this.y = (bounds.minY + bounds.maxY) / 2;
   }
@@ -121,7 +140,8 @@ export class FlyingMainDot {
 
   update(dt: number) {
     this.time += dt;
-    const t = this.time;
+    const t = this.time * this.fly.noiseTimeScale;
+    const { friction, accel, maxSpeed, wallBounce } = this.fly;
 
     const envelope = 0.5 + 0.5 * noise1(t * 0.31 + 1.2);
     const drift = noise1(t * 0.52 + 3.4) - 0.5;
@@ -129,21 +149,21 @@ export class FlyingMainDot {
       ((noise1(t * 1.62 + 0.5) - 0.5) * 0.5 +
         (noise1(t * 3.15 + 2.1) - 0.5) * 0.3 +
         drift * 0.2) *
-      FLY_ACCEL *
+      accel *
       envelope;
     const ay =
       ((noise1(t * 1.88 + 2.4) - 0.5) * 0.5 +
         (noise1(t * 3.48 + 4.2) - 0.5) * 0.3 +
         drift * 0.2) *
-      FLY_ACCEL *
+      accel *
       (0.85 + 0.15 * noise1(t * 0.44 + 5.6));
 
-    this.vx = this.vx * FLY_FRICTION + ax * dt;
-    this.vy = this.vy * FLY_FRICTION + ay * dt;
+    this.vx = this.vx * friction + ax * dt;
+    this.vy = this.vy * friction + ay * dt;
 
     const speed = Math.hypot(this.vx, this.vy);
-    if (speed > FLY_MAX_SPEED) {
-      const scale = FLY_MAX_SPEED / speed;
+    if (speed > maxSpeed) {
+      const scale = maxSpeed / speed;
       this.vx *= scale;
       this.vy *= scale;
     }
@@ -153,18 +173,18 @@ export class FlyingMainDot {
 
     if (this.x < this.bounds.minX) {
       this.x = this.bounds.minX;
-      this.vx = Math.abs(this.vx) * 0.72;
+      this.vx = Math.abs(this.vx) * wallBounce;
     } else if (this.x > this.bounds.maxX) {
       this.x = this.bounds.maxX;
-      this.vx = -Math.abs(this.vx) * 0.72;
+      this.vx = -Math.abs(this.vx) * wallBounce;
     }
 
     if (this.y < this.bounds.minY) {
       this.y = this.bounds.minY;
-      this.vy = Math.abs(this.vy) * 0.72;
+      this.vy = Math.abs(this.vy) * wallBounce;
     } else if (this.y > this.bounds.maxY) {
       this.y = this.bounds.maxY;
-      this.vy = -Math.abs(this.vy) * 0.72;
+      this.vy = -Math.abs(this.vy) * wallBounce;
     }
   }
 

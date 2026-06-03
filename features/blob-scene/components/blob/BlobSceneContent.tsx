@@ -18,7 +18,9 @@ import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScr
 import { useHeroShowcase } from "@/features/blob-scene/hooks/useHeroShowcase";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
+import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
+import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
 
 type BlobSceneContentProps = {
   params: BlobVisualParams;
@@ -38,6 +40,9 @@ export function BlobSceneContent({
   const frozenLayoutAxisRef = useRef<THREE.Vector3 | null>(null);
   const frozenLayoutZoneRef = useRef<string | null>(null);
   const scalesRef = useRef<Float32Array>(new Float32Array(0));
+  const connectedMarkerLayoutsRef = useRef(
+    new Map<number, ReturnType<typeof createConnectedMarkerLayout>>(),
+  );
   const [activeZone, setActiveZone] = useState<BlobSceneContextValue["activeZone"]>(null);
 
   const { vertices, liveVertices, liveIndices, deadIndices, pointRadius } =
@@ -52,10 +57,10 @@ export function BlobSceneContent({
 
   useLayoutEffect(() => {
     if (activeZone) {
-      const name = activeZone.curator.name;
-      if (frozenLayoutZoneRef.current !== name) {
+      const sig = zoneLayoutSignature(activeZone);
+      if (frozenLayoutZoneRef.current !== sig) {
         frozenLayoutAxisRef.current = getTowardCamera().clone();
-        frozenLayoutZoneRef.current = name;
+        frozenLayoutZoneRef.current = sig;
       }
     } else {
       frozenLayoutAxisRef.current = null;
@@ -85,6 +90,7 @@ export function BlobSceneContent({
       setActiveZone,
       getTowardCamera,
       getHubLayoutAxis,
+      connectedMarkerLayoutsRef,
     }),
     [
       activeZone,
@@ -103,9 +109,8 @@ export function BlobSceneContent({
   useHeroShowcase({
     vertices,
     params,
-    zonesSnapshotRef,
     blobAnimTimeRef,
-    getTowardCamera,
+    getHubLayoutAxis,
     setActiveZone,
   });
 

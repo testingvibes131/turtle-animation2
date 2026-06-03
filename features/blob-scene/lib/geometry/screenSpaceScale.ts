@@ -60,3 +60,57 @@ export function worldScaleForScreenPx(
   }
   return scale;
 }
+
+const _toCam = new THREE.Vector3();
+const _edgeWorld = new THREE.Vector3();
+
+/** Screen-space radius of a world-space sphere toward the camera. */
+export function sphereScreenRadiusPx(
+  worldPos: THREE.Vector3,
+  worldRadius: number,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): number {
+  _toCam.copy(camera.position).sub(worldPos);
+  const dist = _toCam.length();
+  if (dist < 1e-8) return 0;
+  _edgeWorld.copy(worldPos).addScaledVector(_toCam, worldRadius / dist);
+  const centerPx = screenPoint(worldPos, camera, size);
+  const edgePx = screenPoint(_edgeWorld, camera, size);
+  return centerPx.distanceTo(edgePx);
+}
+
+function sphereScreenRadiusPxFromWorld(
+  worldPos: THREE.Vector3,
+  worldRadius: number,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+): number {
+  const worldPerPx = worldScaleForScreenPx(worldPos, 1, camera, size);
+  if (worldPerPx < 1e-8) return 0;
+  return worldRadius / worldPerPx;
+}
+
+/** Billboard ring scale (unit outer radius 1) wrapping a marker sphere. */
+export function orbitRingBillboardScale(
+  worldPos: THREE.Vector3,
+  sphereWorldRadius: number,
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  sizeVsSphere: number,
+): number {
+  const towardPx = sphereScreenRadiusPx(
+    worldPos,
+    sphereWorldRadius,
+    camera,
+    size,
+  );
+  const worldPx = sphereScreenRadiusPxFromWorld(
+    worldPos,
+    sphereWorldRadius,
+    camera,
+    size,
+  );
+  const spherePx = Math.max(towardPx, worldPx);
+  return worldScaleForScreenPx(worldPos, spherePx * sizeVsSphere, camera, size);
+}

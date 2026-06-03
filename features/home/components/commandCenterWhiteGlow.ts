@@ -36,12 +36,13 @@ export function drawWhiteGlowCircle(
   alpha = 1,
   tone?: WhiteGlowTone,
   outerScale = 1,
+  opacityBoost = WHITE_GLOW_OPACITY_BOOST,
 ) {
   if (radius <= 0.01 || alpha <= 0.01) return;
 
   const sizedRadius = radius * WHITE_DOT_RADIUS_SCALE;
   const outer = glowOuterRadius(sizedRadius) * outerScale;
-  const glowAlpha = Math.min(1, alpha * WHITE_GLOW_OPACITY_BOOST);
+  const glowAlpha = Math.min(1, alpha * opacityBoost);
   const core = tone ?? WHITE_CORE;
   const hot = tone
     ? { r: core.r, g: core.g, b: core.b }

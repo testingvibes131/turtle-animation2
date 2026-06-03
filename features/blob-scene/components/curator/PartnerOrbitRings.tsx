@@ -4,16 +4,15 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
+import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import { billboardToCamera } from "@/features/blob-scene/lib/geometry/billboardToCamera";
 import {
   type IcosahedronVertexData,
   type PerlinBlobParams,
 } from "@/features/blob-scene/lib/geometry/perlinBlob";
 import { RENDER_PARTNER_ORBIT } from "@/features/blob-scene/lib/rendering/renderOrder";
-import { worldScaleForScreenPx } from "@/features/blob-scene/lib/geometry/screenSpaceScale";
+import { orbitRingBillboardScale } from "@/features/blob-scene/lib/geometry/screenSpaceScale";
 import { computeZoneMarkerLayout } from "@/features/blob-scene/lib/geometry/zoneMarkerTransform";
-
-const _worldPos = new THREE.Vector3();
 
 /** Outer ring diameter vs highlighted partner sphere diameter (screen px). */
 const ORBIT_SIZE_VS_SPHERE = 1.9;
@@ -40,6 +39,7 @@ function PartnerOrbitRing({
   pointRadius,
   blobAnimTimeRef,
 }: PartnerOrbitRingProps) {
+  const { connectedMarkerLayoutsRef } = useBlobScene();
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -64,55 +64,60 @@ function PartnerOrbitRing({
     const mesh = meshRef.current;
     if (!root || !mesh) return;
 
-    const blobParams: PerlinBlobParams = {
-      ...params,
-      time:
-        blobAnimTimeRef?.current ??
-        state.clock.elapsedTime * params.timeSpeed,
-    };
-
-    const maxDisp =
-      (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
-    const extent = params.radius + maxDisp;
-    const layout = computeZoneMarkerLayout(
-      vertices,
+    const published = connectedMarkerLayoutsRef.current.get(
       target.vertexIndex,
-      blobParams,
-      pointRadius,
-      target.scaleMul,
-      state.camera,
-      root.parent,
-      extent,
-      params.depthSizeNearOffset,
-      params.depthSizeFarOffset,
-      params.depthSizeMinMul,
-      params.depthSizeMaxMul,
     );
 
-    root.position.copy(layout.localPosition);
-    root.rotation.set(0, 0, 0);
+    let localPosition: THREE.Vector3;
+    let worldPosition: THREE.Vector3;
+    let sphereScale: number;
+
+    if (published) {
+      localPosition = published.localPosition;
+      worldPosition = published.worldPosition;
+      sphereScale = published.sphereScale;
+    } else {
+      const blobParams: PerlinBlobParams = {
+        ...params,
+        time:
+          blobAnimTimeRef?.current ??
+          state.clock.elapsedTime * params.timeSpeed,
+      };
+      const maxDisp =
+        (params.noiseScale * 1.2) /
+        Math.max(params.displacementDivisor, 0.001);
+      const extent = params.radius + maxDisp;
+      const layout = computeZoneMarkerLayout(
+        vertices,
+        target.vertexIndex,
+        blobParams,
+        pointRadius,
+        target.scaleMul,
+        state.camera,
+        root.parent,
+        extent,
+        params.depthSizeNearOffset,
+        params.depthSizeFarOffset,
+        params.depthSizeMinMul,
+        params.depthSizeMaxMul,
+      );
+      localPosition = layout.localPosition;
+      worldPosition = layout.worldPosition;
+      sphereScale = layout.sphereScale;
+    }
+
+    root.position.copy(localPosition);
     billboardToCamera(mesh, root, state.camera);
 
-    _worldPos.copy(layout.worldPosition);
-    const sphereWorld = layout.sphereScale;
-
-    const refPx = 16;
-    const refWorld = worldScaleForScreenPx(
-      _worldPos,
-      refPx,
+    const ringScale = orbitRingBillboardScale(
+      worldPosition,
+      sphereScale,
       state.camera,
       state.size,
+      ORBIT_SIZE_VS_SPHERE,
     );
-    const sphereHalfPx =
-      refPx * (sphereWorld / Math.max(refWorld, 1e-8));
-    const orbitHalfPx = sphereHalfPx * ORBIT_SIZE_VS_SPHERE;
-    const side = worldScaleForScreenPx(
-      _worldPos,
-      orbitHalfPx,
-      state.camera,
-      state.size,
-    );
-    mesh.scale.set(side, side, 1);
+    mesh.scale.set(ringScale, ringScale, 1);
+    mesh.visible = ringScale > 0;
   });
 
   return (

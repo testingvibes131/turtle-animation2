@@ -10,7 +10,10 @@ import {
   applySquareContainMap,
   getLogoDisplayScale,
 } from "@/features/blob-scene/lib/curators/logoContentScale";
-import { displacedHubAnchorPosition } from "@/features/blob-scene/lib/curators/zones";
+import {
+  displacedHubAnchorPosition,
+  type HubAnchorOptions,
+} from "@/features/blob-scene/lib/curators/zones";
 import {
   type IcosahedronVertexData,
   type PerlinBlobParams,
@@ -34,6 +37,7 @@ type CuratorHubBillboardProps = {
   hubZoneDeg: number;
   vertices: IcosahedronVertexData;
   params: BlobVisualParams;
+  hubPickOptions: HubAnchorOptions;
   getTowardCamera: () => THREE.Vector3;
   blobAnimTimeRef?: React.MutableRefObject<number>;
 };
@@ -44,6 +48,7 @@ export function CuratorHubBillboard({
   hubZoneDeg,
   vertices,
   params,
+  hubPickOptions,
   getTowardCamera,
   blobAnimTimeRef,
 }: CuratorHubBillboardProps) {
@@ -80,15 +85,7 @@ export function CuratorHubBillboard({
       hubIndex,
       getTowardCamera(),
       hubZoneDeg,
-      {
-        frontMinDot: params.frontMinDot,
-        blobCenterLean: params.blobCenterLean,
-        zoneCenterOffsetRight: params.zoneCenterOffsetRight,
-        hubOffsetSpheres: params.hubOffsetSpheres,
-        hubLogoOutsetSpheres: params.hubLogoOutsetSpheres,
-        hubPickMesh: vertices,
-        hubPickBlob: blobParams,
-      },
+      { ...hubPickOptions, hubPickBlob: blobParams },
       blobParams,
       root.position,
     );

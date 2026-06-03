@@ -57,7 +57,8 @@ export const PIPELINE_RADAR_SWEEP_LEAD_ALPHA = 0.52;
 /** Soft radial depth from center (optional overlay). */
 export const PIPELINE_RADAR_SWEEP_CENTER_ALPHA = 0.09;
 
-export const PIPELINE_RADAR_BLIP_RAMP_UP_S = 0.08;
+/** Fade-in duration when the sweep reveals a blip. */
+export const PIPELINE_RADAR_BLIP_RAMP_UP_S = 0.45;
 export const PIPELINE_RADAR_BLIP_DECAY_S = 0.55;
 /** Intensity at or above this counts as “scanned” for deal-card highlight. */
 export const PIPELINE_RADAR_BLIP_SCAN_THRESHOLD = 0.22;
