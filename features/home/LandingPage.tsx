@@ -13,6 +13,7 @@ import { HeroSection } from "@/features/home/sections/HeroSection";
 import { LatestUpdates } from "@/features/home/sections/LatestUpdates";
 import { Pipeline } from "@/features/home/sections/Pipeline";
 import { RadarCta } from "@/features/home/sections/RadarCta";
+import { Team } from "@/features/home/sections/Team";
 
 export function LandingPage() {
   useEffect(() => {
@@ -34,6 +35,7 @@ export function LandingPage() {
         <Pipeline />
         <CaseStudies />
         <BackedBy />
+        <Team />
         <RadarCta />
         <LatestUpdates />
         <GlowDivider />

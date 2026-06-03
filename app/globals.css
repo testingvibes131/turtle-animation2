@@ -420,6 +420,108 @@ body {
   }
 }
 
+/* ---------- team section (Figma 1358:27909 / Card-Member 1358:27910) ---------- */
+.team-grid {
+  --team-card-h: clamp(120px, 9.7vw, 149.339px);
+  --team-card-pad: clamp(14px, 1.04vw, 20px);
+  --team-card-gap: clamp(10px, 0.75vw, 14.31px);
+  --team-card-radius: clamp(16px, 1.07vw, 20.53px);
+  --team-avatar-w: clamp(96px, 6.7vw, 129px);
+  --team-avatar-h: clamp(95px, 6.65vw, 128px);
+
+  display: grid;
+  width: 100%;
+  max-width: min(100%, 954px);
+  margin-inline: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--team-card-gap);
+  list-style: none;
+  padding: 0;
+  margin-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  .team-grid {
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .team-grid__cta {
+    grid-column: 1 / -1;
+  }
+}
+
+.team-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(8px, 0.6vw, 12px);
+  width: 100%;
+  min-height: var(--team-card-h);
+  padding: var(--team-card-pad) var(--team-card-pad) 0;
+  border-radius: var(--team-card-radius);
+  border: 1.027px solid rgba(249, 249, 249, 0.1);
+  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
+  overflow: hidden;
+}
+
+.team-card__copy {
+  display: flex;
+  flex-shrink: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(2px, 0.2vw, 3px);
+  min-width: 0;
+}
+
+.team-card__name {
+  font-size: clamp(16px, 1.04vw, 20px);
+  font-weight: 400;
+  line-height: 1.4;
+  color: #f9f9f9;
+}
+
+.team-card__role {
+  font-size: clamp(11px, 0.625vw, 12px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(249, 249, 249, 0.5);
+}
+
+.team-card__avatar {
+  flex-shrink: 0;
+  width: var(--team-avatar-w);
+  height: var(--team-avatar-h);
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.team-grid__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--team-card-h);
+}
+
+.team-grid__cta-link {
+  font-size: clamp(16px, 1.04vw, 20px);
+  font-weight: 400;
+  line-height: 1.4;
+  color: #f9f9f9;
+  text-align: center;
+  transition: color 0.2s ease;
+}
+
+.team-grid__cta-link:hover {
+  color: #73f36c;
+}
+
 /* ---------- latest updates scroll ---------- */
 .updates-scroll {
   overflow-x: auto;
