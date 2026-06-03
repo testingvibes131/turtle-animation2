@@ -12,9 +12,18 @@ const DOT_RADIUS = 2;
 type TvlChartGraphProps = {
   animating: boolean;
   animationKey: number;
+  className?: string;
+  /** When "shell", chart fills the Union card's right lobe. */
+  size?: "default" | "shell";
 };
 
-export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
+export function TvlChartGraph({
+  animating,
+  animationKey,
+  className,
+  size = "default",
+}: TvlChartGraphProps) {
+  const shell = size === "shell";
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
@@ -35,7 +44,12 @@ export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
 
     const syncSize = () => {
       width = wrap.clientWidth;
-      height = (width * VB_H) / VB_W;
+      if (shell) {
+        height = wrap.clientHeight;
+        if (height <= 0) height = (width * VB_H) / VB_W;
+      } else {
+        height = (width * VB_H) / VB_W;
+      }
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       canvas.style.width = `${width}px`;
@@ -43,6 +57,10 @@ export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       scale = width / VB_W;
     };
+
+    const scaleX = () => width / VB_W;
+    const scaleY = () => (shell ? height / VB_H : width / VB_W);
+    const dotR = () => DOT_RADIUS * (shell ? (scaleX() + scaleY()) / 2 : scale);
 
     const delays = tvlChartDots.map(
       (_, index) => (index / Math.max(tvlChartDots.length - 1, 1)) * STAGGER_MS,
@@ -63,7 +81,7 @@ export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
         ctx.globalAlpha = alpha * 0.95;
         ctx.fillStyle = "#73F36C";
         ctx.beginPath();
-        ctx.arc(dot.cx * scale, dot.cy * scale, DOT_RADIUS * scale, 0, Math.PI * 2);
+        ctx.arc(dot.cx * scaleX(), dot.cy * scaleY(), dotR(), 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -94,12 +112,18 @@ export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
     };
-  }, [animating, animationKey]);
+  }, [animating, animationKey, shell]);
 
   return (
     <div
       ref={wrapRef}
-      className="relative w-fit shrink-0 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10 [background-image:linear-gradient(to_bottom_right,rgba(249,249,249,0.12)_0%,rgba(249,249,249,0.04)_38%,#0f0f0f_100%)]"
+      className={[
+        "relative overflow-hidden rounded-[15px] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10 [background-image:linear-gradient(to_bottom_right,rgba(249,249,249,0.12)_0%,rgba(249,249,249,0.04)_38%,#0f0f0f_100%)]",
+        shell ? "h-full min-h-0 w-full" : "w-fit shrink-0",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -108,7 +132,11 @@ export function TvlChartGraph({ animating, animationKey }: TvlChartGraphProps) {
         width={VB_W}
         height={VB_H}
         decoding="async"
-        className="block h-auto w-[clamp(180px,32vw,534px)]"
+        className={
+          shell
+            ? "absolute inset-0 block h-full w-full object-fill"
+            : "block h-auto w-[clamp(180px,32vw,534px)]"
+        }
       />
       <canvas
         ref={canvasRef}
