@@ -28,7 +28,17 @@ export type FlyingMainDotOptions = {
   edgeBiasInset?: number;
 };
 
-const FLY_DEFAULTS = {
+type FlyConfig = {
+  friction: number;
+  accel: number;
+  maxSpeed: number;
+  noiseTimeScale: number;
+  wallBounce: number;
+  edgeCenterBias: number;
+  edgeBiasInset: number;
+};
+
+const FLY_DEFAULTS: FlyConfig = {
   friction: FLY_FRICTION,
   accel: FLY_ACCEL,
   maxSpeed: FLY_MAX_SPEED,
@@ -36,7 +46,7 @@ const FLY_DEFAULTS = {
   wallBounce: 0.72,
   edgeCenterBias: 0,
   edgeBiasInset: 48,
-} as const;
+};
 
 function wallProximity(
   pos: number,
@@ -178,7 +188,7 @@ export class FlyingMainDot {
   private time = 0;
   private bounds: PixelRect;
   private boundsKey = "";
-  private readonly fly: typeof FLY_DEFAULTS;
+  private readonly fly: FlyConfig;
 
   constructor(bounds: PixelRect, options: FlyingMainDotOptions = {}) {
     this.bounds = bounds;

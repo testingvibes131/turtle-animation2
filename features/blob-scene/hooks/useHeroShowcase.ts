@@ -2,6 +2,7 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { useBlobHeroShowcaseActive } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
