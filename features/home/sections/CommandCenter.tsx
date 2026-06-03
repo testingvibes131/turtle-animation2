@@ -9,20 +9,7 @@ export function CommandCenter() {
   return (
     <SectionShell>
       <div className="grid grid-cols-1 gap-[clamp(48px,6vw,80px)] lg:grid-cols-2 lg:gap-x-[clamp(32px,5vw,76px)]">
-        <RevealOnScroll className="flex max-w-[38rem] flex-col gap-[clamp(20px,2.4vw,32px)] lg:sticky lg:top-[clamp(80px,10vh,120px)] lg:self-start">
-          <h2 className="bg-clip-text pb-[0.05em] text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
-            Your book,
-            <br />
-            one command center.
-          </h2>
-          <p className="text-[clamp(15px,1.3vw,19px)] leading-[1.4] text-ink-subtle">
-            Find diligenced deals, track every position, and get alerted when it
-            matters. All trustless, all self-custodial.
-          </p>
-          <CtaPill href="#" label="Gral CTA" className="w-[240px]" />
-        </RevealOnScroll>
-
-        <div className="flex flex-col gap-[clamp(16px,1.4vw,20px)] lg:items-end">
+        <div className="order-2 flex flex-col gap-[clamp(16px,1.4vw,20px)] lg:order-1 lg:items-start">
           {commandCenterFeatures.map((feature) => (
             <RevealOnScroll key={feature.title}>
               <CommandCenterCardShell>
@@ -47,6 +34,19 @@ export function CommandCenter() {
             </RevealOnScroll>
           ))}
         </div>
+
+        <RevealOnScroll className="order-1 flex max-w-[38rem] flex-col gap-[clamp(20px,2.4vw,32px)] lg:order-2 lg:sticky lg:top-[clamp(80px,10vh,120px)] lg:self-start">
+          <h2 className="bg-clip-text pb-[0.05em] text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
+            Your book,
+            <br />
+            one command center.
+          </h2>
+          <p className="text-[clamp(15px,1.3vw,19px)] leading-[1.4] text-ink-subtle">
+            Find diligenced deals, track every position, and get alerted when it
+            matters. All trustless, all self-custodial.
+          </p>
+          <CtaPill href="#" label="Gral CTA" className="w-[240px]" />
+        </RevealOnScroll>
       </div>
     </SectionShell>
   );

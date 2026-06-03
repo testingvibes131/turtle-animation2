@@ -129,6 +129,51 @@ body {
   }
 }
 
+/* ---------- pipeline stage ---------- */
+.pipeline-stage-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pipeline-stage-main {
+  /* Figma Card-Pipeline-Interaction: card row 209px, monitor overlap 116px */
+  --pipeline-card-row: clamp(160px, 14vw, 209px);
+  --pipeline-visual-overlap: 116px;
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: clamp(320px, 52vw, 480px);
+}
+
+/* Figma Studio-Display ~709×629 — bottom-anchored, overlaps cards */
+.pipeline-visual {
+  position: absolute;
+  left: var(--pipeline-visual-x, 50%);
+  bottom: calc(var(--pipeline-card-row) - var(--pipeline-visual-overlap));
+  z-index: 0;
+  width: min(709px, 92vw);
+  height: auto;
+  aspect-ratio: 709 / 629;
+  max-height: min(629px, 58vh);
+  transform: translateX(-50%);
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.pipeline-visual__slide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pipeline-stage-main .pipeline-cards {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+}
+
 /* ---------- pipeline cards ---------- */
 .pipeline-cards {
   display: flex;
@@ -150,7 +195,8 @@ body {
 }
 
 .pipeline-card[data-state="default"] {
-  background: transparent;
+  background: #141514;
+  border-style: dashed;
 }
 
 .pipeline-card[data-state="default"] .pipeline-card-title {
@@ -167,6 +213,7 @@ body {
 
 .pipeline-card[data-state="selected"] {
   background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
+  border-style: solid;
 }
 
 .pipeline-card[data-state="selected"] .pipeline-card-title {
@@ -206,11 +253,6 @@ body {
   }
 }
 
-/* ---------- pipeline radar deal cards (scan highlight) ---------- */
-.pipeline-radar-deal-card[data-scanned="true"] {
-  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
-}
-
 @media (min-width: 1024px) {
   .scroll-stage {
     min-height: 400vh;
@@ -218,10 +260,34 @@ body {
   .scroll-stage-inner {
     position: sticky;
     top: 0;
-    min-height: 100vh;
+    box-sizing: border-box;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    overflow: hidden;
+  }
+
+  .pipeline-stage-inner {
+    padding-block: clamp(12px, 2vh, 28px);
+  }
+
+  .pipeline-stage-header {
+    flex-shrink: 0;
+  }
+
+  .pipeline-stage-main {
+    min-height: 0;
+  }
+
+  .pipeline-visual {
+    width: min(709px, 48vw);
+    max-height: min(629px, 52vh);
+  }
+
+  .pipeline-stage-inner .pipeline-cards {
+    flex-shrink: 0;
   }
 }
 

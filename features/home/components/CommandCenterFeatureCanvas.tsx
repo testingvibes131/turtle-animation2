@@ -23,6 +23,14 @@ import {
   smoothstep,
 } from "@/features/home/components/commandCenterGrid";
 import {
+  advanceSpiderGait,
+  initSpiderLegs,
+  legDisplayPosition,
+  SPIDER_LEG_COUNT,
+  type RingCell,
+  type SpiderLegSlot,
+} from "@/features/home/components/commandCenterSpiderGait";
+import {
   createFlyBounds,
   createZoneCenterState,
   FlyingMainDot,
@@ -40,29 +48,22 @@ const CONNECTOR_LINE_WIDTH = 1;
 const CONNECTOR_LINE_COLOR = "rgba(171, 174, 170, 1)";
 const CONNECTOR_LINE_DASH: [number, number] = [2, 3];
 const CONNECTOR_PRESENCE_IN_S = 0.5;
-const CONNECTOR_STAGGER_MAX = 0.19;
-/** Only retarget a spoke when the new cell is clearly better for that sector. */
-const CONNECTOR_SECTOR_SWITCH_RAD = 0.34;
-/** Damped follow for spoke tips and line origin (higher = snappier). */
-const CONNECTOR_FOLLOW_RATE = 7;
-const CONNECTOR_ORIGIN_FOLLOW_RATE = 14;
-const CONNECTOR_RING_MIN = 0.72;
-const CONNECTOR_COUNT = 5;
-const TAU = Math.PI * 2;
+const CONNECTOR_STAGGER_MAX = 0.22;
+/** Connector band as fraction of modifier-zone radius (inner → outer). */
+const CONNECTOR_RING_MIN = 0.58;
+const CONNECTOR_RING_MAX = 0.76;
+const CONNECTOR_RING_IDEAL =
+  (CONNECTOR_RING_MIN + CONNECTOR_RING_MAX) * 0.5;
+const CONNECTOR_COUNT = SPIDER_LEG_COUNT;
+const PORTFOLIO_FLY_MARGIN =
+  COMMAND_CENTER_TURTLE_HALF_EXTENT * 1.35 + GRID_SPACING * 1.5;
+const PORTFOLIO_ZONE_CENTER_LERP = 11;
+/** Low-pass body velocity so foot targets align with drift direction. */
+const PORTFOLIO_TRAVEL_SMOOTH_RATE = 2.4;
 
-type InsideCell = GridCell & PixelPoint;
-
-type ConnectorSlot = {
-  row: number;
-  col: number;
-  x: number;
-  y: number;
-  targetX: number;
-  targetY: number;
-  presenceStart: number;
-};
-
-type SmoothedPoint = PixelPoint & { initialized: boolean };
+const PORTFOLIO_CONNECTOR_RADIUS_MIN = 0.88;
+const PORTFOLIO_CONNECTOR_RADIUS_PULSE = 0.1;
+const PORTFOLIO_GREEN_VISIBILITY_BOOST = 1.15;
 
 function slotStaggerDelay(slotIndex: number, row: number, col: number) {
   return (
@@ -71,191 +72,32 @@ function slotStaggerDelay(slotIndex: number, row: number, col: number) {
   );
 }
 
-function dampedFollow(current: number, target: number, dt: number, rate: number) {
-  const k = 1 - Math.exp(-rate * dt);
-  return current + (target - current) * k;
-}
-
-function stepSmoothedPoint(point: SmoothedPoint, target: PixelPoint, dt: number, rate: number) {
-  if (!point.initialized) {
-    point.x = target.x;
-    point.y = target.y;
-    point.initialized = true;
-    return;
-  }
-  point.x = dampedFollow(point.x, target.x, dt, rate);
-  point.y = dampedFollow(point.y, target.y, dt, rate);
-}
-
-function createConnectorSlot(cell: InsideCell, timeS: number): ConnectorSlot {
-  return {
-    row: cell.row,
-    col: cell.col,
-    x: cell.x,
-    y: cell.y,
-    targetX: cell.x,
-    targetY: cell.y,
-    presenceStart: timeS,
-  };
-}
-
-function sectorTargetAngle(slotIndex: number) {
-  return (slotIndex / CONNECTOR_COUNT) * TAU - Math.PI / 2;
-}
-
-function cellSectorDelta(
-  cell: InsideCell,
-  hubX: number,
-  hubY: number,
-  slotIndex: number,
-) {
-  const angle = Math.atan2(cell.y - hubY, cell.x - hubX);
-  return connectorAngleDelta(angle, sectorTargetAngle(slotIndex));
-}
-
-function shouldRetargetSlot(
-  slot: ConnectorSlot,
-  cell: InsideCell,
-  hubX: number,
-  hubY: number,
-  slotIndex: number,
-) {
-  const currentDelta = cellSectorDelta(
-    { row: slot.row, col: slot.col, x: slot.x, y: slot.y },
-    hubX,
-    hubY,
-    slotIndex,
-  );
-  const nextDelta = cellSectorDelta(cell, hubX, hubY, slotIndex);
-  return nextDelta < currentDelta - CONNECTOR_SECTOR_SWITCH_RAD;
-}
-
-function retargetConnectorSlot(slot: ConnectorSlot, cell: InsideCell) {
-  slot.row = cell.row;
-  slot.col = cell.col;
-  slot.targetX = cell.x;
-  slot.targetY = cell.y;
-}
-
-function slotPresence(slot: ConnectorSlot, timeS: number, slotIndex: number) {
+function slotPresence(slot: SpiderLegSlot, timeS: number, slotIndex: number) {
   const delay = slotStaggerDelay(slotIndex, slot.row, slot.col);
   const elapsed = timeS - slot.presenceStart - delay;
   if (elapsed <= 0) return 0;
   return smoothstep(clamp01(elapsed / CONNECTOR_PRESENCE_IN_S));
 }
 
-function advanceSlotMotion(slots: (ConnectorSlot | null)[], dt: number) {
-  for (const slot of slots) {
-    if (!slot) continue;
-    slot.x = dampedFollow(slot.x, slot.targetX, dt, CONNECTOR_FOLLOW_RATE);
-    slot.y = dampedFollow(slot.y, slot.targetY, dt, CONNECTOR_FOLLOW_RATE);
-  }
-}
-
-function syncConnectorSlots(
-  slots: (ConnectorSlot | null)[],
-  connectorCells: InsideCell[],
-  hubX: number,
-  hubY: number,
-  timeS: number,
-) {
-  for (let i = 0; i < CONNECTOR_COUNT; i++) {
-    const cell = connectorCells[i];
-    if (!cell) continue;
-
-    const slot = slots[i];
-    if (!slot) {
-      slots[i] = createConnectorSlot(cell, timeS);
-      continue;
-    }
-
-    if (slot.row === cell.row && slot.col === cell.col) {
-      slot.targetX = cell.x;
-      slot.targetY = cell.y;
-      continue;
-    }
-
-    if (!shouldRetargetSlot(slot, cell, hubX, hubY, i)) {
-      continue;
-    }
-
-    retargetConnectorSlot(slot, cell);
-  }
-}
-
-function isOnConnectorOuterRing(
+function isOnConnectorRing(
   dotX: number,
   dotY: number,
-  zoneX: number,
-  zoneY: number,
+  bodyX: number,
+  bodyY: number,
 ) {
-  if (!isInsideModifierZone(dotX, dotY, zoneX, zoneY)) return false;
+  if (!isInsideModifierZone(dotX, dotY, bodyX, bodyY)) return false;
+  const dist = distanceFromZoneCenter(dotX, dotY, bodyX, bodyY);
+  const zoneRadius = GRID_MODIFIER_ZONE_PIXEL_RADIUS;
   return (
-    distanceFromZoneCenter(dotX, dotY, zoneX, zoneY) >=
-    GRID_MODIFIER_ZONE_PIXEL_RADIUS * CONNECTOR_RING_MIN
+    dist >= zoneRadius * CONNECTOR_RING_MIN &&
+    dist <= zoneRadius * CONNECTOR_RING_MAX
   );
-}
-
-function isConnectorRingDot(
-  dotX: number,
-  dotY: number,
-  zoneX: number,
-  zoneY: number,
-) {
-  return isOnConnectorOuterRing(dotX, dotY, zoneX, zoneY);
-}
-
-function connectorAngleDelta(a: number, b: number) {
-  let delta = a - b;
-  while (delta > Math.PI) delta -= TAU;
-  while (delta < -Math.PI) delta += TAU;
-  return Math.abs(delta);
-}
-
-/** Pick ~CONNECTOR_COUNT spokes evenly around the hub ring. */
-function pickConnectorCells(
-  candidates: InsideCell[],
-  hubX: number,
-  hubY: number,
-): InsideCell[] {
-  if (candidates.length <= CONNECTOR_COUNT) return candidates;
-
-  const picked: InsideCell[] = [];
-  const used = new Set<string>();
-
-  for (let i = 0; i < CONNECTOR_COUNT; i++) {
-    const targetAngle = (i / CONNECTOR_COUNT) * TAU - Math.PI / 2;
-    let best: InsideCell | null = null;
-    let bestDelta = Infinity;
-    let bestTie = Infinity;
-
-    for (const cell of candidates) {
-      const key = cellKey(cell.row, cell.col);
-      if (used.has(key)) continue;
-
-      const angle = Math.atan2(cell.y - hubY, cell.x - hubX);
-      const delta = connectorAngleDelta(angle, targetAngle);
-      const tie = cellOrganicUnit(cell.row, cell.col);
-      if (delta < bestDelta || (delta === bestDelta && tie < bestTie)) {
-        bestDelta = delta;
-        bestTie = tie;
-        best = cell;
-      }
-    }
-
-    if (best) {
-      used.add(cellKey(best.row, best.col));
-      picked.push(best);
-    }
-  }
-
-  return picked;
 }
 
 function drawZoneConnectors(
   ctx: CanvasRenderingContext2D,
   center: PixelPoint,
-  slots: (ConnectorSlot | null)[],
+  slots: (SpiderLegSlot | null)[],
   timeS: number,
 ) {
   ctx.save();
@@ -269,8 +111,9 @@ function drawZoneConnectors(
     const presence = slotPresence(slot, timeS, slotIndex);
     if (presence <= 0.001) return;
 
-    const endX = center.x + (slot.x - center.x) * presence;
-    const endY = center.y + (slot.y - center.y) * presence;
+    const foot = legDisplayPosition(slot);
+    const endX = center.x + (foot.x - center.x) * presence;
+    const endY = center.y + (foot.y - center.y) * presence;
 
     ctx.globalAlpha = 0.55 + presence * 0.45;
     ctx.beginPath();
@@ -285,7 +128,7 @@ function drawZoneConnectors(
 
 function drawConnectorDots(
   ctx: CanvasRenderingContext2D,
-  slots: (ConnectorSlot | null)[],
+  slots: (SpiderLegSlot | null)[],
   timeS: number,
 ) {
   slots.forEach((slot, slotIndex) => {
@@ -294,12 +137,13 @@ function drawConnectorDots(
     const presence = slotPresence(slot, timeS, slotIndex);
     if (presence <= 0.001) return;
 
-    drawGreenGlowCircle(
-      ctx,
-      slot.x,
-      slot.y,
-      GRID_CONNECTOR_DOT_RADIUS * presence,
-    );
+    const visibility = Math.min(1, presence * PORTFOLIO_GREEN_VISIBILITY_BOOST);
+    const foot = legDisplayPosition(slot);
+    const radius =
+      GRID_CONNECTOR_DOT_RADIUS *
+      (PORTFOLIO_CONNECTOR_RADIUS_MIN + PORTFOLIO_CONNECTOR_RADIUS_PULSE * presence);
+
+    drawGreenGlowCircle(ctx, foot.x, foot.y, radius, visibility, "vivid");
   });
 }
 
@@ -312,16 +156,19 @@ function drawScene(
   timeS: number,
   zoneHubRef: { current: GridCell | null },
   zoneCenterState: ReturnType<typeof createZoneCenterState>,
-  connectorSlotsRef: { current: (ConnectorSlot | null)[] },
-  connectorOriginRef: { current: SmoothedPoint },
+  connectorSlotsRef: { current: (SpiderLegSlot | null)[] },
+  travelSmoothRef: { current: { vx: number; vy: number } },
 ) {
   ctx.clearRect(0, 0, width, height);
 
-  mainDot.setBounds(
-    createFlyBounds(width, height, COMMAND_CENTER_TURTLE_HALF_EXTENT),
-  );
+  mainDot.setBounds(createFlyBounds(width, height, PORTFOLIO_FLY_MARGIN));
   mainDot.update(dt);
   const { x: mainX, y: mainY } = mainDot.getPosition();
+  const { vx: bodyVx, vy: bodyVy } = mainDot.getVelocity();
+  const travel = travelSmoothRef.current;
+  const travelK = 1 - Math.exp(-PORTFOLIO_TRAVEL_SMOOTH_RATE * dt);
+  travel.vx += (bodyVx - travel.vx) * travelK;
+  travel.vy += (bodyVy - travel.vy) * travelK;
 
   const { offsetX, offsetY, rows, cols } = getGridDimensions(width, height);
   const hub = resolveStickyZoneHub(
@@ -339,44 +186,54 @@ function drawScene(
     offsetX,
     offsetY,
     dt,
+    PORTFOLIO_ZONE_CENTER_LERP,
   );
   const zoneX = zoneCenter.x;
   const zoneY = zoneCenter.y;
-  const ringHubX = zoneX;
-  const ringHubY = zoneY;
-  const ringCandidates: InsideCell[] = [];
+
+  const ringIdealDist = GRID_MODIFIER_ZONE_PIXEL_RADIUS * CONNECTOR_RING_IDEAL;
+  const ringCandidates: RingCell[] = [];
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const x = offsetX + col * GRID_SPACING;
       const y = offsetY + row * GRID_SPACING;
-      if (isConnectorRingDot(x, y, ringHubX, ringHubY)) {
+      if (isOnConnectorRing(x, y, mainX, mainY)) {
         ringCandidates.push({ row, col, x, y });
       }
     }
   }
 
-  const connectorCells = pickConnectorCells(
-    ringCandidates,
-    ringHubX,
-    ringHubY,
-  );
-
   const connectorSlots = connectorSlotsRef.current;
-  syncConnectorSlots(connectorSlots, connectorCells, ringHubX, ringHubY, timeS);
-  advanceSlotMotion(connectorSlots, dt);
-
-  const connectorOrigin = connectorOriginRef.current;
-  stepSmoothedPoint(
-    connectorOrigin,
-    { x: mainX, y: mainY },
+  initSpiderLegs(
+    connectorSlots,
+    ringCandidates,
+    mainX,
+    mainY,
+    rows,
+    cols,
+    timeS,
+    ringIdealDist,
+    travel.vx,
+    travel.vy,
+  );
+  advanceSpiderGait(
+    connectorSlots,
+    ringCandidates,
+    mainX,
+    mainY,
+    rows,
+    cols,
+    timeS,
+    ringIdealDist,
     dt,
-    CONNECTOR_ORIGIN_FOLLOW_RATE,
+    travel.vx,
+    travel.vy,
   );
 
   drawZoneConnectors(
     ctx,
-    { x: connectorOrigin.x, y: connectorOrigin.y },
+    { x: mainX, y: mainY },
     connectorSlots,
     timeS,
   );
@@ -391,9 +248,7 @@ function drawScene(
         if (!slot || cellKey(slot.row, slot.col) !== key) return false;
         return slotPresence(slot, timeS, slotIndex) > 0.04;
       });
-      if (isActiveConnector) {
-        continue;
-      }
+      if (isActiveConnector) continue;
 
       const { radius, alpha } = gridDotAppearance(x, y, zoneX, zoneY);
       if (radius < GRID_MIN_VISIBLE_RADIUS || alpha < GRID_MIN_VISIBLE_ALPHA) {
@@ -408,16 +263,19 @@ function drawScene(
   }
 
   if (!drawCommandCenterTurtleMark(ctx, mainX, mainY)) {
-    drawGreenGlowCircle(ctx, mainX, mainY, GRID_MAIN_DOT_RADIUS);
+    drawGreenGlowCircle(ctx, mainX, mainY, GRID_MAIN_DOT_RADIUS, 1, "vivid");
   }
 }
 
+/** Drift across the card; legs follow the body hub on the grid ring. */
 const PORTFOLIO_TURTLE_MOTION = {
-  friction: 0.978,
-  accel: 420,
-  maxSpeed: 92,
-  noiseTimeScale: 0.52,
-  wallBounce: 0.84,
+  friction: 0.983,
+  accel: 240,
+  maxSpeed: 46,
+  noiseTimeScale: 0.38,
+  wallBounce: 0.5,
+  edgeCenterBias: 0.45,
+  edgeBiasInset: GRID_SPACING * 2.2,
 } as const;
 
 export function CommandCenterFeatureCanvas() {
@@ -429,15 +287,10 @@ export function CommandCenterFeatureCanvas() {
   );
   const zoneHubRef = useRef<GridCell | null>(null);
   const zoneCenterStateRef = useRef(createZoneCenterState());
-  const connectorSlotsRef = useRef<(ConnectorSlot | null)[]>(
+  const connectorSlotsRef = useRef<(SpiderLegSlot | null)[]>(
     Array.from({ length: CONNECTOR_COUNT }, () => null),
   );
-  const connectorOriginRef = useRef<SmoothedPoint>({
-    x: 0,
-    y: 0,
-    initialized: false,
-  });
-
+  const travelSmoothRef = useRef({ vx: 0, vy: 0 });
   const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
     ({ ctx, width, height, dt, timeS }) => {
       drawScene(
@@ -450,7 +303,7 @@ export function CommandCenterFeatureCanvas() {
         zoneHubRef,
         zoneCenterStateRef.current,
         connectorSlotsRef,
-        connectorOriginRef,
+        travelSmoothRef,
       );
     },
   );

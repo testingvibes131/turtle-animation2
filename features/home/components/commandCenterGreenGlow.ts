@@ -10,11 +10,40 @@ const GLOW_OUTER_SCALE = 1.35;
 /** Below ~default grid dot — tighter halo so small dots do not smear. */
 const SMALL_DOT_RADIUS_THRESHOLD = 3.8;
 
-/** Muted greens — closer to brand #73f36c, less electric mint. */
-const GREEN_CORE = { r: 132, g: 178, b: 128 };
-const GREEN_HOT = { r: 108, g: 168, b: 104 };
-const GREEN_ACCENT = { r: 98, g: 188, b: 96 };
-const GREEN_DEEP = { r: 36, g: 68, b: 40 };
+export type GreenGlowTone = "muted" | "vivid";
+
+type GreenStop = { r: number; g: number; b: number };
+
+/** Default — soft greens for alerts cascade / radar. */
+const GREEN_MUTED: GreenStop[] = [
+  { r: 132, g: 178, b: 128 },
+  { r: 108, g: 168, b: 104 },
+  { r: 98, g: 188, b: 96 },
+  { r: 36, g: 68, b: 40 },
+];
+
+/** Deals diamond + portfolio connectors — brand #73f36c. */
+const GREEN_VIVID: GreenStop[] = [
+  { r: 168, g: 238, b: 158 },
+  { r: 115, g: 243, b: 108 },
+  { r: 72, g: 210, b: 88 },
+  { r: 28, g: 95, b: 42 },
+];
+
+const GREEN_TONE_OPACITY_BOOST: Record<GreenGlowTone, number> = {
+  muted: GREEN_GLOW_OPACITY_BOOST,
+  vivid: 1.16,
+};
+
+const GREEN_TONE_HALO_SCALE: Record<GreenGlowTone, number> = {
+  muted: 1,
+  vivid: 1,
+};
+
+const GREEN_TONE_RADIUS_SCALE: Record<GreenGlowTone, number> = {
+  muted: GREEN_DOT_RADIUS_SCALE,
+  vivid: 1.08,
+};
 
 function glowOuterRadius(radius: number) {
   const scale =
@@ -36,32 +65,32 @@ export function drawGreenGlowCircle(
   y: number,
   radius: number,
   alpha = 1,
+  tone: GreenGlowTone = "muted",
 ) {
   if (radius <= 0.01 || alpha <= 0.01) return;
 
-  const sizedRadius = radius * GREEN_DOT_RADIUS_SCALE;
-  const outer = glowOuterRadius(sizedRadius);
-  const glowAlpha = Math.min(1, alpha * GREEN_GLOW_OPACITY_BOOST);
+  const [core, hot, accent, deep] =
+    tone === "vivid" ? GREEN_VIVID : GREEN_MUTED;
+  const sizedRadius = radius * GREEN_TONE_RADIUS_SCALE[tone];
+  const outer = glowOuterRadius(sizedRadius) * GREEN_TONE_HALO_SCALE[tone];
+  const glowAlpha = Math.min(1, alpha * GREEN_TONE_OPACITY_BOOST[tone]);
+  const midFalloff = tone === "vivid" ? 0.9 : 0.88;
+  const outerFalloff = tone === "vivid" ? 0.72 : 0.68;
+  const deepFalloff = tone === "vivid" ? 0.32 : 0.28;
 
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
 
   const gradient = ctx.createRadialGradient(x, y, 0, x, y, outer);
-  gradient.addColorStop(
-    0,
-    rgba(GREEN_CORE.r, GREEN_CORE.g, GREEN_CORE.b, glowAlpha),
-  );
-  gradient.addColorStop(
-    0.3,
-    rgba(GREEN_HOT.r, GREEN_HOT.g, GREEN_HOT.b, glowAlpha * 0.88),
-  );
+  gradient.addColorStop(0, rgba(core.r, core.g, core.b, glowAlpha));
+  gradient.addColorStop(0.3, rgba(hot.r, hot.g, hot.b, glowAlpha * midFalloff));
   gradient.addColorStop(
     0.55,
-    rgba(GREEN_ACCENT.r, GREEN_ACCENT.g, GREEN_ACCENT.b, glowAlpha * 0.68),
+    rgba(accent.r, accent.g, accent.b, glowAlpha * outerFalloff),
   );
   gradient.addColorStop(
     0.8,
-    rgba(GREEN_DEEP.r, GREEN_DEEP.g, GREEN_DEEP.b, glowAlpha * 0.28),
+    rgba(deep.r, deep.g, deep.b, glowAlpha * deepFalloff),
   );
   gradient.addColorStop(1, rgba(0, 0, 0, 0));
 

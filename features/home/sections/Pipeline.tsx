@@ -1,37 +1,48 @@
 "use client";
 
+import { useRef, type CSSProperties } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
-import { PipelineRadarComposition } from "@/features/home/components/PipelineRadarComposition";
+import { PipelineStepVisual } from "@/features/home/components/PipelineStepVisual";
 import { pipelineSteps } from "@/features/home/data/pipelineSteps";
+import { usePipelineCardAnchor } from "@/features/home/hooks/usePipelineCardAnchor";
 import { usePipelineScroll } from "@/features/home/hooks/usePipelineScroll";
 
 export function Pipeline() {
+  const cardsRef = useRef<HTMLDivElement>(null);
   const { sectionRef, selectedIndex, selectCard } = usePipelineScroll(
     pipelineSteps.length,
   );
+  const anchorX = usePipelineCardAnchor(cardsRef, selectedIndex);
 
   return (
     <section
       ref={sectionRef}
-      className="scroll-stage relative mx-auto w-full max-w-[1728px] px-6 py-[clamp(36px,4vw,64px)] md:px-10 lg:px-[100px]"
+      className="scroll-stage pipeline-stage relative mx-auto w-full max-w-[1728px] px-6 py-[clamp(36px,4vw,64px)] md:px-10 lg:px-[100px] lg:py-0"
     >
-      <div className="scroll-stage-inner w-full">
-        <RevealOnScroll>
-          <h2 className="mx-auto max-w-[22ch] bg-clip-text pb-[0.05em] text-center text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
-            The tools a fund
-            <br />
-            runs on, now yours.
+      <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
+        <RevealOnScroll className="pipeline-stage-header shrink-0 pt-14">
+          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading lg:whitespace-nowrap">
+            The tools a fund runs on, now yours.
           </h2>
         </RevealOnScroll>
 
-        <div className="mx-auto mt-[clamp(16px,2vw,32px)] w-full">
-          <PipelineRadarComposition />
-        </div>
+        <div
+          className="pipeline-stage-main"
+          style={
+            anchorX != null
+              ? ({ "--pipeline-visual-x": `${anchorX}px` } as CSSProperties)
+              : undefined
+          }
+        >
+          <PipelineStepVisual steps={pipelineSteps} activeIndex={selectedIndex} />
 
-        <div className="pipeline-cards mt-[clamp(16px,1.6vw,28px)] flex w-full flex-col gap-[clamp(8px,0.8vw,10px)] lg:flex-row lg:items-stretch">
-          {pipelineSteps.map((step, index) => {
-            const state = index === selectedIndex ? "selected" : "default";
-            return (
+          <div
+            ref={cardsRef}
+            className="pipeline-cards mx-auto flex w-full shrink-0 flex-col gap-[clamp(8px,0.8vw,10px)] lg:flex-row lg:items-stretch"
+          >
+            {pipelineSteps.map((step, index) => {
+              const state = index === selectedIndex ? "selected" : "default";
+              return (
               <article
                 key={step.title}
                 data-pipeline-card
@@ -45,15 +56,10 @@ export function Pipeline() {
                 }}
                 role="button"
                 tabIndex={0}
-                className={[
-                  "pipeline-card group flex w-full cursor-pointer flex-col items-start justify-between rounded-2xl border border-white/10",
-                  state === "selected"
-                    ? "bg-gradient-to-b from-[#141514] to-[#1b1c1b]"
-                    : "",
-                ].join(" ")}
+                className="pipeline-card group flex w-full cursor-pointer flex-col items-start justify-between rounded-2xl border border-white/10"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
-                  height: "clamp(160px, 14vw, 200px)",
+                  height: "clamp(160px, 14vw, 209px)",
                   transition:
                     "flex-basis 0.5s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease",
                 }}
@@ -95,8 +101,9 @@ export function Pipeline() {
                   </p>
                 </div>
               </article>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

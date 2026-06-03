@@ -22,6 +22,10 @@ export type FlyingMainDotOptions = {
   /** < 1 slows steering noise for smoother drift. */
   noiseTimeScale?: number;
   wallBounce?: number;
+  /** Push toward bounds center when near edges (0–1, portfolio corners). */
+  edgeCenterBias?: number;
+  /** Px from a wall where edgeCenterBias begins. */
+  edgeBiasInset?: number;
 };
 
 const FLY_DEFAULTS = {
@@ -30,7 +34,20 @@ const FLY_DEFAULTS = {
   maxSpeed: FLY_MAX_SPEED,
   noiseTimeScale: 1,
   wallBounce: 0.72,
+  edgeCenterBias: 0,
+  edgeBiasInset: 48,
 } as const;
+
+function wallProximity(
+  pos: number,
+  min: number,
+  max: number,
+  inset: number,
+) {
+  const depth = Math.min(pos - min, max - pos);
+  if (depth >= inset) return 0;
+  return 1 - depth / inset;
+}
 
 function noise1(t: number) {
   const a = Math.sin(t * 0.91 + 0.2) * 0.45;
@@ -52,6 +69,22 @@ export function createFlyBounds(
   };
 }
 
+/** Small wander box around a fixed anchor (keeps body near visual center). */
+export function createCenterDriftBounds(
+  centerX: number,
+  centerY: number,
+  driftRadius: number,
+  bodyMargin = 0,
+): PixelRect {
+  const r = driftRadius + bodyMargin;
+  return {
+    minX: centerX - r,
+    minY: centerY - r,
+    maxX: centerX + r,
+    maxY: centerY + r,
+  };
+}
+
 export type ZoneCenterState = {
   current: PixelPoint;
   initialized: boolean;
@@ -66,13 +99,14 @@ export function updateZoneCenter(
   target: PixelPoint,
   dt: number,
   initialized: boolean,
+  lerp = ZONE_CENTER_LERP,
 ) {
   if (!initialized) {
     zoneCenter.x = target.x;
     zoneCenter.y = target.y;
     return;
   }
-  const k = 1 - Math.exp(-ZONE_CENTER_LERP * dt);
+  const k = 1 - Math.exp(-lerp * dt);
   zoneCenter.x += (target.x - zoneCenter.x) * k;
   zoneCenter.y += (target.y - zoneCenter.y) * k;
 }
@@ -85,13 +119,41 @@ export function resolveStickyZoneHub(
   offsetY: number,
   rows: number,
   cols: number,
+  hubReleaseDistance = 0,
 ): GridCell {
   const nearestHub = findNearestGridCell(x, y, offsetX, offsetY, rows, cols);
   const prevHub = zoneHubRef.current;
-  const hub =
-    prevHub && cellsEqual(prevHub, nearestHub) ? prevHub : nearestHub;
-  zoneHubRef.current = hub;
-  return hub;
+
+  if (!prevHub) {
+    zoneHubRef.current = nearestHub;
+    return nearestHub;
+  }
+
+  if (cellsEqual(prevHub, nearestHub)) {
+    zoneHubRef.current = prevHub;
+    return prevHub;
+  }
+
+  if (hubReleaseDistance > 0) {
+    const prevPixel = gridCellToPixel(prevHub, offsetX, offsetY);
+    const distToPrev = Math.hypot(x - prevPixel.x, y - prevPixel.y);
+    const nearestPixel = gridCellToPixel(nearestHub, offsetX, offsetY);
+    const distToNearest = Math.hypot(x - nearestPixel.x, y - nearestPixel.y);
+
+    if (
+      distToPrev >= hubReleaseDistance ||
+      distToNearest + hubReleaseDistance * 0.15 < distToPrev
+    ) {
+      zoneHubRef.current = nearestHub;
+      return nearestHub;
+    }
+
+    zoneHubRef.current = prevHub;
+    return prevHub;
+  }
+
+  zoneHubRef.current = nearestHub;
+  return nearestHub;
 }
 
 export function stepZoneCenter(
@@ -100,9 +162,10 @@ export function stepZoneCenter(
   offsetX: number,
   offsetY: number,
   dt: number,
+  lerp = ZONE_CENTER_LERP,
 ) {
   const hubPixel = gridCellToPixel(hub, offsetX, offsetY);
-  updateZoneCenter(state.current, hubPixel, dt, state.initialized);
+  updateZoneCenter(state.current, hubPixel, dt, state.initialized, lerp);
   state.initialized = true;
   return state.current;
 }
@@ -145,18 +208,36 @@ export class FlyingMainDot {
 
     const envelope = 0.5 + 0.5 * noise1(t * 0.31 + 1.2);
     const drift = noise1(t * 0.52 + 3.4) - 0.5;
-    const ax =
+    let ax =
       ((noise1(t * 1.62 + 0.5) - 0.5) * 0.5 +
         (noise1(t * 3.15 + 2.1) - 0.5) * 0.3 +
         drift * 0.2) *
       accel *
       envelope;
-    const ay =
+    let ay =
       ((noise1(t * 1.88 + 2.4) - 0.5) * 0.5 +
         (noise1(t * 3.48 + 4.2) - 0.5) * 0.3 +
         drift * 0.2) *
       accel *
       (0.85 + 0.15 * noise1(t * 0.44 + 5.6));
+
+    const { edgeCenterBias, edgeBiasInset } = this.fly;
+    if (edgeCenterBias > 0) {
+      const cx = (this.bounds.minX + this.bounds.maxX) / 2;
+      const cy = (this.bounds.minY + this.bounds.maxY) / 2;
+      const inset = edgeBiasInset;
+      const edgeX = wallProximity(this.x, this.bounds.minX, this.bounds.maxX, inset);
+      const edgeY = wallProximity(this.y, this.bounds.minY, this.bounds.maxY, inset);
+      const edge = Math.max(edgeX, edgeY);
+      if (edge > 0) {
+        const toCenterX = cx - this.x;
+        const toCenterY = cy - this.y;
+        const centerLen = Math.hypot(toCenterX, toCenterY) || 1;
+        const push = edgeCenterBias * edge * accel * 0.018;
+        ax += (toCenterX / centerLen) * push;
+        ay += (toCenterY / centerLen) * push;
+      }
+    }
 
     this.vx = this.vx * friction + ax * dt;
     this.vy = this.vy * friction + ay * dt;
@@ -171,24 +252,84 @@ export class FlyingMainDot {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
+    const cx = (this.bounds.minX + this.bounds.maxX) / 2;
+    const cy = (this.bounds.minY + this.bounds.maxY) / 2;
+    const cornerInset = this.fly.edgeBiasInset;
+    const nearX =
+      wallProximity(this.x, this.bounds.minX, this.bounds.maxX, cornerInset) > 0.35;
+    const nearY =
+      wallProximity(this.y, this.bounds.minY, this.bounds.maxY, cornerInset) > 0.35;
+    const inCorner = nearX && nearY;
+
     if (this.x < this.bounds.minX) {
       this.x = this.bounds.minX;
-      this.vx = Math.abs(this.vx) * wallBounce;
+      if (inCorner) {
+        const len = Math.hypot(cx - this.x, cy - this.y) || 1;
+        const escape = maxSpeed * 0.42;
+        this.vx = ((cx - this.x) / len) * escape;
+        this.vy = ((cy - this.y) / len) * escape;
+      } else {
+        this.vx = Math.abs(this.vx) * wallBounce;
+      }
     } else if (this.x > this.bounds.maxX) {
       this.x = this.bounds.maxX;
-      this.vx = -Math.abs(this.vx) * wallBounce;
+      if (inCorner) {
+        const len = Math.hypot(cx - this.x, cy - this.y) || 1;
+        const escape = maxSpeed * 0.42;
+        this.vx = ((cx - this.x) / len) * escape;
+        this.vy = ((cy - this.y) / len) * escape;
+      } else {
+        this.vx = -Math.abs(this.vx) * wallBounce;
+      }
     }
 
     if (this.y < this.bounds.minY) {
       this.y = this.bounds.minY;
-      this.vy = Math.abs(this.vy) * wallBounce;
+      if (inCorner) {
+        const len = Math.hypot(cx - this.x, cy - this.y) || 1;
+        const escape = maxSpeed * 0.42;
+        this.vx = ((cx - this.x) / len) * escape;
+        this.vy = ((cy - this.y) / len) * escape;
+      } else {
+        this.vy = Math.abs(this.vy) * wallBounce;
+      }
     } else if (this.y > this.bounds.maxY) {
       this.y = this.bounds.maxY;
-      this.vy = -Math.abs(this.vy) * wallBounce;
+      if (inCorner) {
+        const len = Math.hypot(cx - this.x, cy - this.y) || 1;
+        const escape = maxSpeed * 0.42;
+        this.vx = ((cx - this.x) / len) * escape;
+        this.vy = ((cy - this.y) / len) * escape;
+      } else {
+        this.vy = -Math.abs(this.vy) * wallBounce;
+      }
     }
   }
 
   getPosition() {
     return { x: this.x, y: this.y };
+  }
+
+  getVelocity() {
+    return { vx: this.vx, vy: this.vy };
+  }
+
+  /** Keep wander inside a circle without pulling back to the exact center. */
+  clampWithinCenterRadius(centerX: number, centerY: number, maxRadius: number) {
+    const dx = this.x - centerX;
+    const dy = this.y - centerY;
+    const dist = Math.hypot(dx, dy);
+    if (dist <= maxRadius || dist < 0.001) return;
+
+    const nx = dx / dist;
+    const ny = dy / dist;
+    this.x = centerX + nx * maxRadius;
+    this.y = centerY + ny * maxRadius;
+
+    const outward = this.vx * nx + this.vy * ny;
+    if (outward > 0) {
+      this.vx -= nx * outward * 1.05;
+      this.vy -= ny * outward * 1.05;
+    }
   }
 }
