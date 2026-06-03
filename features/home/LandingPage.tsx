@@ -12,7 +12,7 @@ import { GreedyParanoidSection } from "@/features/home/sections/GreedyParanoidSe
 import { HeroSection } from "@/features/home/sections/HeroSection";
 import { LatestUpdates } from "@/features/home/sections/LatestUpdates";
 import { Pipeline } from "@/features/home/sections/Pipeline";
-import { RadarCta } from "@/features/home/sections/RadarCta";
+import { DeFiCta } from "@/features/home/sections/DeFiCta";
 import { Team } from "@/features/home/sections/Team";
 
 export function LandingPage() {
@@ -36,7 +36,7 @@ export function LandingPage() {
         <CaseStudies />
         <BackedBy />
         <Team />
-        <RadarCta />
+        <DeFiCta />
         <LatestUpdates />
         <GlowDivider />
       </main>

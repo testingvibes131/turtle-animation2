@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { SectionShell } from "@/components/layout/SectionShell";
+import { BoostedTvlChart } from "@/features/home/components/BoostedTvlChart";
+import { TvlChartGraph } from "@/features/home/components/TvlChartGraph";
 import { caseStudies } from "@/features/home/data/caseStudies";
 
 function animateCounter(
@@ -31,6 +33,7 @@ export function CaseStudies() {
   const cardsRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
 
   const runAnimation = () => {
     const cardsRoot = cardsRef.current;
@@ -39,6 +42,7 @@ export function CaseStudies() {
     setAnimating(false);
     void cardsRoot.offsetWidth;
     setAnimating(true);
+    setAnimationKey((key) => key + 1);
 
     cardsRoot.querySelectorAll<HTMLElement>("[data-counter]").forEach((el) => {
       animateCounter(
@@ -66,7 +70,7 @@ export function CaseStudies() {
           }
         });
       },
-      { threshold: 0.25 },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
     );
 
     io.observe(cardsRoot);
@@ -80,23 +84,23 @@ export function CaseStudies() {
 
   return (
     <SectionShell>
-      <div className="grid grid-cols-1 items-center gap-[clamp(40px,5vw,64px)] lg:grid-cols-[1fr_auto] lg:gap-x-[clamp(32px,4vw,60px)]">
-        <RevealOnScroll className="flex w-full max-w-[36rem] flex-col">
-          <div className="flex flex-col gap-[clamp(16px,1.8vw,28px)]">
-            <h2 className="bg-clip-text pb-[0.05em] text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
-              See the track record
-              <br />
-              before you commit a dollar
-            </h2>
-            <p className="text-[clamp(15px,1.3vw,19px)] leading-[1.4] text-[rgba(239,248,237,0.5)]">
-              The receipts speak for themselves.
-              <br />
-              Check the case studies, see the history, swim with the whales.
-            </p>
-          </div>
+      <div className="flex flex-col gap-[clamp(40px,5vw,64px)]">
+        <RevealOnScroll className="flex w-full max-w-[36rem] flex-col gap-[clamp(16px,1.8vw,28px)]">
+          <h2 className="bg-clip-text pb-[0.05em] text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
+            See the track record
+            <br />
+            before you commit a dollar
+          </h2>
+          <p className="text-[clamp(15px,1.3vw,19px)] leading-[1.4] text-[rgba(239,248,237,0.5)]">
+            The receipts speak for themselves.
+            <br />
+            Check the case studies, see the history, swim with the whales.
+          </p>
+        </RevealOnScroll>
 
+        <div className="grid grid-cols-1 items-start gap-[clamp(40px,5vw,64px)] lg:grid-cols-[1fr_auto] lg:gap-x-[clamp(32px,4vw,60px)]">
           <div
-            className="mt-[clamp(40px,5vw,80px)] flex w-full flex-col"
+            className="flex w-full max-w-[36rem] flex-col"
             style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
           >
             {caseStudies.map((study, index) => (
@@ -151,7 +155,6 @@ export function CaseStudies() {
               </button>
             ))}
           </div>
-        </RevealOnScroll>
 
         <div
           ref={cardsRef}
@@ -161,7 +164,7 @@ export function CaseStudies() {
           ].join(" ")}
           style={{ gap: "clamp(8px, 0.7vw, 10px)" }}
         >
-          <article className="case-card relative flex w-full rounded-[clamp(14px,1.2vw,17px)] bg-surface-1 shadow-[0_4px_20px_0_rgba(0,0,0,0.25)] outline outline-[0.5px] outline-offset-[-0.5px] outline-stone-50/10"
+          <article className="case-card relative flex w-full items-start rounded-[clamp(14px,1.2vw,17px)] bg-surface-1 shadow-[0_4px_20px_0_rgba(0,0,0,0.25)] outline outline-[0.5px] outline-offset-[-0.5px] outline-stone-50/10"
             style={{ padding: "clamp(8px, 1vw, 10px)", gap: "clamp(10px, 1.1vw, 14px)" }}
           >
             <div
@@ -182,32 +185,7 @@ export function CaseStudies() {
                 TVL within 48hrs
               </div>
             </div>
-            <div
-              className="relative min-h-[clamp(180px,19vw,260px)] flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 outline-offset-[-1px] outline-stone-50/10"
-            >
-              <svg className="tvl-graph absolute inset-0 h-full w-full" viewBox="0 0 320 168" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="tvl-fill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="#73F36C" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#73F36C" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  className="tvl-area"
-                  d="M0,150 L18,140 30,120 45,95 60,40 78,55 92,30 110,75 128,60 145,90 162,70 180,110 198,100 215,135 232,115 248,145 265,130 282,90 300,50 320,75 L320,168 L0,168 Z"
-                  fill="url(#tvl-fill)"
-                />
-                <path
-                  className="tvl-line"
-                  d="M0,150 L18,140 30,120 45,95 60,40 78,55 92,30 110,75 128,60 145,90 162,70 180,110 198,100 215,135 232,115 248,145 265,130 282,90 300,50 320,75"
-                  fill="none"
-                  stroke="#73F36C"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+            <TvlChartGraph animating={animating} animationKey={animationKey} />
           </article>
 
           <div className="grid grid-cols-2" style={{ gap: "clamp(8px, 0.7vw, 10px)" }}>
@@ -243,18 +221,7 @@ export function CaseStudies() {
                   </div>
                 ))}
               </div>
-              <div className="relative overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 outline-offset-[-1px] outline-stone-50/10" style={{ aspectRatio: 1.5 }}>
-                <svg className="boost-bars absolute inset-0 h-full w-full" viewBox="0 0 384 192" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="bar-amber" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.28" /><stop offset="100%" stopColor="#f59e0b" stopOpacity="0" /></linearGradient>
-                    <linearGradient id="bar-red" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.28" /><stop offset="100%" stopColor="#ef4444" stopOpacity="0" /></linearGradient>
-                    <linearGradient id="bar-blue" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.32" /><stop offset="100%" stopColor="#1d4ed8" stopOpacity="0" /></linearGradient>
-                  </defs>
-                  <g transform="translate(12 130)"><g className="bar-grow" data-color="amber"><rect width="116" height="62" fill="url(#bar-amber)" /><line x1="0" y1="0" x2="116" y2="0" stroke="#f59e0b" strokeWidth="2.4" /><line x1="0" y1="0" x2="0" y2="62" stroke="#f59e0b" strokeWidth="1.2" /><line x1="116" y1="0" x2="116" y2="62" stroke="#f59e0b" strokeWidth="1.2" /></g></g>
-                  <g transform="translate(132 100)"><g className="bar-grow" data-color="red"><rect width="116" height="92" fill="url(#bar-red)" /><line x1="0" y1="0" x2="116" y2="0" stroke="#ef4444" strokeWidth="2.4" /><line x1="0" y1="0" x2="0" y2="92" stroke="#ef4444" strokeWidth="1.2" /><line x1="116" y1="0" x2="116" y2="92" stroke="#ef4444" strokeWidth="1.2" /></g></g>
-                  <g transform="translate(252 60)"><g className="bar-grow" data-color="blue"><rect width="116" height="132" fill="url(#bar-blue)" /><line x1="0" y1="0" x2="116" y2="0" stroke="#1d4ed8" strokeWidth="2.4" /><line x1="0" y1="0" x2="0" y2="132" stroke="#1d4ed8" strokeWidth="1.2" /><line x1="116" y1="0" x2="116" y2="132" stroke="#1d4ed8" strokeWidth="1.2" /></g></g>
-                </svg>
-              </div>
+              <BoostedTvlChart animating={animating} animationKey={animationKey} />
             </article>
 
             <article className="case-card relative flex w-full flex-col justify-between rounded-[clamp(14px,1.2vw,17px)] bg-surface-1 shadow-[0_4px_20px_0_rgba(0,0,0,0.25)] outline outline-[0.5px] outline-offset-[-0.5px] outline-stone-50/10"
@@ -270,11 +237,14 @@ export function CaseStudies() {
                   &ldquo;Turtle were so great to work with they made everything a breeze and got our campaign off the ground in days&rdquo;
                 </p>
                 <p className="leading-[1.4] text-white/50" style={{ fontSize: "clamp(12px, 1.1vw, 16px)" }}>
-                  Write some name here
+                  Joe Blogs
+                  <br />
+                  CTO - Avalanche Foundation
                 </p>
               </div>
             </article>
           </div>
+        </div>
         </div>
       </div>
     </SectionShell>

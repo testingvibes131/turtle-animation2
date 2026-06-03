@@ -4,11 +4,12 @@ type SectionShellProps = {
   children: ReactNode;
   className?: string;
   innerClassName?: string;
-  paddingY?: "default" | "large" | "hero";
+  paddingY?: "default" | "large" | "hero" | "none";
   maxWidth?: boolean;
 };
 
 const paddingMap = {
+  none: "",
   default: "py-[clamp(48px,6vw,96px)]",
   large: "py-[clamp(56px,7vw,112px)] pb-[clamp(32px,4vw,64px)]",
   hero: "pt-[clamp(32px,4vw,64px)] pb-[clamp(120px,14vw,220px)]",
