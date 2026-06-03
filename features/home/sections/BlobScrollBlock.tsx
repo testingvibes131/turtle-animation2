@@ -48,9 +48,10 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={blockRef} className="relative">
+    <div ref={blockRef} className="relative isolate">
       <Leva collapsed />
-      <div className="sticky top-0 z-0 h-screen w-full">
+      {/* Behind scroll content: sticky z-0 can still composite above the sibling layer. */}
+      <div className="sticky top-0 -z-10 h-screen w-full">
         <div
           className={[
             "absolute inset-0 touch-none",
@@ -66,7 +67,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
           </BlobScrollProgressProvider>
         </div>
       </div>
-      <div className="relative z-10 -mt-[100vh] pointer-events-none">
+      <div className="relative z-0 -mt-[100vh] pointer-events-none">
         {children}
       </div>
     </div>
