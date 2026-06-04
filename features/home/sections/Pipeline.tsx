@@ -11,6 +11,7 @@ export function Pipeline() {
   const cardsRef = useRef<HTMLDivElement>(null);
   const { sectionRef, selectedIndex, selectCard } = usePipelineScroll(
     pipelineSteps.length,
+    cardsRef,
   );
   const anchorX = usePipelineCardAnchor(cardsRef, selectedIndex);
 
@@ -20,7 +21,7 @@ export function Pipeline() {
       className="scroll-stage pipeline-stage relative mx-auto w-full max-w-[1728px] px-6 py-[clamp(36px,4vw,64px)] md:px-10 lg:px-[100px] lg:py-0"
     >
       <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
-        <RevealOnScroll className="pipeline-stage-header shrink-0 pt-14">
+        <RevealOnScroll className="pipeline-stage-header shrink-0 max-lg:pt-0 lg:pt-14">
           <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading lg:whitespace-nowrap">
             The tools a fund runs on, now yours.
           </h2>
@@ -30,16 +31,16 @@ export function Pipeline() {
           className="pipeline-stage-main"
           style={
             anchorX != null
-              ? ({ "--pipeline-visual-x": `${anchorX}px` } as CSSProperties)
+              ? ({
+                  "--pipeline-visual-x": `${anchorX}px`,
+                } as CSSProperties)
               : undefined
           }
         >
           <PipelineStepVisual steps={pipelineSteps} activeIndex={selectedIndex} />
 
-          <div
-            ref={cardsRef}
-            className="pipeline-cards mx-auto flex w-full shrink-0 flex-col gap-[clamp(8px,0.8vw,10px)] lg:flex-row lg:items-stretch"
-          >
+          <div ref={cardsRef} className="pipeline-cards mx-auto w-full min-w-0 shrink-0">
+            <div className="pipeline-cards__track">
             {pipelineSteps.map((step, index) => {
               const state = index === selectedIndex ? "selected" : "default";
               return (
@@ -56,7 +57,7 @@ export function Pipeline() {
                 }}
                 role="button"
                 tabIndex={0}
-                className="pipeline-card group flex w-full cursor-pointer flex-col items-start justify-between rounded-2xl border border-white/10"
+                className="pipeline-card group flex cursor-pointer flex-col items-start justify-between rounded-2xl border border-white/10"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
                   height: "clamp(160px, 14vw, 209px)",
@@ -103,6 +104,7 @@ export function Pipeline() {
               </article>
               );
             })}
+            </div>
           </div>
         </div>
       </div>

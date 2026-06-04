@@ -29,7 +29,8 @@ const LANDING_FOCUS_SECTION:
   | "team"
   | "backed-by"
   | "defi-cta"
-  | "latest-updates" = "team";
+  | "latest-updates"
+  | "footer" = "footer";
 
 const SECTION_ORDER = [
   "hero",
@@ -43,17 +44,17 @@ const SECTION_ORDER = [
   "latest-updates",
 ] as const;
 
-/** Hidden during section focus until Pipeline mobile is ready; full page still shows it. */
-const LANDING_BYPASS_SECTIONS: ReadonlyArray<(typeof SECTION_ORDER)[number]> = [
-  "pipeline",
-];
+/** Hidden in section focus (full page still shows them). */
+const LANDING_BYPASS_SECTIONS: ReadonlyArray<(typeof SECTION_ORDER)[number]> =
+  [];
 
 function includesSection(
   focus: typeof LANDING_FOCUS_SECTION,
   section: (typeof SECTION_ORDER)[number],
 ) {
   if (focus === null) return true;
-  const focusIndex = SECTION_ORDER.indexOf(focus);
+  const focusKey = focus === "footer" ? "latest-updates" : focus;
+  const focusIndex = SECTION_ORDER.indexOf(focusKey);
   const sectionIndex = SECTION_ORDER.indexOf(section);
   return sectionIndex <= focusIndex;
 }
@@ -63,6 +64,14 @@ function shouldShowSection(
   section: (typeof SECTION_ORDER)[number],
 ) {
   if (focus !== null && LANDING_BYPASS_SECTIONS.includes(section)) {
+    return false;
+  }
+  if (
+    focus !== null &&
+    focus !== "latest-updates" &&
+    focus !== "footer" &&
+    section === "latest-updates"
+  ) {
     return false;
   }
   return includesSection(focus, section);
@@ -80,6 +89,8 @@ export function LandingPage() {
     shouldShowSection(LANDING_FOCUS_SECTION, section);
 
   const fullPage = LANDING_FOCUS_SECTION === null;
+  const showFooter =
+    fullPage || LANDING_FOCUS_SECTION === "footer";
 
   return (
     <>
@@ -96,9 +107,9 @@ export function LandingPage() {
         {show("backed-by") ? <BackedBy /> : null}
         {show("defi-cta") ? <DeFiCta /> : null}
         {show("latest-updates") ? <LatestUpdates /> : null}
-        {fullPage ? <GlowDivider /> : null}
+        {showFooter ? <GlowDivider /> : null}
       </main>
-      {fullPage ? <SiteFooter /> : null}
+      {showFooter ? <SiteFooter /> : null}
     </>
   );
 }

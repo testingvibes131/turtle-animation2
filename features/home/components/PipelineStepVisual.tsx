@@ -29,7 +29,7 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
             alt=""
             fill
             priority={index === 0}
-            sizes="(max-width: 1023px) 100vw, (max-width: 1535px) 64vw, 1280px"
+            sizes="(max-width: 1023px) 280px, (max-width: 1535px) 64vw, 1280px"
             className={[
               "object-contain object-bottom transition-opacity duration-500 ease-out motion-reduce:transition-none",
               index === activeIndex ? "opacity-100" : "opacity-0",

@@ -199,16 +199,107 @@ body {
 
 /* ---------- pipeline cards ---------- */
 .pipeline-cards {
+  width: 100%;
+  min-width: 0;
+}
+
+.pipeline-cards__track {
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: clamp(8px, 0.8vw, 10px);
+  width: 100%;
 }
 
 .pipeline-card {
-  flex: 1 1 0;
-  min-width: 0;
-  will-change: flex-basis;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .pipeline-stage-inner {
+    gap: clamp(20px, 4vh, 28px);
+  }
+
+  /* Figma mobile: title → monitor (in flow) → horizontal cards */
+  .pipeline-stage-main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: clamp(24px, 5vh, 32px);
+    flex: none;
+    min-height: 0;
+  }
+
+  .pipeline-stage-main .pipeline-cards {
+    margin-top: 0;
+  }
+
+  .pipeline-visual {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    z-index: 0;
+    width: min(260px, 72vw);
+    max-height: none;
+    margin-inline: auto;
+    flex-shrink: 0;
+    transform: none;
+    transition: opacity 0.5s ease;
+  }
+
+  .pipeline-cards {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 24px;
+    padding-inline: 24px;
+    margin-inline: -24px;
+    scrollbar-width: none;
+  }
+
+  .pipeline-cards::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pipeline-cards__track {
+    flex-wrap: nowrap;
+    width: max-content;
+    min-width: 100%;
+    padding-inline: 0;
+  }
+
+  .pipeline-cards__track .pipeline-card {
+    flex: none;
+    width: min(300px, calc(100vw - 56px));
+    min-width: min(300px, calc(100vw - 56px));
+    max-width: min(300px, calc(100vw - 56px));
+    scroll-snap-align: start;
+    will-change: auto;
+  }
 }
 
 @media (min-width: 1024px) {
+  .pipeline-cards {
+    overflow: visible;
+    padding-inline: 0;
+    margin-inline: 0;
+    scroll-snap-type: none;
+  }
+
+  .pipeline-cards__track {
+    width: 100%;
+  }
+
+  .pipeline-card {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    will-change: flex-basis;
+  }
+
   .pipeline-card[data-state="selected"] {
     flex: 1.95 1 0;
   }
