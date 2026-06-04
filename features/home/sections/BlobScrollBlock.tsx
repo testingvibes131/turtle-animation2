@@ -7,6 +7,33 @@ import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobSc
 import { blobInteractionEnabledFromScroll } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
 
+const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
+
+function computeBlobScrollProgress(
+  scrolled: number,
+  heroScroll: number,
+  section2: HTMLElement | null,
+  isMobile: boolean,
+): number {
+  if (!isMobile || !section2) {
+    return Math.min(1, Math.max(0, scrolled / Math.max(heroScroll, 1)));
+  }
+
+  const textBlock = section2.querySelector<HTMLElement>("[data-blob-mobile-text]");
+  const visualBlock = section2.querySelector<HTMLElement>(
+    "[data-blob-mobile-visual]",
+  );
+  const textHeight = textBlock?.offsetHeight ?? 0;
+  const visualHeight = visualBlock?.offsetHeight ?? window.innerHeight;
+  const visualStart = heroScroll + textHeight;
+
+  if (scrolled <= visualStart) {
+    return 0;
+  }
+
+  return Math.min(1, (scrolled - visualStart) / Math.max(visualHeight, 1));
+}
+
 /**
  * One blob canvas for hero + section 2: sticky backdrop with scrollable content overlaid.
  */
@@ -20,6 +47,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
     const block = blockRef.current;
     if (!block) return;
 
+    const mobileQuery = window.matchMedia(MOBILE_BLOB_QUERY);
+
     const updateScroll = () => {
       const hero = block.querySelector<HTMLElement>('[data-blob-section="1"]');
       const section2 = block.querySelector<HTMLElement>(
@@ -29,8 +58,14 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
       const scrolled = -block.getBoundingClientRect().top;
       const metrics = { scrolled, heroScroll, section2Scroll };
+      const isMobile = mobileQuery.matches;
 
-      const progress = Math.min(1, Math.max(0, scrolled / heroScroll));
+      const progress = computeBlobScrollProgress(
+        scrolled,
+        heroScroll,
+        section2,
+        isMobile,
+      );
       const interaction = blobInteractionEnabledFromScroll(metrics);
 
       setScrollProgress(progress);
@@ -41,9 +76,11 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
     updateScroll();
     window.addEventListener("scroll", updateScroll, { passive: true });
     window.addEventListener("resize", updateScroll);
+    mobileQuery.addEventListener("change", updateScroll);
     return () => {
       window.removeEventListener("scroll", updateScroll);
       window.removeEventListener("resize", updateScroll);
+      mobileQuery.removeEventListener("change", updateScroll);
     };
   }, []);
 

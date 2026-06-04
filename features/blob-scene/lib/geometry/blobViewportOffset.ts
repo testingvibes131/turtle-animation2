@@ -32,7 +32,7 @@ export function computeBlobOffsetXForScroll(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
   extent: number,
-  /** 0 = hero (left), 1 = section 2 (right). */
+  /** 0 = hero (left), 1 = section 2 (right on desktop, centered on portrait). */
   scrollProgress: number,
 ): number {
   const right = computeBlobOffsetX(
@@ -44,7 +44,8 @@ export function computeBlobOffsetXForScroll(
   // Mirror the final right placement across the viewport center.
   const left = -right;
   const t = Math.min(1, Math.max(0, scrollProgress));
-  return left + (right - left) * t;
+  const endX = viewportAspect < 1 ? 0 : right;
+  return left + (endX - left) * t;
 }
 
 /** Hero (section 1) scale; section 2 uses 1. */

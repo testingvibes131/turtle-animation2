@@ -64,7 +64,7 @@ export function MobileNavOverlay({
             href="#"
             className={[
               headerMenuShell,
-              "px-5 py-3 text-[12px] font-normal leading-[1.2] text-green-400 transition-colors",
+              "px-5 py-3 text-[12px] font-normal leading-[1.2] text-ink-primary hover:text-green-400 transition-colors",
             ].join(" ")}
             onClick={onClose}
           >

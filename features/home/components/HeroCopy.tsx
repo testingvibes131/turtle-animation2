@@ -1,8 +1,13 @@
 /** Section 2 copy (Figma 1037:47030) — in-flow layout over the blob backdrop. */
-export function HeroCopy() {
+export function HeroCopy({ className = "" }: { className?: string }) {
   return (
     <div
-      className="flex w-full max-w-[38rem] flex-col gap-[clamp(20px,2.2vw,32px)]"
+      className={[
+        "flex w-full max-w-[38rem] flex-col gap-[clamp(20px,2.2vw,32px)]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-labelledby="home-hero-heading"
     >
       <h2
