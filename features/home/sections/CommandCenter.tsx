@@ -30,11 +30,11 @@ export function CommandCenter() {
   return (
     <SectionShell
       paddingY="none"
-      className="flex h-svh max-h-svh min-h-svh flex-col overflow-hidden py-[clamp(20px,3vh,48px)]"
-      innerClassName="flex min-h-0 flex-1 flex-col gap-[clamp(16px,2.2vh,32px)]"
+      className="flex flex-col py-[clamp(32px,4vw,48px)] lg:h-svh lg:max-h-svh lg:min-h-svh lg:overflow-hidden lg:py-[clamp(20px,3vh,48px)]"
+      innerClassName="flex flex-col gap-[clamp(24px,3vw,32px)] lg:min-h-0 lg:flex-1 lg:gap-[clamp(16px,2.2vh,32px)]"
     >
-      <RevealOnScroll className="flex max-w-[38rem] shrink-0 flex-col gap-[clamp(12px,1.4vh,20px)]">
-        <h2 className="bg-clip-text pb-[0.05em] text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
+      <RevealOnScroll className="flex w-full max-w-[38rem] shrink-0 flex-col gap-[clamp(12px,1.4vh,20px)]">
+        <h2 className="text-section-title bg-clip-text pb-[0.05em] font-normal text-transparent text-gradient-heading">
           Your book,
           <br />
           one command center.
@@ -43,19 +43,20 @@ export function CommandCenter() {
           Find diligenced deals, track every position, and get alerted when it
           matters. All trustless, all self-custodial.
         </p>
-        <CtaPill href="#" label="Grail CTA" className="w-[240px]" />
+        <CtaPill
+          href="#"
+          label="Grail CTA"
+          className="w-full max-w-[240px] sm:w-[240px]"
+        />
       </RevealOnScroll>
 
-      <div className="grid min-h-0 flex-1 grid-cols-3 items-center justify-items-center gap-[clamp(11px,1.2vw,20px)]">
+      <div className="grid grid-cols-1 items-stretch justify-items-center gap-6 md:grid-cols-3 md:gap-[clamp(11px,1.2vw,20px)] lg:min-h-0 lg:flex-1 lg:items-center">
         {commandCenterFeatures.map((feature) => (
           <RevealOnScroll key={feature.title} className="flex w-full justify-center">
-            <CommandCenterCardShell className="w-full max-w-[min(396px,34vw)]">
+            <CommandCenterCardShell className="w-full max-w-[min(396px,100%)] md:max-w-[min(396px,34vw)]">
               <div
-                className="relative w-full shrink-0 overflow-hidden rounded-[clamp(9px,0.77vw,12px)]"
-                style={{
-                  aspectRatio: "570 / 499",
-                  maxHeight: "min(330px, 38.5vh)",
-                }}
+                className="relative w-full max-h-[min(240px,42vw)] shrink-0 overflow-hidden rounded-[clamp(9px,0.77vw,12px)] md:max-h-[min(330px,38.5vh)]"
+                style={{ aspectRatio: "570 / 499" }}
               >
                 <CommandCenterFeatureVisual
                   visual={feature.visual}

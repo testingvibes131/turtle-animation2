@@ -15,6 +15,44 @@ import { Pipeline } from "@/features/home/sections/Pipeline";
 import { DeFiCta } from "@/features/home/sections/DeFiCta";
 import { Team } from "@/features/home/sections/Team";
 
+/**
+ * Section-by-section dev focus. Set to a section key to render only that slice
+ * (and everything above it in page order). Set to null for the full landing page.
+ */
+const LANDING_FOCUS_SECTION:
+  | null
+  | "hero"
+  | "greedy"
+  | "command-center"
+  | "pipeline"
+  | "case-studies"
+  | "team"
+  | "backed-by"
+  | "defi-cta"
+  | "latest-updates" = "hero";
+
+const SECTION_ORDER = [
+  "hero",
+  "greedy",
+  "command-center",
+  "pipeline",
+  "case-studies",
+  "team",
+  "backed-by",
+  "defi-cta",
+  "latest-updates",
+] as const;
+
+function includesSection(
+  focus: typeof LANDING_FOCUS_SECTION,
+  section: (typeof SECTION_ORDER)[number],
+) {
+  if (focus === null) return true;
+  const focusIndex = SECTION_ORDER.indexOf(focus);
+  const sectionIndex = SECTION_ORDER.indexOf(section);
+  return sectionIndex <= focusIndex;
+}
+
 export function LandingPage() {
   useEffect(() => {
     if ("scrollRestoration" in history) {
@@ -23,24 +61,29 @@ export function LandingPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  const show = (section: (typeof SECTION_ORDER)[number]) =>
+    includesSection(LANDING_FOCUS_SECTION, section);
+
+  const fullPage = LANDING_FOCUS_SECTION === null;
+
   return (
     <>
       <SiteHeader />
       <main className="bg-surface-0 text-ink-primary">
         <BlobScrollBlock>
-          <HeroSection />
-          <GreedyParanoidSection />
+          {show("hero") ? <HeroSection /> : null}
+          {show("greedy") ? <GreedyParanoidSection /> : null}
         </BlobScrollBlock>
-        <CommandCenter />
-        <Pipeline />
-        <CaseStudies />
-        <Team />
-        <BackedBy />
-        <DeFiCta />
-        <LatestUpdates />
-        <GlowDivider />
+        {show("command-center") ? <CommandCenter /> : null}
+        {show("pipeline") ? <Pipeline /> : null}
+        {show("case-studies") ? <CaseStudies /> : null}
+        {show("team") ? <Team /> : null}
+        {show("backed-by") ? <BackedBy /> : null}
+        {show("defi-cta") ? <DeFiCta /> : null}
+        {show("latest-updates") ? <LatestUpdates /> : null}
+        {fullPage ? <GlowDivider /> : null}
       </main>
-      <SiteFooter />
+      {fullPage ? <SiteFooter /> : null}
     </>
   );
 }
