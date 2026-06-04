@@ -5,6 +5,11 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import {
+  useBlobColoredDots,
+  useBlobSetup,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
+import {
   attachBlobPointFade,
   ensureInstanceOpacityBuffer,
   setInstanceOpacityAt,
@@ -21,6 +26,7 @@ import {
   displacedVertexPosition,
   type PerlinBlobParams,
 } from "@/features/blob-scene/lib/geometry/perlinBlob";
+import { buildCuratorVertexBuckets } from "@/features/blob-scene/lib/geometry/blobVertexCuratorColors";
 import type { RefObject } from "react";
 
 const POINT_COLOR = 0x2c2d2b;
@@ -52,13 +58,27 @@ export function BlobPointCloud({
     scalesRef,
     getTowardCamera,
   } = useBlobScene();
+  const coloredBlobDots = useBlobColoredDots();
+  const blobSetup = useBlobSetup();
+  const showCuratorColors =
+    blobSetup === "section-1-blob" || coloredBlobDots;
+
+  const curatorBuckets = useMemo(
+    () => buildCuratorVertexBuckets(liveIndices, deadIndices),
+    [liveIndices, deadIndices],
+  );
 
   const liveGeo = useMemo(() => createSphereGeo(), []);
   const deadGeo = useMemo(() => createSphereGeo(), []);
+  const curatorGeos = useMemo(
+    () => CURATORS.map(() => createSphereGeo()),
+    [],
+  );
   const debugGeo = useMemo(() => createSphereGeo(), []);
 
   const liveMeshRef = useRef<THREE.InstancedMesh>(null);
   const deadMeshRef = useRef<THREE.InstancedMesh>(null);
+  const curatorMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
 
   const liveMaterial = useMemo(() => {
@@ -79,6 +99,19 @@ export function BlobPointCloud({
     return mat;
   }, [depthFadeUniforms]);
 
+  const curatorMaterials = useMemo(
+    () =>
+      CURATORS.map((curator) => {
+        const mat = new THREE.MeshBasicMaterial({
+          color: curator.color,
+          toneMapped: false,
+        });
+        attachBlobPointFade(mat, depthFadeUniforms);
+        return mat;
+      }),
+    [depthFadeUniforms],
+  );
+
   const debugPickableMaterial = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -92,6 +125,10 @@ export function BlobPointCloud({
 
   useEffect(() => () => liveMaterial.dispose(), [liveMaterial]);
   useEffect(() => () => deadMaterial.dispose(), [deadMaterial]);
+  useEffect(
+    () => () => curatorMaterials.forEach((mat) => mat.dispose()),
+    [curatorMaterials],
+  );
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
 
   useEffect(() => {
@@ -99,6 +136,9 @@ export function BlobPointCloud({
     if (deadMesh) deadMesh.raycast = () => {};
     const debugMesh = debugPickableMeshRef.current;
     if (debugMesh) debugMesh.raycast = () => {};
+    for (const mesh of curatorMeshRefs.current) {
+      if (mesh) mesh.raycast = () => {};
+    }
   }, []);
 
   useFrame((state, delta) => {
@@ -159,62 +199,88 @@ export function BlobPointCloud({
       mesh.setMatrixAt(slot, _dummy.matrix);
     };
 
-    if (liveMesh) {
-      ensureInstanceOpacityBuffer(liveMesh, liveIndices.length);
-      for (let li = 0; li < liveIndices.length; li++) {
-        const i = liveIndices[li]!;
-        writeInstance(
-          liveMesh,
-          i,
-          li,
-          BLOB_POINT_SCALE_MUL,
-          zoneUsed.has(i),
-        );
-        if (!zoneUsed.has(i)) {
-          setInstanceOpacityAt(
-            liveMesh,
-            li,
-            noiseSlopeOpacityMul(
-              vertices,
-              i,
-              blobParams,
-              params.noiseSlopeMinOpacity,
-              params.noiseSlopeMaxOpacity,
-            ),
-          );
-        }
-      }
-      liveMesh.count = liveIndices.length;
-      liveMesh.instanceMatrix.needsUpdate = true;
-    }
+    const writeOpacity = (
+      mesh: THREE.InstancedMesh,
+      vertexIndex: number,
+      slot: number,
+    ) => {
+      if (zoneUsed.has(vertexIndex)) return;
+      setInstanceOpacityAt(
+        mesh,
+        slot,
+        noiseSlopeOpacityMul(
+          vertices,
+          vertexIndex,
+          blobParams,
+          params.noiseSlopeMinOpacity,
+          params.noiseSlopeMaxOpacity,
+        ),
+      );
+    };
 
-    if (deadMesh) {
-      ensureInstanceOpacityBuffer(deadMesh, deadIndices.length);
-      for (let di = 0; di < deadIndices.length; di++) {
-        const i = deadIndices[di]!;
-        writeInstance(
-          deadMesh,
-          i,
-          di,
-          BLOB_POINT_SCALE_MUL,
-          zoneUsed.has(i),
-        );
-        if (!zoneUsed.has(i)) {
-          setInstanceOpacityAt(
-            deadMesh,
-            di,
-            noiseSlopeOpacityMul(
-              vertices,
-              i,
-              blobParams,
-              params.noiseSlopeMinOpacity,
-              params.noiseSlopeMaxOpacity,
-            ),
+    if (showCuratorColors) {
+      if (liveMesh) liveMesh.count = 0;
+      if (deadMesh) deadMesh.count = 0;
+
+      for (let ci = 0; ci < CURATORS.length; ci++) {
+        const mesh = curatorMeshRefs.current[ci];
+        const bucket = curatorBuckets.buckets[ci]!;
+        if (!mesh) continue;
+
+        ensureInstanceOpacityBuffer(mesh, bucket.length);
+        for (let slot = 0; slot < bucket.length; slot++) {
+          const vertexIndex = bucket[slot]!;
+          writeInstance(
+            mesh,
+            vertexIndex,
+            slot,
+            BLOB_POINT_SCALE_MUL,
+            zoneUsed.has(vertexIndex),
           );
+          writeOpacity(mesh, vertexIndex, slot);
         }
+        mesh.count = bucket.length;
+        mesh.instanceMatrix.needsUpdate = true;
       }
-      deadMesh.count = deadIndices.length;
-      deadMesh.instanceMatrix.needsUpdate = true;
+    } else {
+      for (let ci = 0; ci < CURATORS.length; ci++) {
+        const mesh = curatorMeshRefs.current[ci];
+        if (mesh) mesh.count = 0;
+      }
+
+      if (liveMesh) {
+        ensureInstanceOpacityBuffer(liveMesh, liveIndices.length);
+        for (let li = 0; li < liveIndices.length; li++) {
+          const i = liveIndices[li]!;
+          writeInstance(
+            liveMesh,
+            i,
+            li,
+            BLOB_POINT_SCALE_MUL,
+            zoneUsed.has(i),
+          );
+          writeOpacity(liveMesh, i, li);
+        }
+        liveMesh.count = liveIndices.length;
+        liveMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      if (deadMesh) {
+        ensureInstanceOpacityBuffer(deadMesh, deadIndices.length);
+        for (let di = 0; di < deadIndices.length; di++) {
+          const i = deadIndices[di]!;
+          writeInstance(
+            deadMesh,
+            i,
+            di,
+            BLOB_POINT_SCALE_MUL,
+            zoneUsed.has(i),
+          );
+          writeOpacity(deadMesh, i, di);
+        }
+        deadMesh.count = deadIndices.length;
+        deadMesh.instanceMatrix.needsUpdate = true;
+      }
     }
 
     const toward = getTowardCamera();
@@ -275,6 +341,21 @@ export function BlobPointCloud({
         frustumCulled={false}
         renderOrder={RENDER_SPHERE}
       />
+      {CURATORS.map((curator, ci) => (
+        <instancedMesh
+          key={curator.name}
+          ref={(mesh) => {
+            curatorMeshRefs.current[ci] = mesh;
+          }}
+          args={[
+            curatorGeos[ci]!,
+            curatorMaterials[ci]!,
+            Math.max(1, curatorBuckets.maxBucketSize),
+          ]}
+          frustumCulled={false}
+          renderOrder={RENDER_SPHERE}
+        />
+      ))}
       <instancedMesh
         ref={debugPickableMeshRef}
         args={[debugGeo, debugPickableMaterial, liveIndices.length]}

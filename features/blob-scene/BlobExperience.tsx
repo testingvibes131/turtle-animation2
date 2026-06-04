@@ -3,10 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { useEffect } from "react";
 import { BlobSceneShell } from "@/features/blob-scene/components/blob/BlobSceneShell";
-import {
-  useBlobControls,
-  type BlobVisualParams,
-} from "@/features/blob-scene/hooks/useBlobControls";
+import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { preloadLogoDisplayScales } from "@/features/blob-scene/lib/curators/logoContentScale";
 
 export function BlobScene({ params }: { params: BlobVisualParams }) {
@@ -22,9 +19,7 @@ export function BlobScene({ params }: { params: BlobVisualParams }) {
   );
 }
 
-export function BlobExperience() {
-  const params = useBlobControls();
-
+export function BlobExperience({ params }: { params: BlobVisualParams }) {
   useEffect(() => {
     void preloadLogoDisplayScales();
   }, []);

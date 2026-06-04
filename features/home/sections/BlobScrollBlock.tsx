@@ -3,6 +3,8 @@
 import { Leva } from "leva";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
+import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
+import { blobParamsForSetup } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { blobInteractionEnabledFromScroll } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
@@ -36,12 +38,30 @@ function computeBlobScrollProgress(
 
 /**
  * One blob canvas for hero + section 2: sticky backdrop with scrollable content overlaid.
+ * Leva setup picks params + interaction mode; scroll always drives blob placement.
  */
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
+  const { setup } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [heroShowcaseActive, setHeroShowcaseActive] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
+
+  const params = {
+    ...blobParamsForSetup(setup),
+    time: 0,
+  };
+
+  const allowInteraction = setup === "connected-lines";
+  const effectiveInteraction = allowInteraction && interactionEnabled;
+  const heroShowcaseActive =
+    allowInteraction &&
+    blobHeroShowcaseActive(scrollProgress, interactionEnabled);
+  const coloredBlobDots = setup === "section-1-blob";
+
+  useEffect(() => {
+    if (setup !== "section-1-blob") return;
+    window.scrollTo(0, 0);
+  }, [setup]);
 
   useEffect(() => {
     const block = blockRef.current;
@@ -60,17 +80,10 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const metrics = { scrolled, heroScroll, section2Scroll };
       const isMobile = mobileQuery.matches;
 
-      const progress = computeBlobScrollProgress(
-        scrolled,
-        heroScroll,
-        section2,
-        isMobile,
+      setScrollProgress(
+        computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
-      const interaction = blobInteractionEnabledFromScroll(metrics);
-
-      setScrollProgress(progress);
-      setInteractionEnabled(interaction);
-      setHeroShowcaseActive(blobHeroShowcaseActive(progress, interaction));
+      setInteractionEnabled(blobInteractionEnabledFromScroll(metrics));
     };
 
     updateScroll();
@@ -86,21 +99,22 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
 
   return (
     <div ref={blockRef} className="relative isolate">
-      <Leva collapsed />
-      {/* Behind scroll content: sticky z-0 can still composite above the sibling layer. */}
+      <Leva oneLineLabels titleBar={{ title: "Blob" }} />
       <div className="sticky top-0 -z-10 h-screen w-full">
         <div
           className={[
             "absolute inset-0 touch-none",
-            interactionEnabled ? "pointer-events-auto" : "pointer-events-none",
+            effectiveInteraction ? "pointer-events-auto" : "pointer-events-none",
           ].join(" ")}
         >
           <BlobScrollProgressProvider
             progress={scrollProgress}
             heroShowcaseActive={heroShowcaseActive}
-            interactionEnabled={interactionEnabled}
+            interactionEnabled={effectiveInteraction}
+            blobSetup={setup}
+            coloredBlobDots={coloredBlobDots}
           >
-            <BlobExperience />
+            <BlobExperience params={params} />
           </BlobScrollProgressProvider>
         </div>
       </div>
