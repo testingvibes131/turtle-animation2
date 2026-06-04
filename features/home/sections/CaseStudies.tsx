@@ -4,8 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { SectionShell } from "@/components/layout/SectionShell";
-import { BoostedTvlChart } from "@/features/home/components/BoostedTvlChart";
-import { TvlChartGraph } from "@/features/home/components/TvlChartGraph";
+import { CaseStudyBoostedTvlChartSvg } from "@/features/home/components/CaseStudyBoostedTvlChartSvg";
+import { CaseStudyTvlChartSvg } from "@/features/home/components/CaseStudyTvlChartSvg";
 import { UnionCardShell } from "@/features/home/components/UnionCardShell";
 import {
   CASE_STUDY_TVL_CARD_DIVIDER_RATIO,
@@ -44,7 +44,6 @@ export function CaseStudies() {
   const cardsRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
 
   const runAnimation = () => {
     const cardsRoot = cardsRef.current;
@@ -53,7 +52,6 @@ export function CaseStudies() {
     setAnimating(false);
     void cardsRoot.offsetWidth;
     setAnimating(true);
-    setAnimationKey((key) => key + 1);
 
     cardsRoot.querySelectorAll<HTMLElement>("[data-counter]").forEach((el) => {
       animateCounter(
@@ -205,17 +203,12 @@ export function CaseStudies() {
               </div>
             </div>
             <div
-              className="h-full min-h-0 min-w-0"
+              className="flex h-full min-h-0 min-w-0 flex-col"
               style={{
                 padding: "clamp(8px, 1vw, 10px) clamp(8px, 1vw, 10px) clamp(8px, 1vw, 10px) clamp(2px, 0.3vw, 4px)",
               }}
             >
-              <TvlChartGraph
-                animating={animating}
-                animationKey={animationKey}
-                size="shell"
-                className="h-full w-full"
-              />
+              <CaseStudyTvlChartSvg className="h-full w-full" />
             </div>
           </UnionCardShell>
 
@@ -264,18 +257,13 @@ export function CaseStudies() {
                 </div>
               </div>
               <div
-                className="relative h-full min-h-0 min-w-0"
+                className="flex h-full min-h-0 min-w-0 flex-col"
                 style={{
                   padding:
                     "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 10px) clamp(8px, 1vw, 10px) clamp(8px, 1vw, 10px)",
                 }}
               >
-                <BoostedTvlChart
-                  animating={animating}
-                  animationKey={animationKey}
-                  size="shell"
-                  className="h-full w-full"
-                />
+                <CaseStudyBoostedTvlChartSvg className="h-full w-full" />
               </div>
             </UnionCardShell>
 

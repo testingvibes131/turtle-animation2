@@ -1,32 +1,28 @@
+import { CHART_GRID_SPACING } from "@/features/home/components/chartCanvasGrid";
+
 export type BoostedTvlBarSpec = {
   color: string;
   cols: number;
   rows: number;
   /** Extra delay before this bar’s bottom row fades in (after global start delay). */
   baseDelayMs: number;
-  /** Nudge bar horizontally (+ right, − left). */
-  colOffset?: number;
 };
 
-export const BOOSTED_TVL_GAP_COLS = 4;
+export const BOOSTED_TVL_BAR_COLS = 5;
+export const BOOSTED_TVL_GAP_COLS = 2;
 
 export const BOOSTED_TVL_BARS: BoostedTvlBarSpec[] = [
-  { color: "#f59e0b", cols: 5, rows: 5, baseDelayMs: 50, colOffset: 1 },
-  { color: "#ef4444", cols: 6, rows: 8, baseDelayMs: 200 },
-  { color: "#1d4ed8", cols: 5, rows: 12, baseDelayMs: 350, colOffset: -1 },
+  { color: "#f59e0b", cols: BOOSTED_TVL_BAR_COLS, rows: 6, baseDelayMs: 50 },
+  { color: "#ef4444", cols: BOOSTED_TVL_BAR_COLS, rows: 14, baseDelayMs: 200 },
+  { color: "#1d4ed8", cols: BOOSTED_TVL_BAR_COLS, rows: 11, baseDelayMs: 350 },
 ];
 
-/** Spacing between dot centers in layout units. */
-export const BOOSTED_TVL_CELL_PITCH = 1;
-/** Horizontal margin around the dot field in layout units. */
-export const BOOSTED_TVL_PAD_X = 1.58;
-/** Vertical margin — matches X so the plot is symmetric in layout space. */
-export const BOOSTED_TVL_PAD_Y = 1.58;
-/** One spare row above the bars (bottom row removed vs prior 14-row grid). */
-export const BOOSTED_TVL_GRID_EXTRA_ROWS_TOP = 1;
-export const BOOSTED_TVL_GRID_EXTRA_ROWS_BOTTOM = 0;
-export const BOOSTED_TVL_DOT_RADIUS = 0.117;
-export const BOOSTED_TVL_GRID_DOT_COLOR = "rgba(249, 249, 249, 0.35)";
+/** Spacing between dot centers — half Command Center pitch, same dot size. */
+export const BOOSTED_TVL_CELL_PITCH = CHART_GRID_SPACING;
+/** Bars are centered as a strip — no extra horizontal pad in layout width. */
+export const BOOSTED_TVL_PAD_X = 0;
+/** No top inset — bars are bottom-aligned in the layout. */
+export const BOOSTED_TVL_PAD_Y = 0;
 
 export const BOOSTED_TVL_START_DELAY_MS = 1400;
 export const BOOSTED_TVL_ROW_STAGGER_MS = 28;
@@ -44,21 +40,18 @@ export function boostedTvlMaxBarRows(): number {
 }
 
 export function boostedTvlGridRows(): number {
-  return (
-    boostedTvlMaxBarRows() +
-    BOOSTED_TVL_GRID_EXTRA_ROWS_TOP +
-    BOOSTED_TVL_GRID_EXTRA_ROWS_BOTTOM
-  );
+  return boostedTvlMaxBarRows();
 }
 
+/** Bottom-aligned bar rows in layout space (row 0 = top of tallest bar). */
 export function boostedTvlBarLitRowRange(bar: BoostedTvlBarSpec): {
   litStart: number;
   litEnd: number;
 } {
   const maxBar = boostedTvlMaxBarRows();
   return {
-    litStart: BOOSTED_TVL_GRID_EXTRA_ROWS_TOP + maxBar - bar.rows,
-    litEnd: BOOSTED_TVL_GRID_EXTRA_ROWS_TOP + maxBar,
+    litStart: maxBar - bar.rows,
+    litEnd: maxBar,
   };
 }
 
@@ -77,15 +70,7 @@ export function boostedTvlBarColStart(barIndex: number): number {
   for (let i = 0; i < barIndex; i++) {
     col += BOOSTED_TVL_BARS[i].cols + BOOSTED_TVL_GAP_COLS;
   }
-  return col + (BOOSTED_TVL_BARS[barIndex].colOffset ?? 0);
-}
-
-export function boostedTvlCellCenter(col: number, row: number): { x: number; y: number } {
-  const p = BOOSTED_TVL_CELL_PITCH;
-  return {
-    x: BOOSTED_TVL_PAD_X + col * p,
-    y: BOOSTED_TVL_PAD_Y + row * p,
-  };
+  return col;
 }
 
 export function boostedTvlLitDelayMs(bar: BoostedTvlBarSpec, row: number): number {

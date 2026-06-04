@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  chartLitCellCenter,
+  drawChartMutedGrid,
+  GRID_DOT_RADIUS,
+  isInsideChartMargin,
+} from "@/features/home/components/chartCanvasGrid";
+import { drawChartGreenGlow } from "@/features/home/components/chartDotGlow";
 import { cornerSwaps, peakOffInGrown } from "@/features/home/data/tvlChartCliff";
-import { tvlChartDots } from "@/features/home/data/tvlChartDots";
+import { tvlChartLitPath } from "@/features/home/data/tvlChartGridPath";
 
-const VB_W = 534;
-const VB_H = 380;
 const STAGGER_MS = 1400;
 const FADE_MS = 280;
-const DOT_RADIUS = 2;
 
 const IDLE_HOLD_MS = 3000;
 const IDLE_MORPH_MS = 1400;
@@ -43,10 +47,14 @@ export function TvlChartGraph({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
 
+  const litCellKeys = useRef(
+    new Set(tvlChartLitPath.map((c) => `${c.col},${c.row}`)),
+  );
+
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
-    if (!wrap || !canvas || !animating) return;
+    if (!wrap || !canvas) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ctx = canvas.getContext("2d");
@@ -55,8 +63,7 @@ export function TvlChartGraph({
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let width = 0;
     let height = 0;
-    let scale = 1;
-    let revealDone = reducedMotion;
+    let revealDone = reducedMotion || !animating;
     let idleStartedAt = 0;
 
     const peakStagger = cornerSwaps.map(
@@ -66,26 +73,18 @@ export function TvlChartGraph({
 
     const syncSize = () => {
       width = wrap.clientWidth;
-      if (shell) {
-        height = wrap.clientHeight;
-        if (height <= 0) height = (width * VB_H) / VB_W;
-      } else {
-        height = (width * VB_H) / VB_W;
-      }
+      height = wrap.clientHeight;
+      if (height <= 0) height = (width * 380) / 534;
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      scale = width / VB_W;
     };
 
-    const scaleX = () => width / VB_W;
-    const scaleY = () => (shell ? height / VB_H : width / VB_W);
-    const baseDotR = () => DOT_RADIUS * (shell ? (scaleX() + scaleY()) / 2 : scale);
-
-    const delays = tvlChartDots.map(
-      (_, index) => (index / Math.max(tvlChartDots.length - 1, 1)) * STAGGER_MS,
+    const delays = tvlChartLitPath.map(
+      (_, index) =>
+        (index / Math.max(tvlChartLitPath.length - 1, 1)) * STAGGER_MS,
     );
 
     const idlePhase = (now: number) => {
@@ -108,7 +107,6 @@ export function TvlChartGraph({
       };
     };
 
-    /** Only the peak toggles; the face neighbor below stays lit (no dead cell between). */
     const peakMorphAlpha = (index: number, to: IdleShape, morphT: number) => {
       const pairIdx = peakPairIndex.get(index);
       if (pairIdx === undefined) return 1;
@@ -133,7 +131,20 @@ export function TvlChartGraph({
 
     const drawAt = (now: number, startedAt: number) => {
       ctx.clearRect(0, 0, width, height);
-      for (let index = 0; index < tvlChartDots.length; index++) {
+
+      drawChartMutedGrid(
+        ctx,
+        width,
+        height,
+        GRID_DOT_RADIUS,
+        animating
+          ? (col, row) => litCellKeys.current.has(`${col},${row}`)
+          : undefined,
+      );
+
+      if (!animating) return;
+
+      for (let index = 0; index < tvlChartLitPath.length; index++) {
         const elapsed = now - startedAt - delays[index];
         let alpha = 1;
         if (!reducedMotion) {
@@ -146,19 +157,16 @@ export function TvlChartGraph({
           alpha *= idleAlpha(index, now);
         }
 
-        const dot = tvlChartDots[index];
-        ctx.globalAlpha = alpha * 0.95;
-        ctx.fillStyle = "#73F36C";
-        ctx.beginPath();
-        ctx.arc(dot.cx * scaleX(), dot.cy * scaleY(), baseDotR(), 0, Math.PI * 2);
-        ctx.fill();
+        const cell = tvlChartLitPath[index];
+        const { x, y } = chartLitCellCenter(width, height, cell.col, cell.row);
+        if (!isInsideChartMargin(x, y, width, height)) continue;
+        drawChartGreenGlow(ctx, x, y, GRID_DOT_RADIUS, alpha * 0.95);
       }
-      ctx.globalAlpha = 1;
     };
 
     const tick = (now: number) => {
       drawAt(now, startedAt);
-      if (!reducedMotion) {
+      if (!reducedMotion && animating) {
         if (!revealDone && now - startedAt >= STAGGER_MS + FADE_MS) {
           revealDone = true;
           idleStartedAt = now;
@@ -179,7 +187,7 @@ export function TvlChartGraph({
 
     cancelAnimationFrame(rafRef.current);
     drawAt(startedAt, startedAt);
-    if (!reducedMotion) rafRef.current = requestAnimationFrame(tick);
+    if (!reducedMotion && animating) rafRef.current = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(rafRef.current);
@@ -192,28 +200,16 @@ export function TvlChartGraph({
       ref={wrapRef}
       className={[
         "relative overflow-hidden rounded-[15px] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10 [background-image:linear-gradient(to_bottom_right,rgba(249,249,249,0.12)_0%,rgba(249,249,249,0.04)_38%,#0f0f0f_100%)]",
-        shell ? "h-full min-h-0 w-full" : "w-fit shrink-0",
+        shell ? "h-full min-h-0 w-full" : "w-full max-w-[534px] shrink-0",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
+      style={shell ? undefined : { aspectRatio: "534 / 380" }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/case-studies/TVLGraph-grid-light.svg"
-        alt=""
-        width={VB_W}
-        height={VB_H}
-        decoding="async"
-        className={
-          shell
-            ? "absolute inset-0 block h-full w-full object-fill"
-            : "block h-auto w-[clamp(180px,32vw,534px)]"
-        }
-      />
       <canvas
         ref={canvasRef}
-        className="pointer-events-none absolute inset-0 h-full w-full"
+        className="absolute inset-0 h-full w-full"
         aria-hidden="true"
       />
     </div>

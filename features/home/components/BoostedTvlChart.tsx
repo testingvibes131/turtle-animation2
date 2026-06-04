@@ -8,25 +8,22 @@ import {
 } from "@/features/home/data/boostedTvlBarIdle";
 import {
   BOOSTED_TVL_BARS,
-  BOOSTED_TVL_CELL_PITCH,
-  BOOSTED_TVL_DOT_RADIUS,
   BOOSTED_TVL_FADE_MS,
-  BOOSTED_TVL_GRID_DOT_COLOR,
   BOOSTED_TVL_START_DELAY_MS,
   boostedTvlAnimationTotalMs,
   boostedTvlBarColStart,
-  boostedTvlBarLitRowRange,
-  boostedTvlCellCenter,
   boostedTvlGridCols,
   boostedTvlGridRows,
-  boostedTvlLayoutSize,
   boostedTvlLitDelayMs,
   type BoostedTvlBarSpec,
 } from "@/features/home/data/boostedTvlLayout";
 import {
-  chartContainFit,
-  chartUniformMarginFit,
-} from "@/features/home/utils/chartViewBoxFit";
+  alignBarChartLayoutToCanvas,
+  chartAlignedBarCellCenter,
+  drawChartMutedGrid,
+  GRID_DOT_RADIUS,
+} from "@/features/home/components/chartCanvasGrid";
+import { drawChartBarGlow } from "@/features/home/components/chartDotGlow";
 
 const IDLE_HOLD_MS = 3000;
 const IDLE_MORPH_MS = 1400;
@@ -41,7 +38,8 @@ type BoostedTvlChartProps = {
   size?: "default" | "shell";
 };
 
-const { w: LAYOUT_W, h: LAYOUT_H } = boostedTvlLayoutSize();
+const LAYOUT_ROWS = boostedTvlGridRows();
+const LAYOUT_COLS = boostedTvlGridCols();
 
 function idleCycleMs() {
   return 2 * (IDLE_HOLD_MS + IDLE_MORPH_MS);
@@ -67,14 +65,12 @@ export function BoostedTvlChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const cols = boostedTvlGridCols();
-    const rows = boostedTvlGridRows();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let width = 0;
     let height = 0;
-    let scale = 1;
-    let offsetX = 0;
-    let offsetY = 0;
+    let gridCol0 = 0;
+    let gridRow0 = 0;
+    let gridLayout = alignBarChartLayoutToCanvas(1, 1, LAYOUT_COLS, LAYOUT_ROWS).grid;
     let revealDone = reducedMotion;
     let idleStartedAt = 0;
 
@@ -84,19 +80,18 @@ export function BoostedTvlChart({
 
     const syncLayout = () => {
       width = wrap.clientWidth;
-      if (shell) {
-        height = wrap.clientHeight;
-        if (height <= 0) height = (width * LAYOUT_H) / LAYOUT_W;
-      } else {
-        height = (width * LAYOUT_H) / LAYOUT_W;
-      }
+      height = wrap.clientHeight;
+      if (height <= 0) height = (width * LAYOUT_ROWS) / LAYOUT_COLS;
 
-      const fit = shell
-        ? chartUniformMarginFit(width, height, LAYOUT_W, LAYOUT_H)
-        : chartContainFit(width, height, LAYOUT_W, LAYOUT_H);
-      scale = fit.scale;
-      offsetX = fit.offsetX;
-      offsetY = fit.offsetY;
+      const aligned = alignBarChartLayoutToCanvas(
+        width,
+        height,
+        LAYOUT_COLS,
+        LAYOUT_ROWS,
+      );
+      gridLayout = aligned.grid;
+      gridCol0 = aligned.gridCol0;
+      gridRow0 = aligned.gridRow0;
 
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
@@ -105,22 +100,41 @@ export function BoostedTvlChart({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    const toPx = (x: number, y: number) => ({
-      px: offsetX + x * scale,
-      py: offsetY + y * scale,
+    const layoutCellFromGrid = (gridCol: number, gridRow: number) => ({
+      col: gridCol - gridCol0,
+      row: gridRow - gridRow0,
     });
 
-    const dotR = () => BOOSTED_TVL_DOT_RADIUS * BOOSTED_TVL_CELL_PITCH * scale;
+    const barCellCenter = (layoutCol: number, layoutRow: number) =>
+      chartAlignedBarCellCenter(
+        gridLayout,
+        gridCol0,
+        gridRow0,
+        layoutCol,
+        layoutRow,
+      );
 
-    const barAt = (col: number, row: number): { bar: BoostedTvlBarSpec; barIndex: number } | null => {
+    const barAt = (
+      layoutCol: number,
+      layoutRow: number,
+    ): { bar: BoostedTvlBarSpec; barIndex: number } | null => {
+      if (layoutCol < 0 || layoutCol >= LAYOUT_COLS || layoutRow < 0 || layoutRow >= LAYOUT_ROWS) {
+        return null;
+      }
+
       for (let i = 0; i < BOOSTED_TVL_BARS.length; i++) {
         const bar = BOOSTED_TVL_BARS[i];
         const startCol = boostedTvlBarColStart(i);
-        if (col < startCol || col >= startCol + bar.cols) continue;
+        if (layoutCol < startCol || layoutCol >= startCol + bar.cols) continue;
         const { top, bottom } = barRowBounds(i);
-        if (row >= top && row < bottom) return { bar, barIndex: i };
+        if (layoutRow >= top && layoutRow < bottom) return { bar, barIndex: i };
       }
       return null;
+    };
+
+    const barAtGrid = (gridCol: number, gridRow: number) => {
+      const { col, row } = layoutCellFromGrid(gridCol, gridRow);
+      return barAt(col, row);
     };
 
     const idlePhase = (now: number) => {
@@ -162,59 +176,47 @@ export function BoostedTvlChart({
       return morphCellAlpha(col, row, phase.to, phase.morphT);
     };
 
-    const drawDot = (x: number, y: number, fill: string, alpha: number) => {
-      const { px, py } = toPx(x, y);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = fill;
-      ctx.beginPath();
-      ctx.arc(px, py, dotR(), 0, Math.PI * 2);
-      ctx.fill();
-    };
-
     const drawAt = (now: number, startedAt: number) => {
       ctx.clearRect(0, 0, width, height);
 
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const { x, y } = boostedTvlCellCenter(col, row);
-          const hit = barAt(col, row);
+      drawChartMutedGrid(
+        ctx,
+        width,
+        height,
+        GRID_DOT_RADIUS,
+        animating ? (gridCol, gridRow) => barAtGrid(gridCol, gridRow) !== null : undefined,
+      );
 
-          if (!animating || !hit) {
-            drawDot(x, y, BOOSTED_TVL_GRID_DOT_COLOR, 0.5);
-            continue;
-          }
+      if (!animating) return;
+
+      for (let layoutRow = 0; layoutRow < LAYOUT_ROWS; layoutRow++) {
+        for (let layoutCol = 0; layoutCol < LAYOUT_COLS; layoutCol++) {
+          const hit = barAt(layoutCol, layoutRow);
+          if (!hit) continue;
 
           const { bar, barIndex } = hit;
 
           if (!reducedMotion && revealDone) {
-            const idleA = idleBarAlpha(col, row, barIndex, now);
-            if (idleA <= 0.04) {
-              drawDot(x, y, BOOSTED_TVL_GRID_DOT_COLOR, 0.5);
-              continue;
-            }
-          } else if (!litInBarShape(col, row, barIndex, "base")) {
-            drawDot(x, y, BOOSTED_TVL_GRID_DOT_COLOR, 0.5);
+            const idleA = idleBarAlpha(layoutCol, layoutRow, barIndex, now);
+            if (idleA <= 0.04) continue;
+          } else if (!litInBarShape(layoutCol, layoutRow, barIndex, "base")) {
             continue;
           }
 
           let alpha = 1;
           if (!reducedMotion && !revealDone) {
             const elapsed =
-              now - startedAt - BOOSTED_TVL_START_DELAY_MS - boostedTvlLitDelayMs(bar, row);
-            if (elapsed <= 0) alpha = 0;
-            else alpha = Math.min(1, elapsed / BOOSTED_TVL_FADE_MS);
-          }
-
-          if (alpha <= 0) {
-            drawDot(x, y, BOOSTED_TVL_GRID_DOT_COLOR, 0.5);
-            continue;
+              now - startedAt - BOOSTED_TVL_START_DELAY_MS - boostedTvlLitDelayMs(bar, layoutRow);
+            if (elapsed <= 0) continue;
+            alpha = Math.min(1, elapsed / BOOSTED_TVL_FADE_MS);
           }
 
           if (!reducedMotion && revealDone) {
-            alpha *= idleBarAlpha(col, row, barIndex, now);
+            alpha *= idleBarAlpha(layoutCol, layoutRow, barIndex, now);
           }
 
-          drawDot(x, y, bar.color, alpha * 0.95);
+          const { x, y } = barCellCenter(layoutCol, layoutRow);
+          drawChartBarGlow(ctx, x, y, GRID_DOT_RADIUS, alpha * 0.95, bar.color);
         }
       }
 
@@ -262,7 +264,7 @@ export function BoostedTvlChart({
       ]
         .filter(Boolean)
         .join(" ")}
-      style={shell ? undefined : { aspectRatio: `${LAYOUT_W} / ${LAYOUT_H}` }}
+      style={shell ? undefined : { aspectRatio: "19 / 14" }}
     >
       <canvas
         ref={canvasRef}
