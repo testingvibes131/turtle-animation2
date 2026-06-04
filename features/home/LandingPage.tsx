@@ -29,7 +29,7 @@ const LANDING_FOCUS_SECTION:
   | "team"
   | "backed-by"
   | "defi-cta"
-  | "latest-updates" = "case-studies";
+  | "latest-updates" = "team";
 
 const SECTION_ORDER = [
   "hero",
