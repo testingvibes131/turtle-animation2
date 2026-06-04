@@ -29,12 +29,12 @@ export function DeFiCta() {
           <CtaPill
             href="#"
             label="For Investors"
-            className="w-full min-w-0 rounded-[30px] py-[5px] pl-5 pr-[5px] sm:w-[232px] [&>span:first-child]:text-[clamp(16px,1.2vw,20px)] [&>span:last-child]:size-10"
+            className="w-full min-w-0 rounded-[30px] py-[5px] pl-5 pr-[5px] sm:w-[232px] [&>span:first-child]:text-lg [&>span:last-child]:size-10"
           />
           <CtaPill
             href="#"
             label="For Asset Issuers"
-            className="w-full min-w-0 rounded-[30px] py-[5px] pl-5 pr-[5px] sm:w-auto [&>span:first-child]:text-[clamp(16px,1.2vw,20px)] [&>span:last-child]:size-10"
+            className="w-full min-w-0 rounded-[30px] py-[5px] pl-5 pr-[5px] sm:w-auto [&>span:first-child]:text-lg [&>span:last-child]:size-10"
           />
         </div>
       </RevealOnScroll>

@@ -17,7 +17,7 @@ export function LatestUpdates() {
     >
       <div className="w-full px-6 md:px-10 lg:px-[100px]">
         <RevealOnScroll>
-          <h2 className="max-w-[22ch] bg-clip-text text-[clamp(1.125rem,1.8vw,1.5rem)] font-normal leading-[1.3] tracking-[-0.3px] text-transparent text-gradient-heading">
+          <h2 className="max-w-[22ch] bg-clip-text pb-[0.05em] text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
             Latest Updates
           </h2>
         </RevealOnScroll>

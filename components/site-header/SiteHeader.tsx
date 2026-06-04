@@ -75,9 +75,9 @@ export function SiteHeader() {
 
         <Link
           href="#"
-          className={`${headerMenuShell} px-5 py-3 transition-colors hover:bg-[#73F36C]/10`}
+          className={`${headerMenuShell} px-5 py-3`}
         >
-          <span className="text-[12px] font-normal leading-[1.2] text-green-400">
+          <span className="text-xs font-normal leading-[1.2] text-ink-primary hover:text-green-400">
             Enter App
           </span>
         </Link>

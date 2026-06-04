@@ -11,7 +11,7 @@ export function HeroCopy() {
       <div className="flex w-full flex-col items-start gap-10">
         <h2
           id="home-hero-heading"
-          className="w-full bg-linear-to-r from-[#f9f9f9] to-[#8d928c] bg-clip-text text-[50px] font-normal leading-[1.2] tracking-[-0.4px] text-transparent"
+          className="w-full bg-clip-text pb-[0.05em] text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading"
         >
           For capital that&apos;s greedy about returns and paranoid about risk.
         </h2>

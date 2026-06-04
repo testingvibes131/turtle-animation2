@@ -34,8 +34,8 @@ export function LandingPage() {
         <CommandCenter />
         <Pipeline />
         <CaseStudies />
-        <BackedBy />
         <Team />
+        <BackedBy />
         <DeFiCta />
         <LatestUpdates />
         <GlowDivider />

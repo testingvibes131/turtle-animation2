@@ -21,7 +21,7 @@ export function Pipeline() {
     >
       <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
         <RevealOnScroll className="pipeline-stage-header shrink-0 pt-14">
-          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading lg:whitespace-nowrap">
+          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading lg:whitespace-nowrap">
             The tools a fund runs on, now yours.
           </h2>
         </RevealOnScroll>

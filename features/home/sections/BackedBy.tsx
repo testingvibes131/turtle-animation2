@@ -55,7 +55,7 @@ export function BackedBy() {
       <div className="px-6 md:px-10 lg:px-[60px]">
         <RevealOnScroll>
           <h2
-            className="mx-auto max-w-[22ch] bg-clip-text pb-[0.05em] text-center text-[clamp(1.25rem,2.1vw,1.75rem)] font-normal leading-[1.2] tracking-[-0.4px] text-transparent text-gradient-heading"
+            className="mx-auto max-w-[22ch] bg-clip-text pb-[0.05em] text-center text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading"
             style={{ paddingTop: "clamp(24px, 3vw, 56px)" }}
           >
             Backed by

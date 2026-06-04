@@ -97,7 +97,7 @@ export function CaseStudies() {
     <SectionShell>
       <div className="flex flex-col gap-[clamp(40px,5vw,64px)]">
         <RevealOnScroll className="flex w-full max-w-[36rem] flex-col gap-[clamp(16px,1.8vw,28px)]">
-          <h2 className="bg-clip-text pb-[0.05em] text-[clamp(1.5rem,2.8vw,2.5rem)] font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
+          <h2 className="bg-clip-text pb-[0.05em] text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading">
             See the track record
             <br />
             before you commit a dollar
