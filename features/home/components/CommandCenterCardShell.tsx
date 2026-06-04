@@ -16,7 +16,7 @@ export function CommandCenterCardShell({ children, className }: Props) {
     <UnionCardShell
       path={COMMAND_CENTER_CARD_SHELL_PATH}
       viewBox={COMMAND_CENTER_CARD_SHELL_VIEWBOX}
-      className={["max-w-[480px]", className].filter(Boolean).join(" ")}
+      className={["w-full md:max-w-[480px]", className].filter(Boolean).join(" ")}
       contentClassName="flex flex-col gap-[clamp(10px,1vh,15px)] p-[clamp(9px,0.83vw,12px)]"
     >
       {children}

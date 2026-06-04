@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { ReactNode } from "react";
 import type { CommandCenterFeatureVisual } from "@/features/home/data/updates";
 import { AlertsFeatureCanvas } from "@/features/home/components/AlertsFeatureCanvas";
 import { CommandCenterFeatureCanvas } from "@/features/home/components/CommandCenterFeatureCanvas";
@@ -10,18 +11,20 @@ type Props = {
 };
 
 export function CommandCenterFeatureVisual({ visual, image }: Props) {
+  let inner: ReactNode;
+
   switch (visual) {
     case "deals":
-      // Diligenced Deals — glass ring + green diamond pulse
-      return <DealsFeatureCanvas />;
+      inner = <DealsFeatureCanvas />;
+      break;
     case "portfolio":
-      // Aggregated Portfolio — connector ring + flying turtle
-      return <CommandCenterFeatureCanvas />;
+      inner = <CommandCenterFeatureCanvas />;
+      break;
     case "alerts":
-      // Personalized Alerts — vignette dot grid
-      return <AlertsFeatureCanvas />;
+      inner = <AlertsFeatureCanvas />;
+      break;
     default:
-      return (
+      inner = (
         <Image
           src={image}
           alt=""
@@ -31,4 +34,6 @@ export function CommandCenterFeatureVisual({ visual, image }: Props) {
         />
       );
   }
+
+  return <div className="absolute inset-0 size-full min-h-0">{inner}</div>;
 }

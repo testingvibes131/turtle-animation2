@@ -29,7 +29,7 @@ const LANDING_FOCUS_SECTION:
   | "team"
   | "backed-by"
   | "defi-cta"
-  | "latest-updates" = "greedy";
+  | "latest-updates" = "command-center";
 
 const SECTION_ORDER = [
   "hero",

@@ -3,6 +3,7 @@ import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { SectionShell } from "@/components/layout/SectionShell";
 import { CommandCenterCardShell } from "@/features/home/components/CommandCenterCardShell";
 import { CommandCenterFeatureVisual } from "@/features/home/components/CommandCenterFeatureVisual";
+import { commandCenterVisualFrameClass } from "@/features/home/components/commandCenterVisualFrame";
 import { commandCenterFeatures } from "@/features/home/data/updates";
 
 function FeatureTitle({ title }: { title: string }) {
@@ -33,7 +34,7 @@ export function CommandCenter() {
       className="flex flex-col py-[clamp(32px,4vw,48px)] lg:h-svh lg:max-h-svh lg:min-h-svh lg:overflow-hidden lg:py-[clamp(20px,3vh,48px)]"
       innerClassName="flex flex-col gap-[clamp(24px,3vw,32px)] lg:min-h-0 lg:flex-1 lg:gap-[clamp(16px,2.2vh,32px)]"
     >
-      <RevealOnScroll className="flex w-full max-w-[38rem] shrink-0 flex-col gap-[clamp(12px,1.4vh,20px)]">
+      <RevealOnScroll className="mb-[clamp(16px,2.5vh,28px)] flex w-full max-w-[38rem] shrink-0 flex-col gap-[clamp(20px,3.2vh,32px)] lg:mb-[clamp(12px,1.8vh,20px)]">
         <h2 className="text-section-title bg-clip-text pb-[0.05em] font-normal text-transparent text-gradient-heading">
           Your book,
           <br />
@@ -50,14 +51,14 @@ export function CommandCenter() {
         />
       </RevealOnScroll>
 
-      <div className="grid grid-cols-1 items-stretch justify-items-center gap-6 md:grid-cols-3 md:gap-[clamp(11px,1.2vw,20px)] lg:min-h-0 lg:flex-1 lg:items-center">
+      <div className="grid w-full grid-cols-1 items-stretch gap-6 md:grid-cols-3 md:justify-items-center md:gap-[clamp(11px,1.2vw,20px)] lg:min-h-0 lg:flex-1 lg:items-center">
         {commandCenterFeatures.map((feature) => (
-          <RevealOnScroll key={feature.title} className="flex w-full justify-center">
-            <CommandCenterCardShell className="w-full max-w-[min(396px,100%)] md:max-w-[min(396px,34vw)]">
-              <div
-                className="relative w-full max-h-[min(240px,42vw)] shrink-0 overflow-hidden rounded-[clamp(9px,0.77vw,12px)] md:max-h-[min(330px,38.5vh)]"
-                style={{ aspectRatio: "570 / 499" }}
-              >
+          <RevealOnScroll
+            key={feature.title}
+            className="flex w-full max-md:mx-auto max-md:max-w-[min(100%,28rem)] md:justify-center"
+          >
+            <CommandCenterCardShell className="w-full md:max-w-[min(396px,34vw)]">
+              <div className={commandCenterVisualFrameClass}>
                 <CommandCenterFeatureVisual
                   visual={feature.visual}
                   image={feature.image}

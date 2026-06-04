@@ -64,6 +64,10 @@ export function useCommandCenterCanvasLoop(
     });
     observer.observe(container);
 
+    requestAnimationFrame(() => {
+      resizeCanvas(canvas, ctx, container);
+    });
+
     return () => {
       cancelAnimationFrame(frameId);
       observer.disconnect();
