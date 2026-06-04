@@ -14,7 +14,7 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
 
   return (
     <div
-      className="pipeline-visual relative overflow-hidden pointer-events-none"
+      className="pipeline-visual relative pointer-events-none"
       aria-live="polite"
       aria-label={activeStep ? `${activeStep.title} illustration` : undefined}
     >
@@ -29,9 +29,9 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
             alt=""
             fill
             priority={index === 0}
-            sizes="(max-width: 1023px) 100vw, (max-width: 1535px) 42vw, 980px"
+            sizes="(max-width: 1023px) 100vw, (max-width: 1535px) 64vw, 1280px"
             className={[
-              "object-contain object-center transition-opacity duration-500 ease-out motion-reduce:transition-none",
+              "object-contain object-bottom transition-opacity duration-500 ease-out motion-reduce:transition-none",
               index === activeIndex ? "opacity-100" : "opacity-0",
             ].join(" ")}
           />
