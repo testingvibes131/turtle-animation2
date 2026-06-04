@@ -17,6 +17,11 @@ import {
   CASE_STUDY_VERTICAL_CARD_SHELL_PATH,
   CASE_STUDY_VERTICAL_CARD_SHELL_VIEWBOX,
 } from "@/features/home/components/caseStudyVerticalCardShellPath";
+import {
+  caseStudyCardsStackClass,
+  caseStudyTvlCardContentClass,
+  caseStudyVerticalCardContentClass,
+} from "@/features/home/components/caseStudyCardFrame";
 import { caseStudies } from "@/features/home/data/caseStudies";
 
 function animateCounter(
@@ -107,7 +112,7 @@ export function CaseStudies() {
           </p>
         </RevealOnScroll>
 
-        <div className="grid grid-cols-1 items-start gap-[clamp(40px,5vw,64px)] lg:grid-cols-[1fr_auto] lg:gap-x-[clamp(32px,4vw,60px)]">
+        <div className="flex flex-col gap-[clamp(32px,4vw,48px)] lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-[clamp(32px,4vw,60px)]">
           <div
             className="flex w-full max-w-[36rem] flex-col"
             style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
@@ -168,7 +173,8 @@ export function CaseStudies() {
         <div
           ref={cardsRef}
           className={[
-            "case-cards flex w-full max-w-[clamp(400px,52vw,760px)] flex-col lg:w-auto",
+            caseStudyCardsStackClass,
+            "lg:w-auto",
             animating ? "is-animating" : "",
           ].join(" ")}
           style={{ gap: "clamp(8px, 0.7vw, 10px)" }}
@@ -176,7 +182,8 @@ export function CaseStudies() {
           <UnionCardShell
             path={CASE_STUDY_TVL_CARD_SHELL_PATH}
             viewBox={CASE_STUDY_TVL_CARD_SHELL_VIEWBOX}
-            contentClassName="grid aspect-[846/400] w-full items-stretch"
+            className="w-full"
+            contentClassName={caseStudyTvlCardContentClass}
             contentStyle={{
               gridTemplateColumns: `minmax(0, ${CASE_STUDY_TVL_CARD_DIVIDER_RATIO * 100}%) minmax(0, 1fr)`,
             }}
@@ -193,12 +200,11 @@ export function CaseStudies() {
                 data-target="50"
                 data-prefix="$"
                 data-suffix="M"
-                className="font-normal leading-[1.2] text-stone-50"
-                style={{ fontSize: "clamp(28px, 3.2vw, 40px)", letterSpacing: "-0.4px" }}
+                className="max-lg:text-xl max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-stone-50 lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
               >
                 $50M
               </div>
-              <div className="leading-[1.4] text-white/50" style={{ fontSize: "clamp(13px, 1.1vw, 16px)" }}>
+              <div className="max-lg:text-[9px] leading-[1.4] text-white/50 lg:text-[clamp(13px,1.1vw,16px)]">
                 TVL within 48hrs
               </div>
             </div>
@@ -212,11 +218,12 @@ export function CaseStudies() {
             </div>
           </UnionCardShell>
 
-          <div className="grid grid-cols-2" style={{ gap: "clamp(8px, 0.7vw, 10px)" }}>
+          <div className="grid min-w-0 grid-cols-2" style={{ gap: "clamp(8px, 0.7vw, 10px)" }}>
             <UnionCardShell
               path={CASE_STUDY_VERTICAL_CARD_SHELL_PATH}
               viewBox={CASE_STUDY_VERTICAL_CARD_SHELL_VIEWBOX}
-              contentClassName="grid aspect-[415/400] w-full items-stretch"
+              className="min-w-0 w-full"
+              contentClassName={caseStudyVerticalCardContentClass}
               contentStyle={{
                 gridTemplateRows: `minmax(0, ${CASE_STUDY_VERTICAL_CARD_DIVIDER_RATIO * 100}%) minmax(0, 1fr)`,
               }}
@@ -233,12 +240,11 @@ export function CaseStudies() {
                   data-target="84.5"
                   data-prefix="$"
                   data-suffix="M"
-                  className="font-normal leading-[1.2] text-stone-50"
-                  style={{ fontSize: "clamp(28px, 3.2vw, 40px)", letterSpacing: "-0.4px" }}
+                  className="max-lg:text-xl max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-stone-50 lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
                 >
                   $84.5M
                 </div>
-                <div className="leading-[1.4] text-white/50" style={{ fontSize: "clamp(13px, 1.1vw, 16px)" }}>
+                <div className="max-lg:text-[9px] leading-[1.4] text-white/50 lg:text-[clamp(13px,1.1vw,16px)]">
                   Boosted TVL
                 </div>
                 <div className="flex w-full flex-wrap items-center justify-center" style={{ gap: "clamp(8px, 0.9vw, 14px)" }}>
@@ -248,8 +254,14 @@ export function CaseStudies() {
                     { src: "/case-studies/apr-usdc.png", label: "18% APR" },
                   ].map((apr) => (
                     <div key={apr.label} className="flex min-w-0 items-center" style={{ gap: 5 }}>
-                      <Image src={apr.src} alt="" width={16} height={16} className="shrink-0 rounded-full" />
-                      <span className="truncate font-medium leading-[1.2] text-stone-50" style={{ fontSize: "clamp(11px, 0.9vw, 14px)" }}>
+                      <Image
+                        src={apr.src}
+                        alt=""
+                        width={16}
+                        height={16}
+                        className="size-2 shrink-0 rounded-full lg:size-4"
+                      />
+                      <span className="max-lg:text-[7px] truncate font-medium leading-[1.2] text-stone-50 lg:text-[clamp(11px,0.9vw,14px)]">
                         {apr.label}
                       </span>
                     </div>
@@ -270,7 +282,8 @@ export function CaseStudies() {
             <UnionCardShell
               path={CASE_STUDY_VERTICAL_CARD_SHELL_PATH}
               viewBox={CASE_STUDY_VERTICAL_CARD_SHELL_VIEWBOX}
-              contentClassName="grid aspect-[415/400] w-full items-stretch"
+              className="min-w-0 w-full"
+              contentClassName={caseStudyVerticalCardContentClass}
               contentStyle={{
                 gridTemplateRows: `minmax(0, ${CASE_STUDY_VERTICAL_CARD_DIVIDER_RATIO * 100}%) minmax(0, 1fr)`,
               }}
@@ -281,10 +294,8 @@ export function CaseStudies() {
                 }}
               >
                 <div
-                  className="inline-flex items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-stone-50/10"
+                  className="inline-flex max-lg:size-8 items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-stone-50/10 lg:h-[clamp(56px,5.2vw,75px)] lg:w-[clamp(56px,5.2vw,75px)]"
                   style={{
-                    width: "clamp(56px, 5.2vw, 75px)",
-                    height: "clamp(56px, 5.2vw, 75px)",
                     boxShadow:
                       "0 4.5px 56.6px rgba(0,0,0,0.4), inset 2.9px 2.9px 19.3px rgba(215,215,215,0.15), inset 2.9px 0.97px 9.67px rgba(255,255,255,0.25)",
                   }}
@@ -294,7 +305,7 @@ export function CaseStudies() {
                     alt=""
                     width={75}
                     height={75}
-                    className="block h-full w-full rounded-full object-cover"
+                    className="block max-lg:size-8 h-full w-full rounded-full object-cover"
                   />
                 </div>
               </div>
@@ -305,10 +316,11 @@ export function CaseStudies() {
                   padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 10px) clamp(8px, 1vw, 10px)",
                 }}
               >
-                <p className="leading-[1.35] text-stone-50" style={{ fontSize: "clamp(14px, 1.5vw, 19px)" }}>
-                  &ldquo;Turtle were so great to work with they made everything a breeze and got our campaign off the ground in days&rdquo;
+                <p className="max-lg:text-sm leading-[1.35] text-stone-50 lg:text-[clamp(14px,1.5vw,19px)]">
+                  &ldquo;Turtle were the best partners to work with and helped us exceed our
+                  liquidity goals&rdquo;
                 </p>
-                <p className="leading-[1.4] text-white/50" style={{ fontSize: "clamp(12px, 1.1vw, 16px)" }}>
+                <p className="max-lg:text-[9px] leading-[1.4] text-white/50 lg:text-[clamp(12px,1.1vw,16px)]">
                   Joe Blogs
                   <br />
                   CTO - Avalanche Foundation

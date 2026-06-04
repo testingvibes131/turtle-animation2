@@ -7,12 +7,12 @@ export function CaseStudyTvlChartSvg({ className }: CaseStudyTvlChartSvgProps) {
   return (
     <div
       className={[
-        "relative min-h-0 flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "max-md:min-h-[clamp(100px,24vw,160px)] lg:min-h-[clamp(140px,16vw,260px)]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{ minHeight: "clamp(180px, 19vw, 260px)" }}
     >
       <svg
         className="tvl-graph absolute inset-0 h-full w-full"

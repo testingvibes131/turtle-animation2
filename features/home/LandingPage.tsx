@@ -29,7 +29,7 @@ const LANDING_FOCUS_SECTION:
   | "team"
   | "backed-by"
   | "defi-cta"
-  | "latest-updates" = "command-center";
+  | "latest-updates" = "case-studies";
 
 const SECTION_ORDER = [
   "hero",
@@ -43,6 +43,11 @@ const SECTION_ORDER = [
   "latest-updates",
 ] as const;
 
+/** Hidden during section focus until Pipeline mobile is ready; full page still shows it. */
+const LANDING_BYPASS_SECTIONS: ReadonlyArray<(typeof SECTION_ORDER)[number]> = [
+  "pipeline",
+];
+
 function includesSection(
   focus: typeof LANDING_FOCUS_SECTION,
   section: (typeof SECTION_ORDER)[number],
@@ -51,6 +56,16 @@ function includesSection(
   const focusIndex = SECTION_ORDER.indexOf(focus);
   const sectionIndex = SECTION_ORDER.indexOf(section);
   return sectionIndex <= focusIndex;
+}
+
+function shouldShowSection(
+  focus: typeof LANDING_FOCUS_SECTION,
+  section: (typeof SECTION_ORDER)[number],
+) {
+  if (focus !== null && LANDING_BYPASS_SECTIONS.includes(section)) {
+    return false;
+  }
+  return includesSection(focus, section);
 }
 
 export function LandingPage() {
@@ -62,7 +77,7 @@ export function LandingPage() {
   }, []);
 
   const show = (section: (typeof SECTION_ORDER)[number]) =>
-    includesSection(LANDING_FOCUS_SECTION, section);
+    shouldShowSection(LANDING_FOCUS_SECTION, section);
 
   const fullPage = LANDING_FOCUS_SECTION === null;
 

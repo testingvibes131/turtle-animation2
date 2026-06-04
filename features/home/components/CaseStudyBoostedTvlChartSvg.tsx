@@ -9,12 +9,12 @@ export function CaseStudyBoostedTvlChartSvg({
   return (
     <div
       className={[
-        "relative min-h-0 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "max-md:min-h-[clamp(72px,18vw,120px)] lg:min-h-[clamp(88px,12vw,140px)]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{ aspectRatio: "1.5" }}
     >
       <svg
         className="boost-bars absolute inset-0 h-full w-full"
