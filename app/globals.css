@@ -90,10 +90,6 @@ body {
   will-change: transform;
 }
 
-.logo-marquee:hover .logo-marquee__track {
-  animation-play-state: paused;
-}
-
 .logo-marquee__track > * {
   flex-shrink: 0;
 }
@@ -102,11 +98,6 @@ body {
   width: auto;
   object-fit: contain;
   opacity: 0.75;
-  transition: opacity 0.3s ease;
-}
-
-.logo-marquee:hover .logo {
-  opacity: 1;
 }
 
 .dashed-rule {
