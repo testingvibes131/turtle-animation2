@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
+import { useBlobCuratorOverlayEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
 import {
   assignStableCuratorZones,
@@ -58,7 +59,11 @@ export function ZoneMemberInstances({
     blobAnimTimeRef,
     depthFadeUniforms,
     connectedMarkerLayoutsRef,
+    getBlobParamsAtTime,
   } = useBlobScene();
+  const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const curatorOverlayEnabledRef = useRef(curatorOverlayEnabled);
+  curatorOverlayEnabledRef.current = curatorOverlayEnabled;
 
   const meshRefs = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const capGrayMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -124,6 +129,25 @@ export function ZoneMemberInstances({
   useFrame((state) => {
     connectedMarkerLayoutsRef.current.clear();
 
+    if (!curatorOverlayEnabledRef.current) {
+      zoneUsedRef.current = new Set();
+      zonesSnapshotRef.current = [];
+      if (zonesSigRef.current !== "") {
+        zonesSigRef.current = "";
+        onZonesChange([]);
+      }
+
+      const capGrayMesh = capGrayMeshRef.current;
+      const zoneInnerDimMesh = zoneInnerDimMeshRef.current;
+      if (capGrayMesh) capGrayMesh.count = 0;
+      if (zoneInnerDimMesh) zoneInnerDimMesh.count = 0;
+      for (const c of CURATORS) {
+        const mesh = meshRefs.current.get(c.name);
+        if (mesh) mesh.count = 0;
+      }
+      return;
+    }
+
     if (vertexCountRef.current !== vertices.count) {
       slotCacheRef.current.clear();
       vertexCountRef.current = vertices.count;
@@ -152,10 +176,7 @@ export function ZoneMemberInstances({
         zoneCenterOffsetRight: params.zoneCenterOffsetRight,
         hubOffsetSpheres: params.hubOffsetSpheres,
         hubPickMesh: vertices,
-        hubPickBlob: {
-          ...params,
-          time: blobAnimTimeRef.current,
-        },
+        hubPickBlob: getBlobParamsAtTime(blobAnimTimeRef.current),
       },
       slotCacheRef.current,
     );
@@ -194,10 +215,9 @@ export function ZoneMemberInstances({
       if (mat) mat.opacity = activeName === c.name ? 1 : 0;
     }
 
-    const blobParams: PerlinBlobParams = {
-      ...params,
-      time: blobAnimTimeRef.current,
-    };
+    const blobParams: PerlinBlobParams = getBlobParamsAtTime(
+      blobAnimTimeRef.current,
+    );
 
     const maxDisp =
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);

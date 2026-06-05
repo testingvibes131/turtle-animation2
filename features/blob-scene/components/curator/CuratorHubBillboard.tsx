@@ -4,6 +4,7 @@ import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { curatorLogoPath, CURATOR_LOGO_PATHS } from "@/features/blob-scene/lib/curators/logo";
 import {
@@ -52,6 +53,7 @@ export function CuratorHubBillboard({
   getTowardCamera,
   blobAnimTimeRef,
 }: CuratorHubBillboardProps) {
+  const { getBlobParamsAtTime } = useBlobScene();
   const texture = useTexture(curatorLogoPath(curatorName));
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -73,12 +75,10 @@ export function CuratorHubBillboard({
     const mesh = meshRef.current;
     if (!root || !mesh) return;
 
-    const blobParams: PerlinBlobParams = {
-      ...params,
-      time:
-        blobAnimTimeRef?.current ??
+    const blobParams: PerlinBlobParams = getBlobParamsAtTime(
+      blobAnimTimeRef?.current ??
         state.clock.elapsedTime * params.timeSpeed,
-    };
+    );
 
     displacedHubAnchorPosition(
       vertices,

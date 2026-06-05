@@ -5,7 +5,13 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { BlobSceneContent } from "@/features/blob-scene/components/blob/BlobSceneContent";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
-import { useBlobScrollProgress } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobColoredToGrayMix,
+  useBlobInteractionEnabled,
+  useBlobScrollProgress,
+  useBlobTransitionTuning,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import {
   blobVisualExtent,
   computeBlobScrollMotion,
@@ -16,15 +22,34 @@ const BG = "#141514";
 export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
   const { camera, size } = useThree();
   const scrollProgress = useBlobScrollProgress();
+  const coloredToGrayMix = useBlobColoredToGrayMix();
+  const transitionTuning = useBlobTransitionTuning();
+  const rotationEnabled = useBlobInteractionEnabled();
   const scrollMotion = useMemo(() => {
-    const extent = blobVisualExtent(params);
+    const extent = blobVisualExtent(
+      applyTransitionDistort(
+        { ...params, time: 0 },
+        coloredToGrayMix,
+        transitionTuning.distortPeakMul,
+      ),
+    );
     return computeBlobScrollMotion(
       camera as THREE.PerspectiveCamera,
       size.width / Math.max(size.height, 1),
       extent,
       scrollProgress,
+      rotationEnabled,
     );
-  }, [camera, params, scrollProgress, size.height, size.width]);
+  }, [
+    camera,
+    coloredToGrayMix,
+    params,
+    rotationEnabled,
+    scrollProgress,
+    transitionTuning.distortPeakMul,
+    size.height,
+    size.width,
+  ]);
 
   return (
     <>

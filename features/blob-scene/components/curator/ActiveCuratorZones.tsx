@@ -6,7 +6,10 @@ import { CuratorHubBillboard } from "@/features/blob-scene/components/curator/Cu
 import { PartnerOrbitRings } from "@/features/blob-scene/components/curator/PartnerOrbitRings";
 import { ZoneMemberInstances } from "@/features/blob-scene/components/curator/ZoneMemberInstances";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
-import { useBlobHeroShowcaseActive } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobCuratorOverlayEnabled,
+  useBlobHeroShowcaseActive,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
   curatorZoneClockDeg,
   type CuratorZoneAssignment,
@@ -37,6 +40,7 @@ export function ActiveCuratorZones() {
   } = useBlobScene();
 
   const heroShowcaseActive = useBlobHeroShowcaseActive();
+  const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
   const [zones, setZones] = useState<CuratorZoneAssignment[]>([]);
 
   const layoutZone =
@@ -102,7 +106,7 @@ export function ActiveCuratorZones() {
         connectedOnly={heroShowcaseActive}
         onZonesChange={setZones}
       />
-      {zoneVisual ? (
+      {curatorOverlayEnabled && zoneVisual ? (
         <CuratorHubBillboard
           key={`logo-${zoneVisual.curator.name}`}
           hubIndex={zoneVisual.hub}
@@ -115,7 +119,7 @@ export function ActiveCuratorZones() {
           blobAnimTimeRef={blobAnimTimeRef}
         />
       ) : null}
-      {zoneVisual && orbitTargets.length > 0 && (
+      {curatorOverlayEnabled && zoneVisual && orbitTargets.length > 0 && (
           <PartnerOrbitRings
             key={`orbit-${zoneVisual.curator.name}-${orbitTargets.map((t) => t.vertexIndex).join(",")}`}
             targets={orbitTargets}
@@ -126,7 +130,7 @@ export function ActiveCuratorZones() {
             blobAnimTimeRef={blobAnimTimeRef}
           />
         )}
-      {activeLineGroups.length > 0 && zoneVisual ? (
+      {curatorOverlayEnabled && activeLineGroups.length > 0 && zoneVisual ? (
         <group renderOrder={RENDER_PLEXUS_LINES}>
           <CuratorPlexusLines
             key={`plexus-${zoneVisual.curator.name}-${zoneVisual.hub}-${zoneVisual.edges.map(([a, b]) => `${a}-${b}`).join(",")}`}

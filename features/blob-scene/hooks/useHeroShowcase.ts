@@ -3,7 +3,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { useBlobHeroShowcaseActive } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobColoredToGrayMix,
+  useBlobHeroShowcaseActive,
+  useBlobTransitionTuning,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import {
@@ -40,6 +45,8 @@ function heroHubPickOptions(
   vertices: IcosahedronVertexData,
   params: BlobVisualParams,
   animTime: number,
+  coloredToGrayMix: number,
+  distortPeakMul: number,
 ): HubAnchorOptions {
   return {
     frontMinDot: HERO_SHOWCASE_FRONT_MIN_DOT,
@@ -49,7 +56,11 @@ function heroHubPickOptions(
     hubLogoOutsetSpheres:
       params.hubLogoOutsetSpheres * HERO_SHOWCASE_LOGO_OUTSET_MUL,
     hubPickMesh: vertices,
-    hubPickBlob: { ...params, time: animTime },
+    hubPickBlob: applyTransitionDistort(
+      { ...params, time: animTime },
+      coloredToGrayMix,
+      distortPeakMul,
+    ),
   };
 }
 
@@ -58,9 +69,17 @@ function pickHeroHub(
   params: BlobVisualParams,
   animTime: number,
   getHubLayoutAxis: () => THREE.Vector3,
+  coloredToGrayMix: number,
+  distortPeakMul: number,
 ): number {
   const toward = getHubLayoutAxis();
-  const hubPick = heroHubPickOptions(vertices, params, animTime);
+  const hubPick = heroHubPickOptions(
+    vertices,
+    params,
+    animTime,
+    coloredToGrayMix,
+    distortPeakMul,
+  );
   return pickCapVertexNearestHubAnchor(
     vertices,
     vertices.positions,
@@ -81,6 +100,12 @@ export function useHeroShowcase({
   setActiveZone,
 }: Args) {
   const heroActive = useBlobHeroShowcaseActive();
+  const coloredToGrayMix = useBlobColoredToGrayMix();
+  const transitionTuning = useBlobTransitionTuning();
+  const coloredToGrayMixRef = useRef(coloredToGrayMix);
+  coloredToGrayMixRef.current = coloredToGrayMix;
+  const distortPeakMulRef = useRef(transitionTuning.distortPeakMul);
+  distortPeakMulRef.current = transitionTuning.distortPeakMul;
   const heroActiveRef = useRef(heroActive);
   heroActiveRef.current = heroActive;
 
@@ -120,6 +145,8 @@ export function useHeroShowcase({
       params,
       blobAnimTimeRef.current,
       getHubLayoutAxis,
+      coloredToGrayMixRef.current,
+      distortPeakMulRef.current,
     );
   }, [
     heroActive,
@@ -144,11 +171,24 @@ export function useHeroShowcase({
     const curator = heroShowcaseCurator(elapsedMs);
     const toward = getHubLayoutAxis();
     const animTime = blobAnimTimeRef.current;
-    const hubPick = heroHubPickOptions(vertices, params, animTime);
+    const hubPick = heroHubPickOptions(
+      vertices,
+      params,
+      animTime,
+      coloredToGrayMixRef.current,
+      distortPeakMulRef.current,
+    );
 
     let hub = heroHubRef.current;
     if (hub < 0 || !heroHubPassesCap(vertices.positions, hub, toward)) {
-      hub = pickHeroHub(vertices, params, animTime, getHubLayoutAxis);
+      hub = pickHeroHub(
+        vertices,
+        params,
+        animTime,
+        getHubLayoutAxis,
+        coloredToGrayMixRef.current,
+        distortPeakMulRef.current,
+      );
       heroHubRef.current = hub;
       resetSpokes();
     }

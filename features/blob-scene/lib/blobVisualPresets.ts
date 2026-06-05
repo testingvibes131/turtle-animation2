@@ -34,7 +34,7 @@ export const CONNECTED_LINES_PARAMS = {
   lineOpacity: 0.85,
 } as const satisfies Omit<BlobVisualParams, "time">;
 
-/** Option 2 — section 1 bare blob (no connected dots, lines, or curator png). */
+/** Option 2 — section 1 colored blob only; section 2 matches connected-lines. */
 export const SECTION_1_BLOB_PARAMS = {
   ...BASE,
   frontMinDot: 0.55,

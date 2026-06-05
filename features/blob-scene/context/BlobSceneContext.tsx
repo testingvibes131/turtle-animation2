@@ -12,11 +12,16 @@ import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobContro
 import type { MarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import type { CuratorZoneAssignment } from "@/features/blob-scene/lib/curators/zones";
 import type { ConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
-import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
+import type {
+  IcosahedronVertexData,
+  PerlinBlobParams,
+} from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 export type BlobSceneContextValue = {
   vertices: IcosahedronVertexData;
   params: BlobVisualParams;
+  /** Perlin params with optional transition distortion applied. */
+  getBlobParamsAtTime: (time: number) => PerlinBlobParams;
   pointRadius: number;
   liveVertices: ReadonlySet<number>;
   liveIndices: number[];

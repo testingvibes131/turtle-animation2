@@ -7,6 +7,7 @@ import {
   type BlobSceneContextValue,
 } from "@/features/blob-scene/context/BlobSceneContext";
 import { ActiveCuratorZones } from "@/features/blob-scene/components/curator/ActiveCuratorZones";
+import { CuratorLogoSatellites } from "@/features/blob-scene/components/curator/CuratorLogoSatellites";
 import { BlobPointCloud } from "@/features/blob-scene/components/blob/BlobPointCloud";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { useBlobGeometry } from "@/features/blob-scene/hooks/useBlobGeometry";
@@ -14,7 +15,12 @@ import {
   useBlobAnimationFreeze,
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
-import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobColoredToGrayMix,
+  useBlobInteractionEnabled,
+  useBlobTransitionTuning,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import { useHeroShowcase } from "@/features/blob-scene/hooks/useHeroShowcase";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
@@ -72,6 +78,19 @@ export function BlobSceneContent({
     return frozenLayoutAxisRef.current ?? getTowardCamera();
   }, [getTowardCamera]);
 
+  const coloredToGrayMix = useBlobColoredToGrayMix();
+  const transitionTuning = useBlobTransitionTuning();
+
+  const getBlobParamsAtTime = useCallback(
+    (time: number) =>
+      applyTransitionDistort(
+        { ...params, time },
+        coloredToGrayMix,
+        transitionTuning.distortPeakMul,
+      ),
+    [coloredToGrayMix, params, transitionTuning.distortPeakMul],
+  );
+
   const contextValue = useMemo<BlobSceneContextValue>(
     () => ({
       vertices,
@@ -91,11 +110,13 @@ export function BlobSceneContent({
       getTowardCamera,
       getHubLayoutAxis,
       connectedMarkerLayoutsRef,
+      getBlobParamsAtTime,
     }),
     [
       activeZone,
       deadIndices,
       depthFadeUniforms,
+      getBlobParamsAtTime,
       getHubLayoutAxis,
       getTowardCamera,
       liveIndices,
@@ -130,6 +151,7 @@ export function BlobSceneContent({
   });
 
   const interactionEnabled = useBlobInteractionEnabled();
+
   const { tickAnimationTime } = useBlobAnimationFreeze(
     activeZone,
     blobAnimTimeRef,
@@ -150,6 +172,7 @@ export function BlobSceneContent({
             blobGroupRef={blobGroupRef}
             tickAnimationTime={tickAnimationTime}
           />
+          <CuratorLogoSatellites params={params} />
           <ActiveCuratorZones />
         </group>
       </group>

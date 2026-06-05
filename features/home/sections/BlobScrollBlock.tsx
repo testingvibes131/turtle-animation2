@@ -4,10 +4,19 @@ import { Leva } from "leva";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
-import { blobParamsForSetup } from "@/features/blob-scene/lib/blobVisualPresets";
+import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { blobInteractionEnabledFromScroll } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
+import {
+  blobColoredToGrayMix,
+  blobInteractionEnabledFromScroll,
+  blobRuntimeSetup,
+} from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
+import {
+  SCROLL_VELOCITY_DECAY,
+  SCROLL_VELOCITY_IDLE_MS,
+  SCROLL_VELOCITY_ZERO_EPS,
+} from "@/features/blob-scene/lib/scroll/blobScrollVelocity";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
 
@@ -41,27 +50,27 @@ function computeBlobScrollProgress(
  * Leva setup picks params + interaction mode; scroll always drives blob placement.
  */
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
-  const { setup } = useBlobControls();
+  const { setup: levaSetup, params, transition, coloredDots } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
+  const scrollVelocityRef = useRef(0);
+  const lastScrollSampleRef = useRef({ scrolled: 0, time: 0 });
+  const lastVelocityUpdateRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
-
-  const params = {
-    ...blobParamsForSetup(setup),
-    time: 0,
-  };
-
-  const allowInteraction = setup === "connected-lines";
-  const effectiveInteraction = allowInteraction && interactionEnabled;
+  const [runtimeSetup, setRuntimeSetup] = useState<BlobSetupId>(() =>
+    levaSetup === "section-1-blob" ? "section-1-blob" : "connected-lines",
+  );
+  const [coloredToGrayMix, setColoredToGrayMix] = useState(() =>
+    levaSetup === "section-1-blob" ? 0 : 1,
+  );
   const heroShowcaseActive =
-    allowInteraction &&
+    runtimeSetup === "connected-lines" &&
     blobHeroShowcaseActive(scrollProgress, interactionEnabled);
-  const coloredBlobDots = setup === "section-1-blob";
 
   useEffect(() => {
-    if (setup !== "section-1-blob") return;
+    if (levaSetup !== "section-1-blob") return;
     window.scrollTo(0, 0);
-  }, [setup]);
+  }, [levaSetup]);
 
   useEffect(() => {
     const block = blockRef.current;
@@ -77,25 +86,57 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const heroScroll = hero?.offsetHeight ?? window.innerHeight;
       const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
       const scrolled = -block.getBoundingClientRect().top;
+      const now = performance.now();
+      const last = lastScrollSampleRef.current;
+
+      if (last.time > 0) {
+        const dt = (now - last.time) / 1000;
+        if (dt > 0 && dt < 0.25) {
+          scrollVelocityRef.current = (scrolled - last.scrolled) / dt;
+          lastVelocityUpdateRef.current = now;
+        }
+      }
+
+      lastScrollSampleRef.current = { scrolled, time: now };
+
       const metrics = { scrolled, heroScroll, section2Scroll };
       const isMobile = mobileQuery.matches;
+      const grayMix = blobColoredToGrayMix(levaSetup, metrics, transition);
+      const runtime = blobRuntimeSetup(levaSetup, metrics, transition);
 
       setScrollProgress(
         computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
-      setInteractionEnabled(blobInteractionEnabledFromScroll(metrics));
+      setColoredToGrayMix(grayMix);
+      setRuntimeSetup(runtime);
+      setInteractionEnabled(
+        blobInteractionEnabledFromScroll(metrics, levaSetup, transition),
+      );
+    };
+
+    let decayRaf = 0;
+    const decayScrollVelocity = (time: number) => {
+      if (time - lastVelocityUpdateRef.current > SCROLL_VELOCITY_IDLE_MS) {
+        scrollVelocityRef.current *= SCROLL_VELOCITY_DECAY;
+        if (Math.abs(scrollVelocityRef.current) < SCROLL_VELOCITY_ZERO_EPS) {
+          scrollVelocityRef.current = 0;
+        }
+      }
+      decayRaf = requestAnimationFrame(decayScrollVelocity);
     };
 
     updateScroll();
+    decayRaf = requestAnimationFrame(decayScrollVelocity);
     window.addEventListener("scroll", updateScroll, { passive: true });
     window.addEventListener("resize", updateScroll);
     mobileQuery.addEventListener("change", updateScroll);
     return () => {
+      cancelAnimationFrame(decayRaf);
       window.removeEventListener("scroll", updateScroll);
       window.removeEventListener("resize", updateScroll);
       mobileQuery.removeEventListener("change", updateScroll);
     };
-  }, []);
+  }, [levaSetup, transition]);
 
   return (
     <div ref={blockRef} className="relative isolate">
@@ -104,15 +145,18 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         <div
           className={[
             "absolute inset-0 touch-none",
-            effectiveInteraction ? "pointer-events-auto" : "pointer-events-none",
+            interactionEnabled ? "pointer-events-auto" : "pointer-events-none",
           ].join(" ")}
         >
           <BlobScrollProgressProvider
             progress={scrollProgress}
             heroShowcaseActive={heroShowcaseActive}
-            interactionEnabled={effectiveInteraction}
-            blobSetup={setup}
-            coloredBlobDots={coloredBlobDots}
+            interactionEnabled={interactionEnabled}
+            blobSetup={runtimeSetup}
+            coloredToGrayMix={coloredToGrayMix}
+            scrollVelocityRef={scrollVelocityRef}
+            transitionTuning={transition}
+            coloredDotsTuning={coloredDots}
           >
             <BlobExperience params={params} />
           </BlobScrollProgressProvider>

@@ -1,10 +1,14 @@
 import * as THREE from "three";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
+import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
+import { BLOB_INTERACTION_SECTION1_START_FRAC } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 
 /** Fraction of blob diameter past the right viewport edge (lower = further left). */
 export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 
-export function blobVisualExtent(params: BlobVisualParams): number {
+export function blobVisualExtent(
+  params: Pick<PerlinBlobParams, "radius" | "noiseScale" | "displacementDivisor">,
+): number {
   const maxDisp =
     (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
   return params.radius + maxDisp;
@@ -63,8 +67,15 @@ export function computeBlobScaleForScroll(scrollProgress: number): number {
   return BLOB_HERO_SCALE + (1 - BLOB_HERO_SCALE) * t;
 }
 
-export function computeBlobRotationYForScroll(scrollProgress: number): number {
-  const t = clampScrollProgress(scrollProgress);
+export function computeBlobRotationYForScroll(
+  scrollProgress: number,
+  rotationEnabled: boolean,
+): number {
+  if (!rotationEnabled) return 0;
+  const span = 1 - BLOB_INTERACTION_SECTION1_START_FRAC;
+  const t = clampScrollProgress(
+    (scrollProgress - BLOB_INTERACTION_SECTION1_START_FRAC) / span,
+  );
   return t * BLOB_SCROLL_ROTATION_Y;
 }
 
@@ -102,6 +113,7 @@ export function computeBlobScrollMotion(
   viewportAspect: number,
   extent: number,
   scrollProgress: number,
+  rotationEnabled: boolean,
 ): BlobScrollMotion {
   return {
     offsetX: computeBlobOffsetXForScroll(
@@ -112,6 +124,6 @@ export function computeBlobScrollMotion(
     ),
     offsetY: computeBlobOffsetYForScroll(camera, extent, scrollProgress),
     scale: computeBlobScaleForScroll(scrollProgress),
-    rotationY: computeBlobRotationYForScroll(scrollProgress),
+    rotationY: computeBlobRotationYForScroll(scrollProgress, rotationEnabled),
   };
 }

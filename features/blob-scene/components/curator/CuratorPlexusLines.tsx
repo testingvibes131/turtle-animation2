@@ -8,6 +8,7 @@ import {
   LineSegments2,
   LineSegmentsGeometry,
 } from "three-stdlib";
+import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import type { CuratorEdge } from "@/features/blob-scene/lib/curators/hoverPlexus";
 import {
@@ -63,6 +64,7 @@ function PlexusLineBatch({
   lockDashDistances?: boolean;
 }) {
   const size = useThree((s) => s.size);
+  const { getBlobParamsAtTime } = useBlobScene();
   const linePositionsRef = useRef<Float32Array | null>(null);
   const bundleRef = useRef<PlexusBundle | null>(null);
 
@@ -135,12 +137,10 @@ function PlexusLineBatch({
       return;
     }
 
-    const blobParams: PerlinBlobParams = {
-      ...params,
-      time:
-        blobAnimTimeRef?.current ??
+    const blobParams: PerlinBlobParams = getBlobParamsAtTime(
+      blobAnimTimeRef?.current ??
         state.clock.elapsedTime * params.timeSpeed,
-    };
+    );
 
     let p = 0;
     for (const [a, bIdx] of edges) {

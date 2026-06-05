@@ -5,9 +5,12 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import {
+  useBlobColoredToGrayMix,
   useBlobHeroShowcaseActive,
   useBlobInteractionEnabled,
+  useBlobTransitionTuning,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
@@ -63,6 +66,12 @@ export function useBlobInteraction({
   frozenLayoutAxisRef,
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
+  const coloredToGrayMix = useBlobColoredToGrayMix();
+  const transitionTuning = useBlobTransitionTuning();
+  const coloredToGrayMixRef = useRef(coloredToGrayMix);
+  coloredToGrayMixRef.current = coloredToGrayMix;
+  const distortPeakMulRef = useRef(transitionTuning.distortPeakMul);
+  distortPeakMulRef.current = transitionTuning.distortPeakMul;
   const interactionEnabled = useBlobInteractionEnabled();
   const heroShowcaseActive = useBlobHeroShowcaseActive();
   const interactionEnabledRef = useRef(interactionEnabled);
@@ -103,14 +112,18 @@ export function useBlobInteraction({
       if (zones.length === 0) return null;
 
       const animTime = blobAnimTimeRef.current;
-      const blobParams: PerlinBlobParams = { ...params, time: animTime };
+      const blobParams: PerlinBlobParams = applyTransitionDistort(
+        { ...params, time: animTime },
+        coloredToGrayMixRef.current,
+        distortPeakMulRef.current,
+      );
 
       const capZone = pickZoneAtCapRay(
         _pickRay,
         group,
         toward,
         zones,
-        blobVisualExtent(params),
+        blobVisualExtent(blobParams),
         params.frontMinDot,
         undefined,
         {
