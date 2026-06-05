@@ -556,7 +556,6 @@ body {
 
 /* ---------- partner marquees ---------- */
 .partner-marquee {
-  contain: layout style paint;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
     to right,
@@ -578,7 +577,7 @@ body {
   display: flex;
   width: max-content;
   align-items: center;
-  backface-visibility: hidden;
+  gap: clamp(12px, 1.2vw, 20px);
   animation: partner-marquee-scroll 60s linear infinite;
   will-change: transform;
 }
@@ -594,16 +593,6 @@ body {
   to {
     transform: translate3d(-50%, 0, 0);
   }
-}
-
-/* Gap inside each set; trailing padding matches gap at the duplicate seam. */
-.partner-marquee__set {
-  --partner-marquee-gap: clamp(12px, 1.2vw, 20px);
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--partner-marquee-gap);
-  padding-inline-end: var(--partner-marquee-gap);
 }
 
 .partner-card {
@@ -940,18 +929,6 @@ body {
     transform: translateY(0);
     opacity: 1;
   }
-}
-
-.footer-logo {
-  display: inline-block;
-  width: clamp(72px, 7vw, 96px);
-  height: auto;
-}
-
-.footer-logo img {
-  width: 100%;
-  height: auto;
-  display: block;
 }
 
 .footer-nav-col h3 {

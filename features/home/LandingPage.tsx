@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { SiteHeader } from "@/components/site-header/SiteHeader";
 import { SiteFooter } from "@/components/site-footer/SiteFooter";
-import { GlowDivider } from "@/components/ui/GlowDivider";
 import { BackedBy } from "@/features/home/sections/BackedBy";
 import { CaseStudies } from "@/features/home/sections/CaseStudies";
 import { CommandCenter } from "@/features/home/sections/CommandCenter";
@@ -107,7 +106,6 @@ export function LandingPage() {
         {show("backed-by") ? <BackedBy /> : null}
         {show("defi-cta") ? <DeFiCta /> : null}
         {show("latest-updates") ? <LatestUpdates /> : null}
-        {showFooter ? <GlowDivider /> : null}
       </main>
       {showFooter ? <SiteFooter /> : null}
     </>

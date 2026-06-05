@@ -16,30 +16,34 @@ export function PartnerMarqueeRow({
   const phaseDelay =
     phaseMs > 0 ? `${-(phaseMs / 1000)}s` : undefined;
 
+  const track = [...partners, ...partners, ...partners, ...partners].map(
+    (partner, index) => ({
+      ...partner,
+      key: `${partner.logoKey}-${index}`,
+      hidden: index >= partners.length,
+    }),
+  );
+
   return (
     <div className="partner-marquee" data-direction={direction}>
       <div
         className="partner-marquee__track"
         style={phaseDelay ? { animationDelay: phaseDelay } : undefined}
       >
-        {[0, 1].map((setIndex) => (
+        {track.map((partner) => (
           <div
-            key={setIndex}
-            className="partner-marquee__set"
-            aria-hidden={setIndex > 0 || undefined}
+            key={partner.key}
+            className="partner-card"
+            aria-hidden={partner.hidden}
           >
-            {partners.map((partner) => (
-              <div key={`${setIndex}-${partner.logoKey}`} className="partner-card">
-                <Image
-                  src={partner.src}
-                  alt={setIndex > 0 ? "" : partner.alt}
-                  width={217}
-                  height={100}
-                  className="partner-logo"
-                  data-logo={partner.logoKey}
-                />
-              </div>
-            ))}
+            <Image
+              src={partner.src}
+              alt={partner.hidden ? "" : partner.alt}
+              width={217}
+              height={100}
+              className="partner-logo"
+              data-logo={partner.logoKey}
+            />
           </div>
         ))}
       </div>

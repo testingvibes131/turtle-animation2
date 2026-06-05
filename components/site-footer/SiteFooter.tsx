@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { FooterWordmark } from "@/components/site-footer/FooterWordmark";
 
@@ -26,13 +25,9 @@ export function SiteFooter() {
         className="w-full px-6 md:px-10 lg:px-[70px]"
         style={{ paddingTop: "clamp(40px, 5vw, 60px)" }}
       >
-        <div className="flex flex-col items-start justify-between gap-[clamp(32px,4vw,48px)] md:flex-row">
-          <Link href="/" className="footer-logo shrink-0" aria-label="Turtle home">
-            <Image src="/footer/logo.png" alt="Turtle" width={96} height={96} />
-          </Link>
-
+        <div className="flex w-full justify-end">
           <nav
-            className="flex flex-wrap gap-x-[clamp(20px,3vw,40px)] gap-y-[clamp(24px,3vw,32px)]"
+            className="flex flex-wrap justify-end gap-x-[clamp(20px,3vw,40px)] gap-y-[clamp(24px,3vw,32px)]"
             aria-label="Footer"
           >
             {footerNav.map((col) => (
