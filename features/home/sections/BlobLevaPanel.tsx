@@ -15,7 +15,7 @@ export function BlobLevaPanel() {
   if (!mounted) return null;
 
   return createPortal(
-    <Leva oneLineLabels titleBar={{ title: "Blob" }} />,
+    <Leva collapsed oneLineLabels titleBar={{ title: "Blob" }} />,
     document.body,
   );
 }
