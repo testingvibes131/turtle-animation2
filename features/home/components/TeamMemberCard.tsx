@@ -1,6 +1,5 @@
 import Image from "next/image";
 import type { TeamMember } from "@/features/home/data/teamMembers";
-import { TEAM_CARD } from "@/features/home/data/teamCardLayout";
 
 type Props = {
   member: TeamMember;
@@ -14,14 +13,15 @@ export function TeamMemberCard({ member }: Props) {
         <p className="team-card__name">{member.name}</p>
         <p className="team-card__role">{member.role}</p>
       </div>
-      <Image
-        src={member.photo}
-        alt=""
-        width={TEAM_CARD.avatarWidth}
-        height={TEAM_CARD.avatarHeight}
-        className="team-card__avatar"
-        sizes="(max-width: 1024px) 33vw, 129px"
-      />
+      <div className="team-card__avatar-wrap">
+        <Image
+          src={member.photo}
+          alt=""
+          fill
+          className="team-card__avatar"
+          sizes="(max-width: 640px) 42vw, (max-width: 1280px) 21vw, 129px"
+        />
+      </div>
     </article>
   );
 }

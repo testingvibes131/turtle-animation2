@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import type { PipelineStep } from "@/features/home/data/pipelineSteps";
 
 type Props = {
@@ -13,7 +14,7 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
   const activeStep = steps[activeIndex];
 
   return (
-    <div
+    <RevealOnScroll
       className="pipeline-visual relative pointer-events-none"
       aria-live="polite"
       aria-label={activeStep ? `${activeStep.title} illustration` : undefined}
@@ -48,6 +49,6 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
           </div>
         );
       })}
-    </div>
+    </RevealOnScroll>
   );
 }

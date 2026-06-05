@@ -55,9 +55,10 @@ export function CommandCenter() {
       </RevealOnScroll>
 
       <div className="grid w-full grid-cols-1 items-stretch gap-6 md:grid-cols-3 md:justify-items-center md:gap-[clamp(11px,1.2vw,20px)] lg:min-h-0 lg:flex-1 lg:items-center">
-        {commandCenterFeatures.map((feature) => (
+        {commandCenterFeatures.map((feature, index) => (
           <RevealOnScroll
             key={feature.title}
+            delayMs={index * 120}
             className="flex w-full max-md:mx-auto max-md:max-w-[min(100%,28rem)] md:justify-center"
           >
             <CommandCenterCardShell className="w-full md:max-w-[min(396px,34vw)]">
@@ -69,7 +70,7 @@ export function CommandCenter() {
               </div>
               <div className="flex shrink-0 flex-col gap-[clamp(9px,0.77vh,13px)] px-1.5 text-sm">
                 <FeatureTitle title={feature.title} />
-                <p className="min-h-[3lh] leading-[1.4] text-ink-subtle">
+                <p className="line-clamp-3 min-h-[3lh] leading-[1.4] text-ink-subtle">
                   {feature.description}
                 </p>
               </div>

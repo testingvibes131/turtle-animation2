@@ -34,8 +34,8 @@ const defaultTransitionTuning: BlobTransitionTuning = {
 };
 
 const defaultColoredDotsTuning: BlobColoredDotsTuning = {
-  coreOpacity: 0.8,
-  glowScaleMul: 2.35,
+  coreOpacity: 0.76,
+  glowScaleMul: 3.75,
   glowOpacity: 0.2,
 };
 

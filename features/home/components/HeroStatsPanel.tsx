@@ -1,6 +1,7 @@
 /** Figma hero stats — mobile 1437:116033, desktop 1442:27812. */
 
 import { Fragment } from "react";
+import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 
 const stakeWidgetShell =
   "overflow-hidden backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b] rounded-[20px] p-5";
@@ -308,11 +309,17 @@ export function HeroStatsPanel() {
     >
       <div className="flex flex-col items-end gap-1.5 lg:flex-row lg:gap-[14px]">
         <div className="order-1 flex flex-col items-end gap-[14px] lg:order-2">
-          <DefiTvlCard />
-          <BenchmarkRatesCard />
+          <RevealOnScroll delayMs={120}>
+            <DefiTvlCard />
+          </RevealOnScroll>
+          <RevealOnScroll delayMs={240}>
+            <BenchmarkRatesCard />
+          </RevealOnScroll>
         </div>
         <div className="order-2 lg:order-1">
-          <CoordinatedCapitalCard />
+          <RevealOnScroll>
+            <CoordinatedCapitalCard />
+          </RevealOnScroll>
         </div>
       </div>
     </aside>

@@ -22,6 +22,7 @@ import {
 } from "@/features/home/components/caseStudyVerticalCardShellPath";
 import {
   caseStudyCardsStackClass,
+  caseStudyThirdCardContentClass,
   caseStudyTvlCardContentClass,
   caseStudyVerticalCardContentClass,
 } from "@/features/home/components/caseStudyCardFrame";
@@ -392,10 +393,7 @@ export function CaseStudies() {
               viewBox={CASE_STUDY_VERTICAL_CARD_SHELL_VIEWBOX}
               flipped
               className="min-w-0 w-full"
-              contentClassName={caseStudyVerticalCardContentClass}
-              contentStyle={{
-                gridTemplateRows: `minmax(0, 1fr) minmax(0, ${CASE_STUDY_VERTICAL_CARD_DIVIDER_RATIO * 100}%)`,
-              }}
+              contentClassName={caseStudyThirdCardContentClass}
             >
               <CaseStudyThirdCard key={activeStudy.id} card={activeStudy.thirdCard} />
             </UnionCardShell>

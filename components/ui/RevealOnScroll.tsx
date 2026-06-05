@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 
-type RevealOnScrollProps = {
+type RevealOnScrollProps = Omit<ComponentPropsWithoutRef<"div">, "children"> & {
   children: ReactNode;
-  className?: string;
+  /** Staggers the fade-in after the element enters the viewport. */
+  delayMs?: number;
 };
 
-export function RevealOnScroll({ children, className = "" }: RevealOnScrollProps) {
+export function RevealOnScroll({
+  children,
+  className = "",
+  delayMs = 0,
+  style,
+  ...rest
+}: RevealOnScrollProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -45,6 +58,11 @@ export function RevealOnScroll({ children, className = "" }: RevealOnScrollProps
         visible ? "is-visible" : "",
         className,
       ].join(" ")}
+      style={{
+        ...(delayMs > 0 ? { transitionDelay: `${delayMs}ms` } : {}),
+        ...style,
+      }}
+      {...rest}
     >
       {children}
     </div>

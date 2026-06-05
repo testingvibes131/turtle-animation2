@@ -19,7 +19,10 @@ import {
   useBlobInteractionEnabled,
   useBlobTransitionTuning,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
+import {
+  applyOrganicTransitionDistort,
+  BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL,
+} from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import { useHeroShowcase } from "@/features/blob-scene/hooks/useHeroShowcase";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
@@ -81,12 +84,24 @@ export function BlobSceneContent({
   const transitionTuning = useBlobTransitionTuning();
 
   const getBlobParamsAtTime = useCallback(
-    (time: number) =>
-      applyTransitionDistort(
-        { ...params, time },
+    (time: number) => {
+      const t = Math.min(1, Math.max(0, coloredToGrayMix));
+      const distortPeak =
+        BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL +
+        t *
+          (transitionTuning.distortPeakMul -
+            BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL);
+
+      return applyOrganicTransitionDistort(
+        {
+          ...params,
+          time,
+          displacementBlend: t,
+        },
         coloredToGrayMix,
-        transitionTuning.distortPeakMul,
-      ),
+        distortPeak,
+      );
+    },
     [coloredToGrayMix, params, transitionTuning.distortPeakMul],
   );
 

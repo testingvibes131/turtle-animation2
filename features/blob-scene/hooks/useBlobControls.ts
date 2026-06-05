@@ -59,8 +59,8 @@ export type BlobControls = {
 };
 
 const DEFAULT_COLORED_DOTS: BlobColoredDotsTuning = {
-  coreOpacity: 0.8,
-  glowScaleMul: 2.35,
+  coreOpacity: 0.76,
+  glowScaleMul: 3.75,
   glowOpacity: 0.2,
 };
 
@@ -268,18 +268,14 @@ export function useBlobControls(): BlobControls {
         min: 0,
         max: 1,
         step: 0.01,
+        label: "peak opacity",
       },
       glowScaleMul: {
         value: DEFAULT_COLORED_DOTS.glowScaleMul,
         min: 1,
         max: 5,
         step: 0.05,
-      },
-      glowOpacity: {
-        value: DEFAULT_COLORED_DOTS.glowOpacity,
-        min: 0,
-        max: 1,
-        step: 0.01,
+        label: "spark radius",
       },
     },
     { collapsed: true },

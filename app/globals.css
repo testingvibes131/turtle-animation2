@@ -646,16 +646,16 @@ body {
 
 /* ---------- team section (Figma 1358:27909 / Card-Member 1358:27910) ---------- */
 .team-grid {
-  --team-card-h: clamp(120px, 9.7vw, 149.339px);
+  --team-card-ratio: 308.456 / 149.339;
   --team-card-pad: clamp(14px, 1.04vw, 20px);
   --team-card-gap: clamp(10px, 0.75vw, 14.31px);
   --team-card-radius: clamp(16px, 1.07vw, 20.53px);
-  --team-avatar-w: clamp(96px, 6.7vw, 129px);
-  --team-avatar-h: clamp(95px, 6.65vw, 128px);
+  --team-avatar-w: clamp(72px, 42%, 129px);
 
   display: grid;
   width: 100%;
-  max-width: min(100%, 954px);
+  min-width: 0;
+  max-width: 100%;
   margin-inline: auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
@@ -674,7 +674,7 @@ body {
   grid-column: 1 / -1;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .team-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-inline: 0;
@@ -688,12 +688,13 @@ body {
 .team-card {
   display: flex;
   flex: 1;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: clamp(8px, 0.6vw, 12px);
   width: 100%;
-  min-height: var(--team-card-h);
-  padding: var(--team-card-pad) var(--team-card-pad) 0;
+  min-width: 0;
+  aspect-ratio: var(--team-card-ratio);
+  padding: var(--team-card-pad) 0 0 var(--team-card-pad);
   border-radius: var(--team-card-radius);
   border: 1.027px solid rgba(249, 249, 249, 0.1);
   background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
@@ -722,15 +723,19 @@ body {
   font-weight: 500;
   line-height: 1.2;
   color: rgba(249, 249, 249, 0.5);
+  overflow-wrap: break-word;
+}
+
+.team-card__avatar-wrap {
+  position: relative;
+  flex: 0 0 var(--team-avatar-w);
+  align-self: stretch;
+  width: var(--team-avatar-w);
+  min-width: 0;
+  margin-left: auto;
 }
 
 .team-card__avatar {
-  flex-shrink: 0;
-  align-self: flex-end;
-  margin-top: auto;
-  width: var(--team-avatar-w);
-  height: var(--team-avatar-h);
-  display: block;
   object-fit: cover;
   object-position: bottom;
   pointer-events: none;
@@ -742,7 +747,7 @@ body {
   width: 100%;
   align-items: center;
   justify-content: center;
-  min-height: var(--team-card-h);
+  aspect-ratio: var(--team-card-ratio);
 }
 
 .team-grid__cta-link {

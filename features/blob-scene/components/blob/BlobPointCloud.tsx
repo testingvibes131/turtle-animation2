@@ -16,6 +16,7 @@ import {
   ensureInstanceOpacityBuffer,
   setInstanceOpacityAt,
 } from "@/features/blob-scene/lib/rendering/blobPointFade";
+import { createColoredSparkTexture } from "@/features/blob-scene/lib/rendering/coloredSparkTexture";
 import { updateMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { noiseSlopeOpacityMul } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { vertexFacesCamera } from "@/features/blob-scene/lib/geometry/frontHemisphere";
@@ -34,10 +35,16 @@ import type { RefObject } from "react";
 const POINT_COLOR = 0x2c2d2b;
 const DEBUG_PICKABLE_COLOR = 0x2973ff;
 const BLOB_POINT_SCALE_MUL = 1.25;
+/** Gradient sparks read smaller than mesh spheres at the same `pointRadius`. */
+const COLORED_SPARK_RADIUS_MUL = 1.58;
+/** Pull curator brand colors toward the blob palette without going gray. */
+const COLORED_SPARK_COLOR_DIM = 0.86;
 const DEBUG_PICKABLE_SCALE_MUL = 1.08;
 const createSphereGeo = () => new THREE.SphereGeometry(1, 10, 8);
+const createSparkGeo = () => new THREE.PlaneGeometry(1, 1);
 const _dummy = new THREE.Object3D();
 const _worldPos = new THREE.Vector3();
+const _cameraLocal = new THREE.Vector3();
 
 type BlobPointCloudProps = {
   blobGroupRef: RefObject<THREE.Group | null>;
@@ -71,18 +78,16 @@ export function BlobPointCloud({
     [liveIndices, deadIndices],
   );
 
+  const sparkTexture = useMemo(() => createColoredSparkTexture(), []);
+
   const liveGeo = useMemo(() => createSphereGeo(), []);
   const deadGeo = useMemo(() => createSphereGeo(), []);
-  const curatorGeos = useMemo(
-    () => CURATORS.map(() => createSphereGeo()),
-    [],
-  );
+  const sparkGeo = useMemo(() => createSparkGeo(), []);
   const debugGeo = useMemo(() => createSphereGeo(), []);
 
   const liveMeshRef = useRef<THREE.InstancedMesh>(null);
   const deadMeshRef = useRef<THREE.InstancedMesh>(null);
-  const curatorMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
-  const curatorGlowMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
+  const curatorSparkMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
 
   const liveMaterial = useMemo(() => {
@@ -103,36 +108,24 @@ export function BlobPointCloud({
     return mat;
   }, [depthFadeUniforms]);
 
-  const curatorMaterials = useMemo(
+  const curatorSparkMaterials = useMemo(
     () =>
       CURATORS.map((curator) => {
+        const color = new THREE.Color(curator.color).multiplyScalar(
+          COLORED_SPARK_COLOR_DIM,
+        );
         const mat = new THREE.MeshBasicMaterial({
-          color: curator.color,
-          toneMapped: false,
+          color,
+          map: sparkTexture,
           transparent: true,
           opacity: coloredDotsTuning.coreOpacity,
-        });
-        attachBlobPointFade(mat, depthFadeUniforms);
-        return mat;
-      }),
-    [coloredDotsTuning.coreOpacity, depthFadeUniforms],
-  );
-
-  const curatorGlowMaterials = useMemo(
-    () =>
-      CURATORS.map((curator) => {
-        const mat = new THREE.MeshBasicMaterial({
-          color: curator.color,
           toneMapped: false,
-          transparent: true,
-          opacity: coloredDotsTuning.glowOpacity,
-          blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
         attachBlobPointFade(mat, depthFadeUniforms);
         return mat;
       }),
-    [coloredDotsTuning.glowOpacity, depthFadeUniforms],
+    [coloredDotsTuning.coreOpacity, depthFadeUniforms, sparkTexture],
   );
 
   const debugPickableMaterial = useMemo(
@@ -149,24 +142,18 @@ export function BlobPointCloud({
   useEffect(() => () => liveMaterial.dispose(), [liveMaterial]);
   useEffect(() => () => deadMaterial.dispose(), [deadMaterial]);
   useEffect(
-    () => () => curatorMaterials.forEach((mat) => mat.dispose()),
-    [curatorMaterials],
-  );
-  useEffect(
-    () => () => curatorGlowMaterials.forEach((mat) => mat.dispose()),
-    [curatorGlowMaterials],
+    () => () => curatorSparkMaterials.forEach((mat) => mat.dispose()),
+    [curatorSparkMaterials],
   );
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
+  useEffect(() => () => sparkTexture.dispose(), [sparkTexture]);
 
   useEffect(() => {
     const deadMesh = deadMeshRef.current;
     if (deadMesh) deadMesh.raycast = () => {};
     const debugMesh = debugPickableMeshRef.current;
     if (debugMesh) debugMesh.raycast = () => {};
-    for (const mesh of curatorMeshRefs.current) {
-      if (mesh) mesh.raycast = () => {};
-    }
-    for (const mesh of curatorGlowMeshRefs.current) {
+    for (const mesh of curatorSparkMeshRefs.current) {
       if (mesh) mesh.raycast = () => {};
     }
   }, []);
@@ -228,6 +215,42 @@ export function BlobPointCloud({
       mesh.setMatrixAt(slot, _dummy.matrix);
     };
 
+    const writeColoredSparkInstance = (
+      mesh: THREE.InstancedMesh,
+      vertexIndex: number,
+      slot: number,
+      hide: boolean,
+    ) => {
+      displacedVertexPosition(vertices, vertexIndex, blobParams, _dummy.position);
+      _worldPos.copy(_dummy.position);
+      if (group) group.localToWorld(_worldPos);
+      const dist = state.camera.position.distanceTo(_worldPos);
+      const visualScale =
+        pointRadius *
+        BLOB_POINT_SCALE_MUL *
+        COLORED_SPARK_RADIUS_MUL *
+        coloredDotsTuning.glowScaleMul *
+        depthSizeMultiplier(
+          dist,
+          sizeNear,
+          sizeFar,
+          params.depthSizeMinMul,
+          params.depthSizeMaxMul,
+        );
+      scales[vertexIndex] = visualScale;
+
+      if (hide) {
+        _dummy.scale.set(0, 0, 0);
+      } else {
+        _dummy.scale.set(visualScale, visualScale, 1);
+        _cameraLocal.copy(state.camera.position);
+        if (group) group.worldToLocal(_cameraLocal);
+        _dummy.lookAt(_cameraLocal);
+      }
+      _dummy.updateMatrix();
+      mesh.setMatrixAt(slot, _dummy.matrix);
+    };
+
     const writeOpacity = (
       mesh: THREE.InstancedMesh,
       vertexIndex: number,
@@ -250,43 +273,25 @@ export function BlobPointCloud({
 
     if (coloredMix > 0.001) {
       for (let ci = 0; ci < CURATORS.length; ci++) {
-        const mesh = curatorMeshRefs.current[ci];
-        const glowMesh = curatorGlowMeshRefs.current[ci];
+        const mesh = curatorSparkMeshRefs.current[ci];
         const bucket = curatorBuckets.buckets[ci]!;
         if (!mesh) continue;
 
         ensureInstanceOpacityBuffer(mesh, bucket.length);
-        if (glowMesh) ensureInstanceOpacityBuffer(glowMesh, bucket.length);
 
         for (let slot = 0; slot < bucket.length; slot++) {
           const vertexIndex = bucket[slot]!;
           const hidden = zoneUsed.has(vertexIndex);
-          writeInstance(mesh, vertexIndex, slot, BLOB_POINT_SCALE_MUL, hidden);
+          writeColoredSparkInstance(mesh, vertexIndex, slot, hidden);
           writeOpacity(mesh, vertexIndex, slot, coloredMix);
-          if (glowMesh) {
-            writeInstance(
-              glowMesh,
-              vertexIndex,
-              slot,
-              BLOB_POINT_SCALE_MUL * coloredDotsTuning.glowScaleMul,
-              hidden,
-            );
-            writeOpacity(glowMesh, vertexIndex, slot, coloredMix);
-          }
         }
         mesh.count = bucket.length;
         mesh.instanceMatrix.needsUpdate = true;
-        if (glowMesh) {
-          glowMesh.count = bucket.length;
-          glowMesh.instanceMatrix.needsUpdate = true;
-        }
       }
     } else {
       for (let ci = 0; ci < CURATORS.length; ci++) {
-        const mesh = curatorMeshRefs.current[ci];
-        const glowMesh = curatorGlowMeshRefs.current[ci];
+        const mesh = curatorSparkMeshRefs.current[ci];
         if (mesh) mesh.count = 0;
-        if (glowMesh) glowMesh.count = 0;
       }
     }
 
@@ -388,32 +393,19 @@ export function BlobPointCloud({
         renderOrder={RENDER_SPHERE}
       />
       {CURATORS.map((curator, ci) => (
-        <group key={curator.name}>
-          <instancedMesh
-            ref={(mesh) => {
-              curatorGlowMeshRefs.current[ci] = mesh;
-            }}
-            args={[
-              curatorGeos[ci]!,
-              curatorGlowMaterials[ci]!,
-              Math.max(1, curatorBuckets.maxBucketSize),
-            ]}
-            frustumCulled={false}
-            renderOrder={RENDER_SPHERE - 1}
-          />
-          <instancedMesh
-            ref={(mesh) => {
-              curatorMeshRefs.current[ci] = mesh;
-            }}
-            args={[
-              curatorGeos[ci]!,
-              curatorMaterials[ci]!,
-              Math.max(1, curatorBuckets.maxBucketSize),
-            ]}
-            frustumCulled={false}
-            renderOrder={RENDER_SPHERE}
-          />
-        </group>
+        <instancedMesh
+          key={curator.name}
+          ref={(mesh) => {
+            curatorSparkMeshRefs.current[ci] = mesh;
+          }}
+          args={[
+            sparkGeo,
+            curatorSparkMaterials[ci]!,
+            Math.max(1, curatorBuckets.maxBucketSize),
+          ]}
+          frustumCulled={false}
+          renderOrder={RENDER_SPHERE}
+        />
       ))}
       <instancedMesh
         ref={debugPickableMeshRef}

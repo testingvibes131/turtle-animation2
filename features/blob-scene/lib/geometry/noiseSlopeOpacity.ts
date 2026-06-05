@@ -1,5 +1,8 @@
-import type { IcosahedronVertexData, PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
-import { perlinDisplacement } from "@/features/blob-scene/lib/geometry/perlin";
+import {
+  blobDisplacement,
+  type IcosahedronVertexData,
+  type PerlinBlobParams,
+} from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 /** Displacement along vertex normal (same as blob surface). */
 export function vertexNoiseDisplacement(
@@ -8,14 +11,11 @@ export function vertexNoiseDisplacement(
   params: PerlinBlobParams,
 ): number {
   const i3 = index * 3;
-  return perlinDisplacement(
+  return blobDisplacement(
     vertices.positions[i3]!,
     vertices.positions[i3 + 1]!,
     vertices.positions[i3 + 2]!,
-    params.time,
-    params.noiseScale,
-    params.displacementDivisor,
-    params.perlinPeriod,
+    params,
   );
 }
 

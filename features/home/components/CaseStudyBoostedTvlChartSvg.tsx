@@ -62,6 +62,26 @@ export function CaseStudyBoostedTvlChartSvg({
               <g className="bar-grow" data-index={index}>
                 <rect width={barWidth} height={bar.height} fill={`url(#${gradientId})`} />
                 <line
+                  className="bar-side-stroke"
+                  x1={0}
+                  y1={0}
+                  x2={0}
+                  y2={bar.height}
+                  stroke={bar.chartColor}
+                  strokeWidth={0.85}
+                  strokeDasharray="4 3"
+                />
+                <line
+                  className="bar-side-stroke"
+                  x1={barWidth}
+                  y1={0}
+                  x2={barWidth}
+                  y2={bar.height}
+                  stroke={bar.chartColor}
+                  strokeWidth={0.85}
+                  strokeDasharray="4 3"
+                />
+                <line
                   className="bar-top-stroke"
                   x1={0}
                   y1={0}

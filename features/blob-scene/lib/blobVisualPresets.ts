@@ -20,7 +20,19 @@ const BASE = {
   debugHoverZone: false,
 } as const;
 
-/** Option 1 — section 2 hover interaction with hub plexus lines. */
+/**
+ * Section 1 hero — sparse exploded cloud: broad lobes, strong outward spread.
+ */
+const SECTION_1_NOISE = {
+  radius: 0.8,
+  noiseScale: 3.95,
+  displacementDivisor: 31,
+  perlinPeriod: 0.8,
+  noiseSlopeMinOpacity: 0.38,
+  noiseSlopeMaxOpacity: 0.88,
+} as const;
+
+/** Option 1 — section 2 (unchanged original tuning). */
 export const CONNECTED_LINES_PARAMS = {
   ...BASE,
   frontMinDot: 0.35,
@@ -34,9 +46,10 @@ export const CONNECTED_LINES_PARAMS = {
   lineOpacity: 0.85,
 } as const satisfies Omit<BlobVisualParams, "time">;
 
-/** Option 2 — section 1 colored blob only; section 2 matches connected-lines. */
+/** Option 2 — section 1 colored blob; section 2 uses connected-lines as-is. */
 export const SECTION_1_BLOB_PARAMS = {
   ...BASE,
+  ...SECTION_1_NOISE,
   frontMinDot: 0.55,
   clusterMaxAngleDeg: 20,
   blobCenterLean: 0.4,

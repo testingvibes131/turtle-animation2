@@ -1,7 +1,7 @@
 "use client";
 
 import { Leva } from "leva";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
 import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
@@ -11,6 +11,7 @@ import {
   blobInteractionEnabledFromScroll,
   blobRuntimeSetup,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
+import { resolveBlobRuntimeParams } from "@/features/blob-scene/lib/blobRuntimeParams";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
@@ -55,6 +56,11 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const [coloredToGrayMix, setColoredToGrayMix] = useState(() =>
     levaSetup === "section-1-blob" ? 0 : 1,
   );
+  const runtimeParams = useMemo(
+    () => resolveBlobRuntimeParams(params, levaSetup, coloredToGrayMix),
+    [coloredToGrayMix, levaSetup, params],
+  );
+
   const heroShowcaseActive =
     runtimeSetup === "connected-lines" &&
     blobHeroShowcaseActive(scrollProgress, interactionEnabled);
@@ -124,7 +130,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
             transitionTuning={transition}
             coloredDotsTuning={coloredDots}
           >
-            <BlobExperience params={params} />
+            <BlobExperience params={runtimeParams} />
           </BlobScrollProgressProvider>
         </div>
       </div>

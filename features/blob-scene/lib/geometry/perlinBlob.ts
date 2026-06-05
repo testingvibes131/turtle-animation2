@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+import { organicDisplacement } from "@/features/blob-scene/lib/geometry/organicDisplacement";
 import { perlinDisplacement } from "@/features/blob-scene/lib/geometry/perlin";
 
 export type PerlinBlobParams = {
@@ -10,6 +11,8 @@ export type PerlinBlobParams = {
   displacementDivisor: number;
   perlinPeriod: number;
   time: number;
+  /** 0 = organic simplex fBm, 1 = classic perlin (smooth crossfade during scroll). */
+  displacementBlend?: number;
 };
 
 export type IcosahedronVertexData = {
@@ -42,6 +45,73 @@ export function createIcosahedronVertices(
 
 const _pos = new THREE.Vector3();
 
+function smoothstep01(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
+}
+
+export function blobDisplacement(
+  x: number,
+  y: number,
+  z: number,
+  params: PerlinBlobParams,
+): number {
+  const {
+    time,
+    noiseScale,
+    displacementDivisor,
+    perlinPeriod,
+    displacementBlend = 1,
+  } = params;
+
+  const blend = smoothstep01(displacementBlend);
+
+  if (blend <= 0.001) {
+    return organicDisplacement(
+      x,
+      y,
+      z,
+      time,
+      noiseScale,
+      displacementDivisor,
+      perlinPeriod,
+    );
+  }
+
+  if (blend >= 0.999) {
+    return perlinDisplacement(
+      x,
+      y,
+      z,
+      time,
+      noiseScale,
+      displacementDivisor,
+      perlinPeriod,
+    );
+  }
+
+  const organic = organicDisplacement(
+    x,
+    y,
+    z,
+    time,
+    noiseScale,
+    displacementDivisor,
+    perlinPeriod,
+  );
+  const perlin = perlinDisplacement(
+    x,
+    y,
+    z,
+    time,
+    noiseScale,
+    displacementDivisor,
+    perlinPeriod,
+  );
+
+  return organic * (1 - blend) + perlin * blend;
+}
+
 export function displacedVertexPosition(
   vertices: IcosahedronVertexData,
   index: number,
@@ -56,15 +126,7 @@ export function displacedVertexPosition(
   const ny = vertices.normals[i3 + 1]!;
   const nz = vertices.normals[i3 + 2]!;
 
-  const disp = perlinDisplacement(
-    x,
-    y,
-    z,
-    params.time,
-    params.noiseScale,
-    params.displacementDivisor,
-    params.perlinPeriod,
-  );
+  const disp = blobDisplacement(x, y, z, params);
 
   return target.set(x + nx * disp, y + ny * disp, z + nz * disp);
 }

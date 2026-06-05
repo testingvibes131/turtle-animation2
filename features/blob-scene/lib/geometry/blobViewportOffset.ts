@@ -60,7 +60,7 @@ export function computeBlobOffsetXForScroll(
 }
 
 /** Hero (section 1) scale; section 2 uses 1. */
-export const BLOB_HERO_SCALE = 1.35;
+export const BLOB_HERO_SCALE = 1.4;
 
 /** Full Y-axis turn while scrolling hero → section 2. */
 export const BLOB_SCROLL_ROTATION_Y = Math.PI * 2;
