@@ -26,10 +26,7 @@ export function BackedBy() {
         </RevealOnScroll>
       </div>
 
-      <div
-        className="partner-rows mt-[clamp(40px,5vw,80px)] flex w-full flex-col"
-        style={{ gap: "clamp(10px, 1vw, 16px)" }}
-      >
+      <div className="partner-rows mt-[clamp(40px,5vw,80px)] flex w-full flex-col">
         <PartnerMarqueeRow partners={backedByRow1} direction="left" />
         <PartnerMarqueeRow partners={backedByRow2} direction="right" phaseCycle={1 / 3} />
         <PartnerMarqueeRow partners={backedByRow3} direction="left" phaseCycle={2 / 3} />

@@ -45,10 +45,9 @@ export function PartnerMarqueeRow({
             <Image
               src={partner.src}
               alt={partner.hidden ? "" : partner.alt}
-              width={139}
-              height={64}
+              width={189}
+              height={105}
               className="partner-logo"
-              data-logo={partner.logoKey}
             />
           </div>
         ))}

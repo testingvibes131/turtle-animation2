@@ -102,6 +102,16 @@ body {
   gap: var(--section-intro-copy-gap);
 }
 
+/* Hero: tight title → tagline; slightly more tagline → CTAs */
+.section-intro.hero-intro {
+  gap: 0;
+}
+
+.section-intro.hero-intro > p {
+  margin-top: clamp(6px, 0.55vw, 8px);
+}
+
+
 /* ---------- horizontal logo marquee ---------- */
 .logo-marquee {
   overflow: hidden;
@@ -125,7 +135,7 @@ body {
   display: flex;
   align-items: center;
   width: max-content;
-  gap: clamp(28px, 4vw, 56px);
+  gap: 100px;
   animation: logo-marquee-scroll 54s linear infinite;
   will-change: transform;
 }
@@ -176,8 +186,8 @@ body {
   /* Mobile: modest lift above card tops */
   --pipeline-visual-overlap: clamp(88px, 11vh, 116px);
   --pipeline-visual-lift: clamp(40px, 6vh, 88px);
-  --pipeline-visual-width: clamp(580px, 96vw, 1080px);
-  --pipeline-visual-max-h: clamp(374px, 52.7vh, 663px);
+  --pipeline-visual-width: clamp(638px, 105.6vw, 1188px);
+  --pipeline-visual-max-h: clamp(411px, 58vh, 729px);
   --pipeline-visual-scale: 1;
   --pipeline-visual-offset-y: 0px;
   --pipeline-visual-top: auto;
@@ -268,7 +278,7 @@ body {
     bottom: auto;
     left: auto;
     z-index: 0;
-    width: min(229px, 63.8vw);
+    width: min(252px, 70.2vw);
     max-height: none;
     margin-inline: auto;
     flex-shrink: 0;
@@ -417,7 +427,8 @@ body {
   }
 
   .pipeline-stage-inner {
-    padding-block: clamp(12px, 2vh, 28px);
+    padding-top: clamp(12px, 2vh, 28px);
+    padding-bottom: clamp(32px, 5vh, 64px);
   }
 
   .pipeline-stage-header {
@@ -431,9 +442,9 @@ body {
     /* Anchor ~mid-card (red-line reference); PNG baseline via object-bottom + offset */
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.72);
     --pipeline-visual-offset-y: 0px;
-    --pipeline-visual-width: clamp(640px, 64vw, 1180px);
+    --pipeline-visual-width: clamp(704px, 70.4vw, 1298px);
     /* 72dvh drives height; avoid a low px cap (was blocking dvh tweaks) */
-    --pipeline-visual-max-h: min(61.2dvh, calc((100dvh - 10.5rem) * 0.85));
+    --pipeline-visual-max-h: min(67.3dvh, calc((100dvh - 10.5rem) * 0.935));
   }
 
   .pipeline-stage-inner .pipeline-cards {
@@ -446,8 +457,8 @@ body {
   .pipeline-stage-main {
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.68);
     --pipeline-visual-offset-y: 0px;
-    --pipeline-visual-width: clamp(560px, 58vw, 1040px);
-    --pipeline-visual-max-h: min(57.8dvh, calc((100dvh - 9.5rem) * 0.85));
+    --pipeline-visual-width: clamp(616px, 63.8vw, 1144px);
+    --pipeline-visual-max-h: min(63.6dvh, calc((100dvh - 9.5rem) * 0.935));
   }
 }
 
@@ -456,8 +467,15 @@ body {
   .pipeline-stage-main {
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.74);
     --pipeline-visual-offset-y: 0px;
-    --pipeline-visual-width: clamp(720px, 68vw, 1280px);
-    --pipeline-visual-max-h: min(61.2dvh, calc((100dvh - 10.5rem) * 0.85));
+    --pipeline-visual-width: clamp(792px, 74.8vw, 1408px);
+    --pipeline-visual-max-h: min(67.3dvh, calc((100dvh - 10.5rem) * 0.935));
+  }
+}
+
+/* 2K+ / tall desktop — grow image height with viewport to close title gap */
+@media (min-width: 2000px) and (min-height: 1100px) {
+  .pipeline-stage-main {
+    --pipeline-visual-max-h: min(80dvh, calc(100dvh - 13.5rem));
   }
 }
 
@@ -569,6 +587,16 @@ body {
 }
 
 /* ---------- partner marquees ---------- */
+.partner-rows {
+  --partner-card-width: 189px;
+  --partner-card-height: 105px;
+  --partner-card-gap-x: 20px;
+  --partner-card-gap-y: 20px;
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--partner-card-gap-y);
+}
+
 .partner-marquee {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
@@ -591,7 +619,7 @@ body {
   display: flex;
   width: max-content;
   align-items: center;
-  gap: clamp(13px, 1.3vw, 21px);
+  column-gap: var(--partner-card-gap-x);
   animation: partner-marquee-scroll linear infinite;
   will-change: transform;
 }
@@ -616,39 +644,18 @@ body {
   justify-content: center;
   background: #191a19;
   border: 1px dashed #2a2a2a;
-  border-radius: clamp(8px, 0.8vw, 10px);
-  width: clamp(102px, 11.5vw, 139px);
-  height: clamp(46px, 5.1vw, 64px);
+  border-radius: 10px;
+  width: var(--partner-card-width);
+  height: var(--partner-card-height);
   overflow: hidden;
-  padding: 8px;
+  padding: 14px;
 }
 
 .partner-logo {
-  max-height: clamp(15px, 1.7vw, 24px);
-  max-width: 80%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   opacity: 0.9;
-}
-
-.partner-logo[data-logo="sig"],
-.partner-logo[data-logo="frachtis"],
-.partner-logo[data-logo="moonhill"],
-.partner-logo[data-logo="trident"],
-.partner-logo[data-logo="fivet"] {
-  max-height: clamp(10px, 1.1vw, 15px);
-  max-width: 62%;
-}
-
-.partner-logo[data-logo="selini"] {
-  max-height: clamp(19px, 2.1vw, 30px);
-  max-width: 85%;
-}
-
-.partner-logo[data-logo="l2iv"] {
-  max-height: clamp(11px, 1.2vw, 17px);
-  max-width: 55%;
 }
 
 
@@ -1009,15 +1016,13 @@ body > [class*="leva-c-"] {
 
 .footer-wordmark-wrap {
   width: 100%;
-  overflow: hidden;
 }
 
 .footer-wordmark-svg {
   display: block;
-  width: 112vw;
-  margin-left: -6vw;
+  width: 100%;
+  max-width: 100%;
   height: auto;
-  opacity: 0.45;
 }
 
 .footer-legal {

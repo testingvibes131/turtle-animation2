@@ -30,12 +30,12 @@ export function DeFiCta() {
             <CtaPill
               href="#"
               label="For Investors"
-              className="min-w-0 shrink rounded-[30px] py-[5px] pl-3 pr-[5px] max-lg:[&>span:first-child]:text-sm max-lg:[&>span:last-child]:size-8 lg:pl-5 lg:[&>span:first-child]:text-lg lg:[&>span:last-child]:size-10"
+              className="min-w-0 shrink rounded-[30px] py-3 pl-5 pr-1.5 max-lg:[&>span:first-child]:text-sm max-lg:[&>span:last-child]:size-8 lg:pl-6 lg:[&>span:first-child]:text-lg lg:[&>span:last-child]:size-10"
             />
             <CtaPill
               href="#"
               label="For Asset Issuers"
-              className="min-w-0 shrink rounded-[30px] py-[5px] pl-3 pr-[5px] max-lg:[&>span:first-child]:text-sm max-lg:[&>span:last-child]:size-8 lg:pl-5 lg:[&>span:first-child]:text-lg lg:[&>span:last-child]:size-10"
+              className="min-w-0 shrink rounded-[30px] py-3 pl-5 pr-1.5 max-lg:[&>span:first-child]:text-sm max-lg:[&>span:last-child]:size-8 lg:pl-6 lg:[&>span:first-child]:text-lg lg:[&>span:last-child]:size-10"
             />
           </div>
         </SectionIntro>

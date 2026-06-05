@@ -18,7 +18,7 @@ export function Pipeline() {
   return (
     <section
       ref={sectionRef}
-      className="scroll-stage pipeline-stage relative mx-auto w-full max-w-[1728px] px-6 py-[clamp(36px,4vw,64px)] md:px-10 lg:px-[100px] lg:py-0"
+      className="scroll-stage pipeline-stage relative mx-auto w-full max-w-[1728px] px-6 pt-[clamp(36px,4vw,64px)] pb-[clamp(56px,8vw,96px)] md:px-10 lg:px-[100px] lg:pt-0 lg:pb-0"
     >
       <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
         <RevealOnScroll className="pipeline-stage-header shrink-0 max-lg:pt-0 lg:pt-14">
@@ -57,7 +57,7 @@ export function Pipeline() {
                 }}
                 role="button"
                 tabIndex={0}
-                className="pipeline-card group flex cursor-pointer flex-col items-start justify-between rounded-2xl border border-white/10"
+                className="pipeline-card group flex cursor-pointer flex-col items-start gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
                   height: "clamp(160px, 14vw, 209px)",

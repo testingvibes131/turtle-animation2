@@ -6,7 +6,7 @@ export type BackedByPartner = {
 
 function partner(filename: string, alt: string, logoKey?: string): BackedByPartner {
   return {
-    src: `/partners/${encodeURIComponent(filename)}`,
+    src: `/logos-marquee/${encodeURIComponent(filename)}`,
     alt,
     logoKey:
       logoKey ??
@@ -18,41 +18,45 @@ function partner(filename: string, alt: string, logoKey?: string): BackedByPartn
 }
 
 export const backedByRow1: BackedByPartner[] = [
-  partner("SIG.svg", "SIG", "sig"),
-  partner("Amber 1.svg", "Amber"),
-  partner("Archimed-Capital 1.svg", "Archimed Capital"),
-  partner("Auros 1.svg", "Auros"),
-  partner("Bohdi.svg", "Bohdi"),
-  partner("ChorusOne.svg", "Chorus One"),
-  partner("Consensys.svg", "Consensys", "consensys"),
-  partner("FalconX 1.svg", "FalconX"),
-  partner("Fasanara 1.svg", "Fasanara"),
-  partner("Figment 1.svg", "Figment"),
+  partner("SIG.png", "SIG", "sig"),
+  partner("Amber.png", "Amber"),
+  partner("Archimed.png", "Archimed Capital"),
+  partner("AUROS.png", "Auros"),
+  partner("Frame 2147238830.png", "Bodhi Ventures", "bodhi"),
+  partner("ChorusOne.png", "Chorus One"),
+  partner("Consnsys.png", "Consensys", "consensys"),
+  partner("FalconX.png", "FalconX"),
+  partner("Frame 2147238834.png", "Fasanara", "fasanara"),
+  partner("Figment.png", "Figment"),
+  partner("Flowdesk.png", "Flowdesk"),
+  partner("Fratchis.png", "Frachtis", "frachtis"),
 ];
 
 export const backedByRow2: BackedByPartner[] = [
-  partner("Fratchis 1.svg", "Frachtis", "frachtis"),
-  partner("GSR.svg", "GSR"),
-  partner("Gami-Capital 1.svg", "Gami Capital"),
-  partner("Group 1321314620.svg", "FiveT", "fivet"),
-  partner("L2-Iterative-Ventures 1.svg", "L2 Iterative Ventures", "l2iv"),
-  partner("Moonhill 1.svg", "Moonhill Capital", "moonhill"),
-  partner("Reflexive 1.svg", "Reflexive"),
-  partner("Relay 1.svg", "Relay"),
-  partner("Selini.svg", "Selini", "selini"),
-  partner("Shorewoods 1.svg", "Shorewood"),
+  partner("Game.png", "Gami Capital", "gami"),
+  partner("GSR.png", "GSR"),
+  partner("L2iv.png", "L2 Iterative Ventures", "l2iv"),
+  partner("Laser.png", "Laser Digital", "laser"),
+  partner("Moonhill.png", "Moonhill Capital", "moonhill"),
+  partner("North.png", "North Rock Digital", "north"),
+  partner("re7.png", "Re7 Capital", "re7"),
+  partner("Reflexive.png", "Reflexive"),
+  partner("Relay.png", "Relay"),
+  partner("Selini.png", "Selini", "selini"),
+  partner("Shorewoods.png", "Shorewood"),
 ];
 
 export const backedByRow3: BackedByPartner[] = [
-  partner("SNZ 1.svg", "SNZ"),
-  partner("Spartan 1.svg", "Spartan"),
-  partner("TowerCapital 1.svg", "Tower Capital"),
-  partner("Trident 1.svg", "Trident Digital", "trident"),
-  partner("Triton 1.svg", "Triton"),
-  partner("VarysCapital 1.svg", "Varys Capital"),
-  partner("white_logo_no_padding 1.svg", "Vector", "vector"),
-  partner("bitscale 2.svg", "Bitscale"),
-  partner("coinix 1.svg", "Coinix"),
-  partner("crypto-com-1 1.svg", "Crypto.com"),
-  partner("flowdesk 1.svg", "Flowdesk"),
+  partner("SNZ.png", "SNZ"),
+  partner("Spartan.png", "Spartan"),
+  partner("Theia.png", "Theia"),
+  partner("TowerCapital.png", "Tower Capital"),
+  partner("Trident.png", "Trident Digital", "trident"),
+  partner("Triton.png", "Triton"),
+  partner("VARYS.png", "Varys Capital", "varys"),
+  partner("W3.png", "FiveT", "fivet"),
+  partner("white_logo_no_padding 2.png", "Anchorage Digital", "anchorage"),
+  partner("Bitscale.png", "Bitscale"),
+  partner("coinix.png", "Coinix"),
+  partner("Crypto.com.png", "Crypto.com"),
 ];

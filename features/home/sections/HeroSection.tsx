@@ -14,17 +14,25 @@ export function HeroSection() {
           <RevealOnScroll className="w-full text-center lg:text-left">
             <SectionIntro
               width="none"
-              className="items-center lg:items-start"
+              className="hero-intro items-center lg:items-start"
             >
-              <h1 className="w-full overflow-visible bg-clip-text pb-[0.1em] text-4xl font-normal leading-[1.1] tracking-[0.4px] text-transparent text-gradient-heading lg:text-6xl">
+              <h1 className="w-full overflow-visible bg-clip-text text-4xl font-normal leading-[1.1] tracking-[0.4px] text-transparent text-gradient-heading lg:text-6xl">
                 Onchain Yield Management
               </h1>
               <p className="bg-clip-text text-2xl font-normal leading-[1.3] text-transparent text-gradient-heading">
                 Aggregated, Diligenced, Personalized
               </p>
-              <div className="pointer-events-auto flex flex-wrap justify-center gap-2 lg:justify-start">
-                <CtaPill href="#" label="For Investors" />
-                <CtaPill href="#" label="For Asset Issuers" />
+              <div className="pointer-events-auto mt-6 flex flex-wrap justify-center gap-2 lg:mt-7 lg:justify-start">
+                <CtaPill
+                  href="#"
+                  label="For Investors"
+                  className="py-3 pl-5 pr-1.5"
+                />
+                <CtaPill
+                  href="#"
+                  label="For Asset Issuers"
+                  className="py-3 pl-5 pr-1.5"
+                />
               </div>
             </SectionIntro>
           </RevealOnScroll>

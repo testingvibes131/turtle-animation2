@@ -352,22 +352,12 @@ export function CaseStudies() {
                     style={{ paddingBottom: "clamp(2px, 0.25vw, 6px)" }}
                   >
                     {sortAprBadgesByApy(activeStudy.boosted.badges).map((apr) => (
-                      <div
-                        key={apr.src}
-                        className="flex min-w-0 items-center"
-                        style={{ gap: 4 }}
+                      <span
+                        key={apr.label}
+                        className="max-lg:text-[6px] min-w-0 truncate font-medium leading-[1.2] text-stone-50 lg:text-[clamp(9px,0.75vw,11px)]"
                       >
-                        <Image
-                          src={apr.src}
-                          alt=""
-                          width={15}
-                          height={15}
-                          className="size-3 shrink-0 rounded-full lg:size-[14.4px]"
-                        />
-                        <span className="max-lg:text-[6px] truncate font-medium leading-[1.2] text-stone-50 lg:text-[clamp(9px,0.75vw,11px)]">
-                          {apr.label}
-                        </span>
-                      </div>
+                        {apr.label}
+                      </span>
                     ))}
                   </div>
                 ) : null}
