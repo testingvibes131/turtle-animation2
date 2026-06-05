@@ -1,11 +1,24 @@
+import type { CaseStudy, CaseStudyAprBadge } from "@/features/home/data/caseStudies";
+import {
+  BOOSTED_CHART_VIEWBOX,
+  buildBoostedChartBars,
+  boostedBarTopY,
+} from "@/features/home/lib/caseStudyBoostedChart";
+
 type CaseStudyBoostedTvlChartSvgProps = {
   className?: string;
+  chartId: CaseStudy["id"];
+  badges: CaseStudyAprBadge[];
 };
 
-/** Boosted TVL bar chart — CSS in globals (.bar-grow under .case-cards). */
+/** Boosted TVL bar chart — bar height ∝ APY; CSS in globals (.bar-grow under .case-cards). */
 export function CaseStudyBoostedTvlChartSvg({
   className,
+  chartId,
+  badges,
 }: CaseStudyBoostedTvlChartSvgProps) {
+  const { bars, barWidth } = buildBoostedChartBars(badges);
+
   return (
     <div
       className={[
@@ -18,48 +31,50 @@ export function CaseStudyBoostedTvlChartSvg({
     >
       <svg
         className="boost-bars absolute inset-0 h-full w-full"
-        viewBox="0 0 384 192"
+        viewBox={`0 0 ${BOOSTED_CHART_VIEWBOX.width} ${BOOSTED_CHART_VIEWBOX.height}`}
         preserveAspectRatio="none"
         aria-hidden
       >
         <defs>
-          <linearGradient id="case-study-bar-amber" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.28} />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="case-study-bar-red" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.28} />
-            <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="case-study-bar-blue" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#1d4ed8" stopOpacity={0.32} />
-            <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0} />
-          </linearGradient>
+          {bars.map((bar, index) => {
+            const gradientId = `case-study-bar-${chartId}-${index}`;
+            return (
+              <linearGradient
+                key={gradientId}
+                id={gradientId}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+                gradientUnits="objectBoundingBox"
+              >
+                <stop offset="0%" stopColor={bar.chartColor} stopOpacity={0.45} />
+                <stop offset="55%" stopColor={bar.chartColor} stopOpacity={0.12} />
+                <stop offset="100%" stopColor={bar.chartColor} stopOpacity={0} />
+              </linearGradient>
+            );
+          })}
         </defs>
-        <g transform="translate(12 130)">
-          <g className="bar-grow" data-color="amber">
-            <rect width={116} height={62} fill="url(#case-study-bar-amber)" />
-            <line x1={0} y1={0} x2={116} y2={0} stroke="#f59e0b" strokeWidth={2.4} />
-            <line x1={0} y1={0} x2={0} y2={62} stroke="#f59e0b" strokeWidth={1.2} />
-            <line x1={116} y1={0} x2={116} y2={62} stroke="#f59e0b" strokeWidth={1.2} />
-          </g>
-        </g>
-        <g transform="translate(132 100)">
-          <g className="bar-grow" data-color="red">
-            <rect width={116} height={92} fill="url(#case-study-bar-red)" />
-            <line x1={0} y1={0} x2={116} y2={0} stroke="#ef4444" strokeWidth={2.4} />
-            <line x1={0} y1={0} x2={0} y2={92} stroke="#ef4444" strokeWidth={1.2} />
-            <line x1={116} y1={0} x2={116} y2={92} stroke="#ef4444" strokeWidth={1.2} />
-          </g>
-        </g>
-        <g transform="translate(252 60)">
-          <g className="bar-grow" data-color="blue">
-            <rect width={116} height={132} fill="url(#case-study-bar-blue)" />
-            <line x1={0} y1={0} x2={116} y2={0} stroke="#1d4ed8" strokeWidth={2.4} />
-            <line x1={0} y1={0} x2={0} y2={132} stroke="#1d4ed8" strokeWidth={1.2} />
-            <line x1={116} y1={0} x2={116} y2={132} stroke="#1d4ed8" strokeWidth={1.2} />
-          </g>
-        </g>
+        {bars.map((bar, index) => {
+          const gradientId = `case-study-bar-${chartId}-${index}`;
+          return (
+            <g key={bar.src} transform={`translate(${bar.x} ${boostedBarTopY(bar.height)})`}>
+              <g className="bar-grow" data-index={index}>
+                <rect width={barWidth} height={bar.height} fill={`url(#${gradientId})`} />
+                <line
+                  className="bar-top-stroke"
+                  x1={0}
+                  y1={0}
+                  x2={barWidth}
+                  y2={0}
+                  stroke={bar.chartColor}
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                />
+              </g>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );

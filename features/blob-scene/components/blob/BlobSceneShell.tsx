@@ -11,7 +11,6 @@ import {
   useBlobScrollProgress,
   useBlobTransitionTuning,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import {
   blobVisualExtent,
   computeBlobScrollMotion,
@@ -26,19 +25,14 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
   const transitionTuning = useBlobTransitionTuning();
   const rotationEnabled = useBlobInteractionEnabled();
   const scrollMotion = useMemo(() => {
-    const extent = blobVisualExtent(
-      applyTransitionDistort(
-        { ...params, time: 0 },
-        coloredToGrayMix,
-        transitionTuning.distortPeakMul,
-      ),
-    );
+    const layoutExtent = blobVisualExtent(params);
     return computeBlobScrollMotion(
       camera as THREE.PerspectiveCamera,
       size.width / Math.max(size.height, 1),
-      extent,
+      layoutExtent,
       scrollProgress,
       rotationEnabled,
+      coloredToGrayMix,
     );
   }, [
     camera,
@@ -46,7 +40,6 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
     params,
     rotationEnabled,
     scrollProgress,
-    transitionTuning.distortPeakMul,
     size.height,
     size.width,
   ]);

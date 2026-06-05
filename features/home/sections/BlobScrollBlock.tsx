@@ -12,11 +12,6 @@ import {
   blobRuntimeSetup,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
-import {
-  SCROLL_VELOCITY_DECAY,
-  SCROLL_VELOCITY_IDLE_MS,
-  SCROLL_VELOCITY_ZERO_EPS,
-} from "@/features/blob-scene/lib/scroll/blobScrollVelocity";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
 
@@ -52,9 +47,6 @@ function computeBlobScrollProgress(
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const { setup: levaSetup, params, transition, coloredDots } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
-  const scrollVelocityRef = useRef(0);
-  const lastScrollSampleRef = useRef({ scrolled: 0, time: 0 });
-  const lastVelocityUpdateRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
   const [runtimeSetup, setRuntimeSetup] = useState<BlobSetupId>(() =>
@@ -86,18 +78,6 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const heroScroll = hero?.offsetHeight ?? window.innerHeight;
       const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
       const scrolled = -block.getBoundingClientRect().top;
-      const now = performance.now();
-      const last = lastScrollSampleRef.current;
-
-      if (last.time > 0) {
-        const dt = (now - last.time) / 1000;
-        if (dt > 0 && dt < 0.25) {
-          scrollVelocityRef.current = (scrolled - last.scrolled) / dt;
-          lastVelocityUpdateRef.current = now;
-        }
-      }
-
-      lastScrollSampleRef.current = { scrolled, time: now };
 
       const metrics = { scrolled, heroScroll, section2Scroll };
       const isMobile = mobileQuery.matches;
@@ -114,24 +94,11 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       );
     };
 
-    let decayRaf = 0;
-    const decayScrollVelocity = (time: number) => {
-      if (time - lastVelocityUpdateRef.current > SCROLL_VELOCITY_IDLE_MS) {
-        scrollVelocityRef.current *= SCROLL_VELOCITY_DECAY;
-        if (Math.abs(scrollVelocityRef.current) < SCROLL_VELOCITY_ZERO_EPS) {
-          scrollVelocityRef.current = 0;
-        }
-      }
-      decayRaf = requestAnimationFrame(decayScrollVelocity);
-    };
-
     updateScroll();
-    decayRaf = requestAnimationFrame(decayScrollVelocity);
     window.addEventListener("scroll", updateScroll, { passive: true });
     window.addEventListener("resize", updateScroll);
     mobileQuery.addEventListener("change", updateScroll);
     return () => {
-      cancelAnimationFrame(decayRaf);
       window.removeEventListener("scroll", updateScroll);
       window.removeEventListener("resize", updateScroll);
       mobileQuery.removeEventListener("change", updateScroll);
@@ -154,7 +121,6 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
             interactionEnabled={interactionEnabled}
             blobSetup={runtimeSetup}
             coloredToGrayMix={coloredToGrayMix}
-            scrollVelocityRef={scrollVelocityRef}
             transitionTuning={transition}
             coloredDotsTuning={coloredDots}
           >

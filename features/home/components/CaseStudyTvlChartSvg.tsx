@@ -1,9 +1,24 @@
+import type { CaseStudy } from "@/features/home/data/caseStudies";
+import {
+  TVL_LINE_PATHS,
+  tvlAreaPath,
+} from "@/features/home/lib/caseStudyTvlChartPaths";
+
+type CaseStudyTvlChartVariant = CaseStudy["id"];
+
 type CaseStudyTvlChartSvgProps = {
   className?: string;
+  variant?: CaseStudyTvlChartVariant;
 };
 
-/** $50M TVL line chart — CSS in globals (.tvl-line, .tvl-area under .case-cards). */
-export function CaseStudyTvlChartSvg({ className }: CaseStudyTvlChartSvgProps) {
+/** TVL line chart — CSS in globals (.tvl-line, .tvl-area under .case-cards). */
+export function CaseStudyTvlChartSvg({
+  className,
+  variant = "avalanche",
+}: CaseStudyTvlChartSvgProps) {
+  const line = TVL_LINE_PATHS[variant];
+  const fillId = `case-study-tvl-fill-${variant}`;
+
   return (
     <div
       className={[
@@ -21,19 +36,15 @@ export function CaseStudyTvlChartSvg({ className }: CaseStudyTvlChartSvgProps) {
         aria-hidden
       >
         <defs>
-          <linearGradient id="case-study-tvl-fill" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#73F36C" stopOpacity={0.35} />
             <stop offset="100%" stopColor="#73F36C" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <path
-          className="tvl-area"
-          d="M0,150 L18,140 30,120 45,95 60,40 78,55 92,30 110,75 128,60 145,90 162,70 180,110 198,100 215,135 232,115 248,145 265,130 282,90 300,50 320,75 L320,168 L0,168 Z"
-          fill="url(#case-study-tvl-fill)"
-        />
+        <path className="tvl-area" d={tvlAreaPath(line)} fill={`url(#${fillId})`} />
         <path
           className="tvl-line"
-          d="M0,150 L18,140 30,120 45,95 60,40 78,55 92,30 110,75 128,60 145,90 162,70 180,110 198,100 215,135 232,115 248,145 265,130 282,90 300,50 320,75"
+          d={line}
           fill="none"
           stroke="#73F36C"
           strokeWidth={1.5}

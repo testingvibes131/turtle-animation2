@@ -7,7 +7,6 @@ import {
   type BlobSceneContextValue,
 } from "@/features/blob-scene/context/BlobSceneContext";
 import { ActiveCuratorZones } from "@/features/blob-scene/components/curator/ActiveCuratorZones";
-import { CuratorLogoSatellites } from "@/features/blob-scene/components/curator/CuratorLogoSatellites";
 import { BlobPointCloud } from "@/features/blob-scene/components/blob/BlobPointCloud";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { useBlobGeometry } from "@/features/blob-scene/hooks/useBlobGeometry";
@@ -172,7 +171,6 @@ export function BlobSceneContent({
             blobGroupRef={blobGroupRef}
             tickAnimationTime={tickAnimationTime}
           />
-          <CuratorLogoSatellites params={params} />
           <ActiveCuratorZones />
         </group>
       </group>

@@ -28,11 +28,11 @@ export function BackedBy() {
 
       <div
         className="partner-rows mt-[clamp(40px,5vw,80px)] flex w-full flex-col"
-        style={{ gap: "clamp(12px, 1.2vw, 20px)" }}
+        style={{ gap: "clamp(10px, 1vw, 16px)" }}
       >
-        <PartnerMarqueeRow partners={backedByRow1} direction="left" phaseMs={0} />
-        <PartnerMarqueeRow partners={backedByRow2} direction="right" phaseMs={20_000} />
-        <PartnerMarqueeRow partners={backedByRow3} direction="left" phaseMs={40_000} />
+        <PartnerMarqueeRow partners={backedByRow1} direction="left" />
+        <PartnerMarqueeRow partners={backedByRow2} direction="right" phaseCycle={1 / 3} />
+        <PartnerMarqueeRow partners={backedByRow3} direction="left" phaseCycle={2 / 3} />
       </div>
     </section>
   );

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  type MutableRefObject,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 import type {
   BlobColoredDotsTuning,
@@ -27,8 +22,6 @@ type BlobScrollState = {
   blobSetup: BlobSetupId;
   /** 0 = colored dots (S1), 1 = gray dots (S2). Option 1 stays at 1. */
   coloredToGrayMix: number;
-  /** Vertical scroll speed in px/s (updated on scroll, decays when idle). */
-  scrollVelocityRef: MutableRefObject<number>;
   transitionTuning: BlobTransitionTuning;
   coloredDotsTuning: BlobColoredDotsTuning;
 };
@@ -46,15 +39,12 @@ const defaultColoredDotsTuning: BlobColoredDotsTuning = {
   glowOpacity: 0.2,
 };
 
-const defaultScrollVelocityRef = { current: 0 };
-
 const defaultState: BlobScrollState = {
   progress: 1,
   heroShowcaseActive: false,
   interactionEnabled: true,
   blobSetup: "connected-lines",
   coloredToGrayMix: 1,
-  scrollVelocityRef: defaultScrollVelocityRef,
   transitionTuning: defaultTransitionTuning,
   coloredDotsTuning: defaultColoredDotsTuning,
 };
@@ -67,7 +57,6 @@ export function BlobScrollProgressProvider({
   interactionEnabled,
   blobSetup,
   coloredToGrayMix,
-  scrollVelocityRef,
   transitionTuning = defaultTransitionTuning,
   coloredDotsTuning = defaultColoredDotsTuning,
   children,
@@ -77,7 +66,6 @@ export function BlobScrollProgressProvider({
   interactionEnabled: boolean;
   blobSetup: BlobSetupId;
   coloredToGrayMix: number;
-  scrollVelocityRef: MutableRefObject<number>;
   transitionTuning?: BlobTransitionTuning;
   coloredDotsTuning?: BlobColoredDotsTuning;
   children: ReactNode;
@@ -90,7 +78,6 @@ export function BlobScrollProgressProvider({
         interactionEnabled,
         blobSetup,
         coloredToGrayMix,
-        scrollVelocityRef,
         transitionTuning,
         coloredDotsTuning,
       }}
@@ -131,10 +118,6 @@ export function useBlobColoredDots() {
 
 export function useBlobCuratorOverlayEnabled() {
   return useBlobInteractionEnabled();
-}
-
-export function useBlobScrollVelocityRef() {
-  return useContext(BlobScrollProgressContext).scrollVelocityRef;
 }
 
 export function useBlobTransitionTuning() {

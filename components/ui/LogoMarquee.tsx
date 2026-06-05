@@ -13,6 +13,20 @@ type LogoMarqueeProps = {
   repeats?: number;
 };
 
+/** Seconds of animation per item; shared by protocol and partner marquees. */
+export const MARQUEE_ITEM_SEC = 3.5;
+export const MARQUEE_MIN_DURATION_SEC = 48;
+
+/** Half-loop duration for a -50% scroll keyframe (see `setsPerHalfLoop`). */
+export function marqueeDurationSec(
+  itemCount: number,
+  setsPerHalfLoop = 1,
+): number {
+  return Math.max(
+    MARQUEE_MIN_DURATION_SEC,
+    itemCount * MARQUEE_ITEM_SEC * setsPerHalfLoop,
+  );
+}
 /** Maps intrinsic SVG height to a display height in the marquee row. */
 function marqueeDisplayHeight(intrinsicHeight: number): number {
   const referenceHeight = 23;
@@ -33,7 +47,7 @@ function marqueeDisplayHeight(intrinsicHeight: number): number {
 
 export function LogoMarquee({ logos, repeats = 2 }: LogoMarqueeProps) {
   const loopRepeats = Math.max(2, repeats);
-  const durationSec = Math.max(48, logos.length * 3.5);
+  const durationSec = marqueeDurationSec(logos.length);
 
   const track = Array.from({ length: loopRepeats }, (_, setIndex) =>
     logos.map((logo, logoIndex) => ({

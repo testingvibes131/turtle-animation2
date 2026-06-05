@@ -96,7 +96,7 @@ export function useBlobControls(): BlobControls {
       displacementDivisor: {
         value: defaults.displacementDivisor,
         min: 5,
-        max: 80,
+        max: 200,
         step: 1,
       },
       perlinPeriod: {

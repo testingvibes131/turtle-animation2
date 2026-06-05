@@ -1,20 +1,23 @@
 import Image from "next/image";
+import { marqueeDurationSec } from "@/components/ui/LogoMarquee";
 import type { BackedByPartner } from "@/features/home/data/backedByPartners";
 
 type PartnerMarqueeRowProps = {
   partners: BackedByPartner[];
   direction: "left" | "right";
-  /** Negative animation-delay offset (ms) so rows do not reset in sync. */
-  phaseMs?: number;
+  /** Fraction of the animation cycle to offset this row (keeps rows out of sync). */
+  phaseCycle?: number;
 };
 
 export function PartnerMarqueeRow({
   partners,
   direction,
-  phaseMs = 0,
+  phaseCycle = 0,
 }: PartnerMarqueeRowProps) {
+  // Four track copies + -50% keyframe => half-loop spans two partner sets.
+  const durationSec = marqueeDurationSec(partners.length, 2);
   const phaseDelay =
-    phaseMs > 0 ? `${-(phaseMs / 1000)}s` : undefined;
+    phaseCycle > 0 ? `${-(phaseCycle * durationSec)}s` : undefined;
 
   const track = [...partners, ...partners, ...partners, ...partners].map(
     (partner, index) => ({
@@ -28,7 +31,10 @@ export function PartnerMarqueeRow({
     <div className="partner-marquee" data-direction={direction}>
       <div
         className="partner-marquee__track"
-        style={phaseDelay ? { animationDelay: phaseDelay } : undefined}
+        style={{
+          animationDuration: `${durationSec}s`,
+          ...(phaseDelay ? { animationDelay: phaseDelay } : {}),
+        }}
       >
         {track.map((partner) => (
           <div
@@ -39,8 +45,8 @@ export function PartnerMarqueeRow({
             <Image
               src={partner.src}
               alt={partner.hidden ? "" : partner.alt}
-              width={217}
-              height={100}
+              width={139}
+              height={64}
               className="partner-logo"
               data-logo={partner.logoKey}
             />
