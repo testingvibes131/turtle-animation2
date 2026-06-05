@@ -7,6 +7,8 @@ type Props = {
   className?: string;
   contentClassName?: string;
   contentStyle?: CSSProperties;
+  /** Rotate shell 180° so the union waist flips (content stays upright). */
+  flipped?: boolean;
   as?: "article" | "div";
 };
 
@@ -18,6 +20,7 @@ export function UnionCardShell({
   className,
   contentClassName,
   contentStyle,
+  flipped = false,
   as: Tag = "article",
 }: Props) {
   return (
@@ -31,7 +34,12 @@ export function UnionCardShell({
     >
       <svg
         aria-hidden
-        className="pointer-events-none absolute inset-0 size-full"
+        className={[
+          "pointer-events-none absolute inset-0 size-full",
+          flipped ? "rotate-180" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         viewBox={viewBox}
         preserveAspectRatio="none"
       >

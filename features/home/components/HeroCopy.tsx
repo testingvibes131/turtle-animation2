@@ -1,13 +1,14 @@
+import {
+  SectionIntro,
+  SectionIntroCopy,
+} from "@/components/layout/SectionIntro";
+
 /** Section 2 copy (Figma 1037:47030) — in-flow layout over the blob backdrop. */
 export function HeroCopy({ className = "" }: { className?: string }) {
   return (
-    <div
-      className={[
-        "flex w-full max-w-[38rem] flex-col gap-[clamp(20px,2.2vw,32px)]",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+    <SectionIntro
+      width="38"
+      className={className}
       aria-labelledby="home-hero-heading"
     >
       <h2
@@ -17,7 +18,7 @@ export function HeroCopy({ className = "" }: { className?: string }) {
         For capital that&apos;s greedy about returns and paranoid about risk.
       </h2>
 
-      <div className="flex w-full flex-col gap-[clamp(12px,1.1vw,16px)] text-[clamp(0.875rem,1.05vw,1rem)] font-normal leading-[1.4] text-ink-subtle">
+      <SectionIntroCopy className="w-full font-normal">
         <p>
           Earning serious yield without blowing up is a full-time job. The big
           funds have a desk for it: analysts vetting deals, traders negotiating
@@ -28,7 +29,7 @@ export function HeroCopy({ className = "" }: { className?: string }) {
           Diligenced deals, preferential terms, continuous monitoring, pointed
           at your book.
         </p>
-      </div>
-    </div>
+      </SectionIntroCopy>
+    </SectionIntro>
   );
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 
 const CARD_FLEX_MS = 520;
 
-/** Tracks horizontal center of the active pipeline card for illustration alignment. */
+/** Tracks horizontal center of the active pipeline card, clamped so the illustration stays in bounds. */
 export function usePipelineCardAnchor(
   cardsRef: RefObject<HTMLElement | null>,
   selectedIndex: number,
@@ -23,7 +23,18 @@ export function usePipelineCardAnchor(
 
     const mainRect = main.getBoundingClientRect();
     const cardRect = card.getBoundingClientRect();
-    setAnchorX(cardRect.left + cardRect.width / 2 - mainRect.left);
+    const cardCenterX = cardRect.left + cardRect.width / 2 - mainRect.left;
+
+    const visual = main.querySelector<HTMLElement>(".pipeline-visual");
+    if (visual) {
+      const half = visual.getBoundingClientRect().width / 2;
+      const minX = half;
+      const maxX = mainRect.width - half;
+      setAnchorX(Math.min(maxX, Math.max(minX, cardCenterX)));
+      return;
+    }
+
+    setAnchorX(cardCenterX);
   }, [cardsRef, selectedIndex]);
 
   useEffect(() => {
@@ -34,6 +45,10 @@ export function usePipelineCardAnchor(
 
     const ro = new ResizeObserver(measure);
     ro.observe(cardsEl);
+    const visual = cardsEl
+      .closest(".pipeline-stage-main")
+      ?.querySelector<HTMLElement>(".pipeline-visual");
+    if (visual) ro.observe(visual);
 
     const cardNodes = cardsEl.querySelectorAll<HTMLElement>("[data-pipeline-card]");
     cardNodes.forEach((node) => {
