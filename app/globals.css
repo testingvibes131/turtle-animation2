@@ -109,6 +109,8 @@ body {
 
 .section-intro.hero-intro > p {
   margin-top: clamp(6px, 0.55vw, 8px);
+  font-size: 1.55rem; /* text-2xl */
+  line-height: 1.3;
 }
 
 

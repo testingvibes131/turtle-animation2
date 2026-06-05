@@ -19,7 +19,7 @@ export function HeroSection() {
               <h1 className="w-full overflow-visible bg-clip-text text-4xl font-normal leading-[1.1] tracking-[0.4px] text-transparent text-gradient-heading lg:text-6xl">
                 Onchain Yield Management
               </h1>
-              <p className="bg-clip-text text-2xl font-normal leading-[1.3] text-transparent text-gradient-heading">
+              <p className="bg-clip-text font-normal text-transparent text-gradient-heading">
                 Aggregated, Diligenced, Personalized
               </p>
               <div className="pointer-events-auto mt-6 flex flex-wrap justify-center gap-2 lg:mt-7 lg:justify-start">
