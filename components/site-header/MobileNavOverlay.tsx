@@ -43,7 +43,7 @@ export function MobileNavOverlay({
       aria-modal="true"
       aria-label="Site navigation"
     >
-      <div className="mx-auto flex w-full max-w-[1440px] shrink-0 items-center justify-between px-6 pb-4 pt-5 md:px-10">
+      <div className="mx-auto flex w-full max-w-[1728px] shrink-0 items-center justify-between px-6 pb-4 pt-5 md:px-10">
         <Link
           href="/"
           className="inline-flex shrink-0 items-center"

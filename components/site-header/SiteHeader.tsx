@@ -120,7 +120,7 @@ export function SiteHeader() {
   return (
     <header className="site-header pointer-events-auto sticky top-0 z-50 w-full bg-surface-0/70 pb-4 pt-5 backdrop-blur-md lg:pb-4 lg:pt-5">
       <nav
-        className="relative mx-auto flex h-10 w-full max-w-[1440px] items-center justify-between px-6 md:px-10 lg:h-auto lg:px-[60px]"
+        className="relative mx-auto flex h-10 w-full max-w-[1728px] items-center justify-between px-6 md:px-10 lg:h-auto lg:px-[60px]"
         aria-label="Main"
       >
         {/* Mobile logo — Figma Home-Menu 1282:81328 (wordmark only) */}
@@ -139,19 +139,12 @@ export function SiteHeader() {
           />
         </Link>
 
-        {/* Desktop logo — iso + wordmark */}
+        {/* Desktop logo — wordmark only */}
         <Link
           href="/"
-          className="relative z-10 hidden shrink-0 items-center justify-start gap-[4px] lg:inline-flex"
+          className="relative z-10 hidden shrink-0 items-center lg:inline-flex"
           aria-label="Turtle home"
         >
-          <Image
-            src="/brand/turtle-iso.svg"
-            alt=""
-            width={25}
-            height={25}
-            className="block size-[25px]"
-          />
           <Image
             src="/brand/turtle-club-wordmark.svg"
             alt="Turtle Club"

@@ -6,6 +6,10 @@
   /* SiteHeader: pt-5 + pb-4 + nav row */
   --site-header-height: 4.75rem;
   --z-mobile-nav: 2147483647;
+  /* Section intro: title → copy / copy → CTA */
+  --section-intro-gap: clamp(16px, 1.8vw, 24px);
+  /* Stacked paragraphs inside copy */
+  --section-intro-copy-gap: clamp(12px, 1.1vw, 16px);
 }
 
 @theme inline {
@@ -80,6 +84,21 @@ body {
   letter-spacing: -0.8px;
 }
 
+.section-intro {
+  gap: var(--section-intro-gap);
+}
+
+.section-intro > p,
+.section-intro__copy {
+  font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
+  line-height: 1.4;
+  color: var(--color-ink-subtle);
+}
+
+.section-intro__copy {
+  gap: var(--section-intro-copy-gap);
+}
+
 /* ---------- horizontal logo marquee ---------- */
 .logo-marquee {
   overflow: hidden;
@@ -120,7 +139,7 @@ body {
 
 .dashed-rule {
   height: 1px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 @keyframes logo-marquee-scroll {
@@ -134,6 +153,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .logo-marquee__track {
+    animation: none;
+  }
+  .partner-marquee__track {
     animation: none;
   }
 }
@@ -153,6 +175,7 @@ body {
   --pipeline-visual-lift: clamp(40px, 6vh, 88px);
   --pipeline-visual-width: clamp(580px, 96vw, 1080px);
   --pipeline-visual-max-h: clamp(440px, 62vh, 780px);
+  --pipeline-visual-scale: 1;
   --pipeline-visual-offset-y: 0px;
   --pipeline-visual-top: auto;
   --pipeline-visual-bottom: calc(
@@ -178,7 +201,9 @@ body {
   aspect-ratio: 711 / 701;
   max-height: var(--pipeline-visual-max-h);
   overflow: visible;
-  transform: translateX(-50%) translateY(var(--pipeline-visual-offset-y));
+  transform-origin: bottom center;
+  transform: translateX(-50%) translateY(var(--pipeline-visual-offset-y))
+    scale(var(--pipeline-visual-scale));
   transition:
     left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -240,7 +265,7 @@ body {
     bottom: auto;
     left: auto;
     z-index: 0;
-    width: min(260px, 72vw);
+    width: min(208px, 58vw);
     max-height: none;
     margin-inline: auto;
     flex-shrink: 0;
@@ -393,10 +418,11 @@ body {
 
   .pipeline-stage-main {
     min-height: 0;
+    --pipeline-visual-scale: 0.8;
     --pipeline-visual-lift: 0px;
     /* Anchor ~mid-card (red-line reference); PNG baseline via object-bottom + offset */
-    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.5);
-    --pipeline-visual-offset-y: clamp(28px, 4.5dvh, 64px);
+    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.72);
+    --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(640px, 64vw, 1180px);
     /* 72dvh drives height; avoid a low px cap (was blocking dvh tweaks) */
     --pipeline-visual-max-h: min(72dvh, calc(100dvh - 10.5rem));
@@ -410,8 +436,8 @@ body {
 /* Compact desktop (small laptop / short viewport) */
 @media (min-width: 1024px) and (max-height: 860px) {
   .pipeline-stage-main {
-    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.46);
-    --pipeline-visual-offset-y: clamp(20px, 3.5dvh, 48px);
+    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.68);
+    --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(560px, 58vw, 1040px);
     --pipeline-visual-max-h: min(68dvh, calc(100dvh - 9.5rem));
   }
@@ -420,8 +446,8 @@ body {
 /* Large desktop */
 @media (min-width: 1536px) {
   .pipeline-stage-main {
-    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.52);
-    --pipeline-visual-offset-y: clamp(36px, 5dvh, 72px);
+    --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.74);
+    --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(720px, 68vw, 1280px);
     --pipeline-visual-max-h: min(72dvh, calc(100dvh - 10.5rem));
   }
@@ -430,33 +456,28 @@ body {
 /* ---------- case-study pills ---------- */
 .case-pill {
   border: 0;
+  border-radius: 9999px;
+  background-color: #191a19;
   font-family: inherit;
   color: inherit;
+  transition: background-color 0.3s ease;
 }
 
-.case-pill[data-state="default"] {
-  background-color: #191a19;
-}
-
-.case-pill[data-state="selected"] {
-  background-color: #191a19;
-  background-image: linear-gradient(
-    0deg,
-    rgba(115, 243, 108, 0.05),
-    rgba(115, 243, 108, 0.05)
-  );
+.case-pill:hover {
+  background-color: #1f211f;
 }
 
 .case-pill .case-pill-arrow {
-  background: rgba(249, 249, 249, 0.1);
+  background: none;
 }
 
-.case-pill[data-state="default"] .case-pill-arrow svg path {
+.case-pill .case-pill-arrow svg path {
   stroke: rgba(249, 249, 249, 0.5);
+  transition: stroke 0.3s ease;
 }
 
-.case-pill:hover[data-state="default"] {
-  background-color: #1f211f;
+.case-pill:hover .case-pill-arrow svg path {
+  stroke: #73f36c;
 }
 
 .case-cards .bar-grow {
@@ -535,6 +556,7 @@ body {
 
 /* ---------- partner marquees ---------- */
 .partner-marquee {
+  contain: layout style paint;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
     to right,
@@ -556,8 +578,8 @@ body {
   display: flex;
   width: max-content;
   align-items: center;
-  gap: clamp(12px, 1.2vw, 20px);
-  animation: partner-scroll 60s linear infinite;
+  backface-visibility: hidden;
+  animation: partner-marquee-scroll 60s linear infinite;
   will-change: transform;
 }
 
@@ -565,13 +587,23 @@ body {
   animation-direction: reverse;
 }
 
-@keyframes partner-scroll {
+@keyframes partner-marquee-scroll {
   from {
     transform: translate3d(0, 0, 0);
   }
   to {
     transform: translate3d(-50%, 0, 0);
   }
+}
+
+/* Gap inside each set; trailing padding matches gap at the duplicate seam. */
+.partner-marquee__set {
+  --partner-marquee-gap: clamp(12px, 1.2vw, 20px);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--partner-marquee-gap);
+  padding-inline-end: var(--partner-marquee-gap);
 }
 
 .partner-card {
@@ -616,11 +648,6 @@ body {
   max-width: 55%;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .partner-marquee__track {
-    animation: none;
-  }
-}
 
 /* ---------- team section (Figma 1358:27909 / Card-Member 1358:27910) ---------- */
 .team-grid {
@@ -729,11 +756,6 @@ body {
   line-height: 1.4;
   color: #f9f9f9;
   text-align: center;
-  transition: color 0.2s ease;
-}
-
-.team-grid__cta-link:hover {
-  color: #73f36c;
 }
 
 /* ---------- latest updates scroll ---------- */

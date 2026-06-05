@@ -27,6 +27,7 @@ export function PartnersLogos({ variant = "overlay" }: PartnersLogosProps) {
       <div className="py-[clamp(20px,2.4vw,36px)]">
         <LogoMarquee logos={protocolLogos} />
       </div>
+      <DashedRule />
     </section>
   );
 }
