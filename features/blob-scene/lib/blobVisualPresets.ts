@@ -1,4 +1,4 @@
-import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
+import type { BlobVisualParams } from "@/features/blob-scene/hooks/blobControlTypes";
 
 /** Shared blob / motion / depth tuning (section-agnostic). */
 const BASE = {
@@ -21,15 +21,14 @@ const BASE = {
 } as const;
 
 /**
- * Section 1 hero — sparse exploded cloud: broad lobes, strong outward spread.
+ * Section 1 hero — organic lobes with visible relief, not flat.
  */
 const SECTION_1_NOISE = {
-  radius: 0.8,
-  noiseScale: 3.95,
-  displacementDivisor: 31,
-  perlinPeriod: 0.8,
-  noiseSlopeMinOpacity: 0.38,
-  noiseSlopeMaxOpacity: 0.88,
+  noiseScale: 5.5,
+  displacementDivisor: 38,
+  perlinPeriod: 0.88,
+  noiseSlopeMinOpacity: 0,
+  noiseSlopeMaxOpacity: 1,
 } as const;
 
 /** Option 1 — section 2 (unchanged original tuning). */

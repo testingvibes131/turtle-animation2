@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
 import { CuratorPlexusLines } from "@/features/blob-scene/components/curator/CuratorPlexusLines";
 import { CuratorHubBillboard } from "@/features/blob-scene/components/curator/CuratorHubBillboard";
 import { PartnerOrbitRings } from "@/features/blob-scene/components/curator/PartnerOrbitRings";
@@ -24,7 +25,9 @@ import {
   HERO_SHOWCASE_FRONT_MIN_DOT,
   HERO_SHOWCASE_LOGO_OUTSET_MUL,
   HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL,
+  SECTION_2_LOGO_OUTSET_MUL,
 } from "@/features/blob-scene/lib/scroll/heroShowcase";
+import { tickHubAnchorRotationLag } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
 
 export function ActiveCuratorZones() {
@@ -32,9 +35,11 @@ export function ActiveCuratorZones() {
     vertices,
     params,
     pointRadius,
+    blobGroupRef,
     getTowardCamera,
     getHubLayoutAxis,
     blobAnimTimeRef,
+    hubAnchorRotationLagRef,
     activeZone,
     setActiveZone,
   } = useBlobScene();
@@ -42,6 +47,7 @@ export function ActiveCuratorZones() {
   const heroShowcaseActive = useBlobHeroShowcaseActive();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
   const [zones, setZones] = useState<CuratorZoneAssignment[]>([]);
+  const lagZoneNameRef = useRef<string | null>(null);
 
   const layoutZone =
     activeZone &&
@@ -93,11 +99,28 @@ export function ActiveCuratorZones() {
     hubOffsetSpheres: params.hubOffsetSpheres,
     hubLogoOutsetSpheres: heroShowcaseActive
       ? params.hubLogoOutsetSpheres * HERO_SHOWCASE_LOGO_OUTSET_MUL
-      : params.hubLogoOutsetSpheres,
+      : params.hubLogoOutsetSpheres * SECTION_2_LOGO_OUTSET_MUL,
     hubPickMesh: vertices,
   } satisfies HubAnchorOptions;
 
   const layoutTowardCamera = getHubLayoutAxis;
+
+  useFrame(() => {
+    const zoneName = zoneVisual?.curator.name ?? null;
+    if (zoneName !== lagZoneNameRef.current) {
+      lagZoneNameRef.current = zoneName;
+      hubAnchorRotationLagRef.current.synced = false;
+    }
+
+    const lagEnabled = Boolean(
+      curatorOverlayEnabled && zoneVisual && !heroShowcaseActive,
+    );
+    tickHubAnchorRotationLag(
+      hubAnchorRotationLagRef.current,
+      blobGroupRef.current?.rotation.y ?? 0,
+      lagEnabled,
+    );
+  });
 
   return (
     <>

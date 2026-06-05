@@ -23,6 +23,17 @@ export function vertexNoiseDisplacement(
  * Map noise displacement to opacity: valleys dimmer, outward bumps brighter.
  * `disp` is roughly ±noiseScale/displacementDivisor.
  */
+export function noiseSlopeOpacityFromDisplacement(
+  disp: number,
+  params: PerlinBlobParams,
+  minMul: number,
+  maxMul: number,
+): number {
+  const amp = params.noiseScale / Math.max(params.displacementDivisor, 0.001);
+  const t = Math.min(1, Math.max(0, (disp / amp + 1) * 0.5));
+  return minMul + (maxMul - minMul) * t;
+}
+
 export function noiseSlopeOpacityMul(
   vertices: IcosahedronVertexData,
   index: number,
@@ -30,8 +41,10 @@ export function noiseSlopeOpacityMul(
   minMul: number,
   maxMul: number,
 ): number {
-  const disp = vertexNoiseDisplacement(vertices, index, params);
-  const amp = params.noiseScale / Math.max(params.displacementDivisor, 0.001);
-  const t = Math.min(1, Math.max(0, (disp / amp + 1) * 0.5));
-  return minMul + (maxMul - minMul) * t;
+  return noiseSlopeOpacityFromDisplacement(
+    vertexNoiseDisplacement(vertices, index, params),
+    params,
+    minMul,
+    maxMul,
+  );
 }

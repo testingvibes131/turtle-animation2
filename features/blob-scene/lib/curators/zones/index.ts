@@ -20,8 +20,14 @@ export {
 export { findZoneForMemberVertex } from "@/features/blob-scene/lib/curators/zones/picking";
 
 export {
+  DEFAULT_ZONE_EDGE_JITTER,
+  type ZoneEdgeJitterTuning,
+} from "@/features/blob-scene/lib/curators/zones/zoneEdgeJitter";
+
+export {
   assignAllCuratorZones,
   assignCapMembers,
+  assignCapMembersVisual,
   assignStableCuratorZones,
   buildZoneHoverPlexusEdges,
   computeHubAnchorDirection,

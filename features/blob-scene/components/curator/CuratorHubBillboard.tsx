@@ -5,6 +5,10 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
+import {
+  useBlobCuratorOverlayEnabled,
+  useBlobHeroShowcaseActive,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { curatorLogoPath, CURATOR_LOGO_PATHS } from "@/features/blob-scene/lib/curators/logo";
 import {
@@ -21,6 +25,10 @@ import {
 } from "@/features/blob-scene/lib/geometry/perlinBlob";
 import { billboardToCamera } from "@/features/blob-scene/lib/geometry/billboardToCamera";
 import { RENDER_HUB_LOGO } from "@/features/blob-scene/lib/rendering/renderOrder";
+import {
+  applyHubAnchorRotationLag,
+  hubAnchorRotationLagActive,
+} from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { worldScaleForScreenPx } from "@/features/blob-scene/lib/geometry/screenSpaceScale";
 
 for (const path of CURATOR_LOGO_PATHS) {
@@ -28,6 +36,7 @@ for (const path of CURATOR_LOGO_PATHS) {
 }
 
 const _worldPos = new THREE.Vector3();
+const _hubPos = new THREE.Vector3();
 /** Half-width in CSS pixels; diameter ≈ 2× this × displayScale × HUB_LOGO_SIZE_MUL. */
 const HUB_LOGO_RADIUS_PX = 44;
 const HUB_LOGO_SIZE_MUL = 1.5 * 1.1;
@@ -53,7 +62,10 @@ export function CuratorHubBillboard({
   getTowardCamera,
   blobAnimTimeRef,
 }: CuratorHubBillboardProps) {
-  const { getBlobParamsAtTime } = useBlobScene();
+  const { blobGroupRef, getBlobParamsAtTime, hubAnchorRotationLagRef } =
+    useBlobScene();
+  const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const texture = useTexture(curatorLogoPath(curatorName));
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -87,8 +99,21 @@ export function CuratorHubBillboard({
       hubZoneDeg,
       { ...hubPickOptions, hubPickBlob: blobParams },
       blobParams,
-      root.position,
+      _hubPos,
     );
+
+    const lagState = hubAnchorRotationLagRef.current;
+    const lagEnabled = curatorOverlayEnabled && !heroShowcaseActive;
+    if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
+      applyHubAnchorRotationLag(
+        _hubPos,
+        root.position,
+        blobGroupRef.current?.rotation.y ?? 0,
+        lagState.laggedRotationY,
+      );
+    } else {
+      root.position.copy(_hubPos);
+    }
     root.rotation.set(0, 0, 0);
 
     const camera = state.camera;

@@ -7,6 +7,7 @@ import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import { useBlobCuratorOverlayEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
 import {
+  assignCapMembersVisual,
   assignStableCuratorZones,
   type CuratorZoneAssignment,
   type StableZoneSlot,
@@ -306,6 +307,21 @@ export function ZoneMemberInstances({
     };
 
     const heroConnectedOnly = connectedOnlyRef.current;
+    const zonePickOptions = {
+      frontMinDot: params.frontMinDot,
+      blobCenterLean: params.blobCenterLean,
+      zoneCenterOffsetRight: params.zoneCenterOffsetRight,
+      maxAngleFromHubDeg: params.clusterMaxAngleDeg,
+    };
+    const visualBuckets = heroConnectedOnly
+      ? null
+      : assignCapMembersVisual(
+          vertices.positions,
+          vertices.count,
+          CURATORS,
+          toward,
+          zonePickOptions,
+        );
 
     for (const zone of nextZones) {
       const fullMesh = meshRefs.current.get(zone.curator.name);
@@ -331,30 +347,61 @@ export function ZoneMemberInstances({
 
       for (const vi of zone.members) {
         if (vi === displayHub) continue;
-        if (heroConnectedOnly && isSelected && !connected.has(vi)) continue;
-        if (isSelected && connected.has(vi)) {
-          const baseScale = partners.has(vi)
-            ? ZONE_PARTNER_SCALE
-            : ZONE_MEMBER_SCALE;
-          const scaleMul = heroConnectedOnly
-            ? baseScale * HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL
-            : baseScale;
-          write(fullMesh, fullSlot, vi, scaleMul, 1, true);
-          fullSlot++;
-        } else if (isSelected && needsInnerDim && activeCurator) {
-          const op = noiseOpacity(vi);
-          write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, op);
-          graySlot++;
-          write(zoneInnerDimMesh!, innerDimSlot, vi, ZONE_MEMBER_SCALE, op);
-          innerDimSlot++;
-        } else {
-          write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, noiseOpacity(vi));
-          graySlot++;
-        }
+        if (!isSelected || !connected.has(vi)) continue;
+        if (heroConnectedOnly && !connected.has(vi)) continue;
+        const baseScale = partners.has(vi)
+          ? ZONE_PARTNER_SCALE
+          : ZONE_MEMBER_SCALE;
+        const scaleMul = heroConnectedOnly
+          ? baseScale * HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL
+          : baseScale;
+        write(fullMesh, fullSlot, vi, scaleMul, 1, true);
+        fullSlot++;
       }
 
       fullMesh.count = fullSlot;
       fullMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    if (visualBuckets) {
+      for (const zone of nextZones) {
+        if (!capGrayMesh) continue;
+        const visualMembers = visualBuckets.get(zone.curator.name) ?? [];
+        const isSelected = activeName === zone.curator.name;
+        const needsInnerDim = Boolean(
+          activeName && zoneInnerDimMesh && isSelected,
+        );
+        const hovered = activeZoneRef.current;
+        const connected =
+          isSelected && hovered?.curator.name === zone.curator.name
+            ? connectedMemberSet(hovered)
+            : connectedMemberSet(zone);
+        const displayHub =
+          isSelected && hovered?.hub != null && hovered.hub >= 0
+            ? hovered.hub
+            : zone.hub;
+
+        for (const vi of visualMembers) {
+          if (vi === displayHub) continue;
+          if (isSelected && connected.has(vi)) continue;
+          if (isSelected && needsInnerDim && activeCurator) {
+            const op = noiseOpacity(vi);
+            write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, op);
+            graySlot++;
+            write(zoneInnerDimMesh!, innerDimSlot, vi, ZONE_MEMBER_SCALE, op);
+            innerDimSlot++;
+          } else {
+            write(
+              capGrayMesh,
+              graySlot,
+              vi,
+              ZONE_MEMBER_SCALE,
+              noiseOpacity(vi),
+            );
+            graySlot++;
+          }
+        }
+      }
     }
 
     if (capGrayMesh) {

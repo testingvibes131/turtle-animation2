@@ -208,19 +208,26 @@ function directionBody(
   const rx = nx * cosA - nz * sinA;
   const rz = nx * sinA + nz * cosA;
 
-  const bodyScale = scale * 0.78;
+  const bodyScale = scale * 0.72;
   return fbm3(
     rx * bodyScale + 1.4,
     ny * bodyScale + 0.6,
     rz * bodyScale + 2.2,
-    4,
-    1.72,
+    3,
+    1.68,
     0.4,
   );
 }
 
+export type OrganicDisplacementTuning = {
+  bodyWeight?: number;
+  flowWeight?: number;
+  warp?: number;
+  ampMul?: number;
+};
+
 /**
- * Soft organic displacement — membrane body + gentle flow + light grain.
+ * Soft organic displacement — membrane body + gentle flow.
  */
 export function organicDisplacement(
   x: number,
@@ -230,7 +237,12 @@ export function organicDisplacement(
   noiseScale: number,
   displacementDivisor: number,
   perlinPeriod: number,
+  tuning: OrganicDisplacementTuning = {},
 ): number {
+  const bodyWeight = tuning.bodyWeight ?? 0.8;
+  const flowWeight = tuning.flowWeight ?? 0.2;
+  const warpStr = tuning.warp ?? 0.22;
+  const ampMul = tuning.ampMul ?? 1.08;
   const scale = 1 / Math.max(perlinPeriod, 0.001);
   const px = x * scale;
   const py = y * scale;
@@ -238,24 +250,21 @@ export function organicDisplacement(
 
   const body = directionBody(x, y, z, time, scale);
 
-  const flowT = time * 0.24;
-  const p0x = px + flowT * 0.55;
-  const p0y = py + flowT * 0.35;
-  const p0z = pz + flowT * 0.48;
+  const flowT = time * 0.2;
+  const p0x = px + flowT * 0.48;
+  const p0y = py + flowT * 0.32;
+  const p0z = pz + flowT * 0.42;
 
-  const warpStr = 0.26;
-  const qx = fbm3(p0x, p0y, p0z, 3, 1.82, 0.44);
-  const qy = fbm3(p0x + 3.7, p0y + 1.2, p0z + 2.8, 3, 1.82, 0.44);
-  const qz = fbm3(p0x + 1.1, p0y + 5.4, p0z + 4.1, 3, 1.82, 0.44);
+  const qx = fbm3(p0x, p0y, p0z, 3, 1.78, 0.42);
+  const qy = fbm3(p0x + 3.7, p0y + 1.2, p0z + 2.8, 3, 1.78, 0.42);
+  const qz = fbm3(p0x + 1.1, p0y + 5.4, p0z + 4.1, 3, 1.78, 0.42);
 
   const wx = p0x + warpStr * qx;
   const wy = p0y + warpStr * qy;
   const wz = p0z + warpStr * qz;
-  const flow = fbm3(wx, wy, wz, 3, 1.82, 0.42);
+  const flow = fbm3(wx, wy, wz, 3, 1.75, 0.4);
 
-  const grain = fbm3(px * 1.65 + flowT, py * 1.65, pz * 1.65, 2, 2, 0.38);
+  const disp = body * bodyWeight + flow * flowWeight;
 
-  const disp = body * 0.74 + flow * 0.2 + grain * 0.06;
-
-  return (noiseScale * disp * 1.16) / Math.max(displacementDivisor, 0.001);
+  return (noiseScale * disp * ampMul) / Math.max(displacementDivisor, 0.001);
 }

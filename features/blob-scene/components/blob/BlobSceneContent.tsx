@@ -15,20 +15,20 @@ import {
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
 import {
-  useBlobColoredToGrayMix,
+  useBlobColoredToGrayMixRef,
   useBlobInteractionEnabled,
+  useBlobSection1Tuning,
   useBlobTransitionTuning,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import {
-  applyOrganicTransitionDistort,
-  BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL,
-} from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
+import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
+import { applyOrganicTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import { useHeroShowcase } from "@/features/blob-scene/hooks/useHeroShowcase";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
+import { createHubAnchorRotationLagState } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 
 type BlobSceneContentProps = {
   params: BlobVisualParams;
@@ -48,9 +48,11 @@ export function BlobSceneContent({
   const frozenLayoutAxisRef = useRef<THREE.Vector3 | null>(null);
   const frozenLayoutZoneRef = useRef<string | null>(null);
   const scalesRef = useRef<Float32Array>(new Float32Array(0));
+  const blobFrameCacheRef = useRef<BlobSceneContextValue["blobFrameCacheRef"]["current"]>(null);
   const connectedMarkerLayoutsRef = useRef(
     new Map<number, ReturnType<typeof createConnectedMarkerLayout>>(),
   );
+  const hubAnchorRotationLagRef = useRef(createHubAnchorRotationLagState());
   const [activeZone, setActiveZone] = useState<BlobSceneContextValue["activeZone"]>(null);
 
   const { vertices, liveVertices, liveIndices, deadIndices, pointRadius } =
@@ -80,29 +82,36 @@ export function BlobSceneContent({
     return frozenLayoutAxisRef.current ?? getTowardCamera();
   }, [getTowardCamera]);
 
-  const coloredToGrayMix = useBlobColoredToGrayMix();
+  const coloredToGrayMixRef = useBlobColoredToGrayMixRef();
   const transitionTuning = useBlobTransitionTuning();
+  const section1Tuning = useBlobSection1Tuning();
 
   const getBlobParamsAtTime = useCallback(
     (time: number) => {
-      const t = Math.min(1, Math.max(0, coloredToGrayMix));
+      const rawMix = coloredToGrayMixRef.current;
+      const x = Math.min(1, Math.max(0, rawMix));
+      const blend = x * x * (3 - 2 * x);
+      const organicPeak = section1Tuning.organicDistortPeak;
       const distortPeak =
-        BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL +
-        t *
-          (transitionTuning.distortPeakMul -
-            BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL);
+        organicPeak +
+        blend * (transitionTuning.distortPeakMul - organicPeak);
 
       return applyOrganicTransitionDistort(
         {
           ...params,
           time,
-          displacementBlend: t,
+          displacementBlend: blend,
         },
-        coloredToGrayMix,
+        rawMix,
         distortPeak,
       );
     },
-    [coloredToGrayMix, params, transitionTuning.distortPeakMul],
+    [
+      coloredToGrayMixRef,
+      params,
+      section1Tuning.organicDistortPeak,
+      transitionTuning.distortPeakMul,
+    ],
   );
 
   const contextValue = useMemo<BlobSceneContextValue>(
@@ -116,6 +125,7 @@ export function BlobSceneContent({
       depthFadeUniforms,
       blobGroupRef,
       blobAnimTimeRef,
+      blobFrameCacheRef,
       zoneUsedRef,
       zonesSnapshotRef,
       scalesRef,
@@ -123,16 +133,19 @@ export function BlobSceneContent({
       setActiveZone,
       getTowardCamera,
       getHubLayoutAxis,
+      hubAnchorRotationLagRef,
       connectedMarkerLayoutsRef,
       getBlobParamsAtTime,
     }),
     [
       activeZone,
+      blobFrameCacheRef,
       deadIndices,
       depthFadeUniforms,
       getBlobParamsAtTime,
       getHubLayoutAxis,
       getTowardCamera,
+      hubAnchorRotationLagRef,
       liveIndices,
       liveVertices,
       params,
@@ -176,6 +189,7 @@ export function BlobSceneContent({
 
   return (
     <BlobSceneProvider value={contextValue}>
+      <BlobFrameGeometryCache />
       <group
         position={[offsetX, offsetY, 0]}
         rotation={[0, rotationY, 0]}

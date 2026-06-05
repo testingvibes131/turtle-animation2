@@ -5,7 +5,10 @@
   --foreground: #f9f9f9;
   /* SiteHeader: pt-5 + pb-4 + nav row */
   --site-header-height: 4.75rem;
+  /* Leva dev panel: gap below sticky SiteHeader */
+  --leva-panel-top: calc(var(--site-header-height) + 10px);
   --z-mobile-nav: 2147483647;
+  --z-leva: 999999;
   /* Section intro: title → copy / copy → CTA */
   --section-intro-gap: clamp(16px, 1.8vw, 24px);
   /* Stacked paragraphs inside copy */
@@ -174,7 +177,7 @@ body {
   --pipeline-visual-overlap: clamp(88px, 11vh, 116px);
   --pipeline-visual-lift: clamp(40px, 6vh, 88px);
   --pipeline-visual-width: clamp(580px, 96vw, 1080px);
-  --pipeline-visual-max-h: clamp(440px, 62vh, 780px);
+  --pipeline-visual-max-h: clamp(374px, 52.7vh, 663px);
   --pipeline-visual-scale: 1;
   --pipeline-visual-offset-y: 0px;
   --pipeline-visual-top: auto;
@@ -265,12 +268,17 @@ body {
     bottom: auto;
     left: auto;
     z-index: 0;
-    width: min(208px, 58vw);
+    width: min(229px, 63.8vw);
     max-height: none;
     margin-inline: auto;
     flex-shrink: 0;
     transform: none;
     transition: opacity 0.5s ease;
+  }
+
+  .pipeline-visual.reveal-on-scroll,
+  .pipeline-visual.reveal-on-scroll.is-visible {
+    transform: none;
   }
 
   .pipeline-cards {
@@ -418,14 +426,14 @@ body {
 
   .pipeline-stage-main {
     min-height: 0;
-    --pipeline-visual-scale: 0.8;
+    --pipeline-visual-scale: 0.88;
     --pipeline-visual-lift: 0px;
     /* Anchor ~mid-card (red-line reference); PNG baseline via object-bottom + offset */
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.72);
     --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(640px, 64vw, 1180px);
     /* 72dvh drives height; avoid a low px cap (was blocking dvh tweaks) */
-    --pipeline-visual-max-h: min(72dvh, calc(100dvh - 10.5rem));
+    --pipeline-visual-max-h: min(61.2dvh, calc((100dvh - 10.5rem) * 0.85));
   }
 
   .pipeline-stage-inner .pipeline-cards {
@@ -439,7 +447,7 @@ body {
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.68);
     --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(560px, 58vw, 1040px);
-    --pipeline-visual-max-h: min(68dvh, calc(100dvh - 9.5rem));
+    --pipeline-visual-max-h: min(57.8dvh, calc((100dvh - 9.5rem) * 0.85));
   }
 }
 
@@ -449,7 +457,7 @@ body {
     --pipeline-visual-bottom: calc(var(--pipeline-card-row) * 0.74);
     --pipeline-visual-offset-y: 0px;
     --pipeline-visual-width: clamp(720px, 68vw, 1280px);
-    --pipeline-visual-max-h: min(72dvh, calc(100dvh - 10.5rem));
+    --pipeline-visual-max-h: min(61.2dvh, calc((100dvh - 10.5rem) * 0.85));
   }
 }
 
@@ -898,12 +906,36 @@ body {
   transform: translateY(0);
 }
 
+@media (min-width: 1024px) {
+  /* Keep card-anchored centering when reveal shares the same node as .pipeline-visual */
+  .pipeline-visual.reveal-on-scroll {
+    opacity: 0;
+    transform: translateX(-50%)
+      translateY(calc(18px + var(--pipeline-visual-offset-y)))
+      scale(var(--pipeline-visual-scale));
+  }
+
+  .pipeline-visual.reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(var(--pipeline-visual-offset-y))
+      scale(var(--pipeline-visual-scale));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal-on-scroll,
   .reveal-on-scroll.is-visible {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  @media (min-width: 1024px) {
+    .pipeline-visual.reveal-on-scroll,
+    .pipeline-visual.reveal-on-scroll.is-visible {
+      transform: translateX(-50%) translateY(var(--pipeline-visual-offset-y))
+        scale(var(--pipeline-visual-scale));
+    }
   }
 }
 
@@ -928,6 +960,18 @@ body {
   .mobile-nav-overlay {
     animation: none;
   }
+}
+
+/* Leva debug panel: stitches default is top:10px / z-index:1000 */
+[class*="leva-c-"][class*="fill-false"] {
+  top: var(--leva-panel-top) !important;
+  z-index: var(--z-leva) !important;
+  isolation: isolate;
+}
+
+/* Portaled Leva popovers (color picker, tooltips, etc.) */
+body > [class*="leva-c-"] {
+  z-index: var(--z-leva) !important;
 }
 
 @media (hover: hover) {

@@ -1,11 +1,21 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 
-import type {
-  BlobColoredDotsTuning,
-  BlobTransitionTuning,
+import {
+  DEFAULT_COLORED_DOTS,
+  type BlobColoredDotsTuning,
+  type BlobTransitionTuning,
 } from "@/features/blob-scene/hooks/useBlobControls";
+import {
+  DEFAULT_SECTION_1_TUNING,
+  type BlobSection1Tuning,
+} from "@/features/blob-scene/lib/blobSection1Tuning";
 import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BLOB_TRANSITION_DISTORT_PEAK_MUL } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import {
@@ -24,6 +34,9 @@ type BlobScrollState = {
   coloredToGrayMix: number;
   transitionTuning: BlobTransitionTuning;
   coloredDotsTuning: BlobColoredDotsTuning;
+  section1Tuning: BlobSection1Tuning;
+  /** Synced on scroll before React state — use in useFrame for smooth motion. */
+  coloredToGrayMixRef: MutableRefObject<number>;
 };
 
 const defaultTransitionTuning: BlobTransitionTuning = {
@@ -33,11 +46,9 @@ const defaultTransitionTuning: BlobTransitionTuning = {
   distortPeakMul: BLOB_TRANSITION_DISTORT_PEAK_MUL,
 };
 
-const defaultColoredDotsTuning: BlobColoredDotsTuning = {
-  coreOpacity: 0.76,
-  glowScaleMul: 3.75,
-  glowOpacity: 0.2,
-};
+const defaultColoredDotsTuning: BlobColoredDotsTuning = DEFAULT_COLORED_DOTS;
+
+const defaultColoredToGrayMixRef = { current: 1 };
 
 const defaultState: BlobScrollState = {
   progress: 1,
@@ -47,6 +58,8 @@ const defaultState: BlobScrollState = {
   coloredToGrayMix: 1,
   transitionTuning: defaultTransitionTuning,
   coloredDotsTuning: defaultColoredDotsTuning,
+  section1Tuning: DEFAULT_SECTION_1_TUNING,
+  coloredToGrayMixRef: defaultColoredToGrayMixRef,
 };
 
 const BlobScrollProgressContext = createContext<BlobScrollState>(defaultState);
@@ -57,8 +70,10 @@ export function BlobScrollProgressProvider({
   interactionEnabled,
   blobSetup,
   coloredToGrayMix,
+  coloredToGrayMixRef,
   transitionTuning = defaultTransitionTuning,
   coloredDotsTuning = defaultColoredDotsTuning,
+  section1Tuning = DEFAULT_SECTION_1_TUNING,
   children,
 }: {
   progress: number;
@@ -66,8 +81,10 @@ export function BlobScrollProgressProvider({
   interactionEnabled: boolean;
   blobSetup: BlobSetupId;
   coloredToGrayMix: number;
+  coloredToGrayMixRef: MutableRefObject<number>;
   transitionTuning?: BlobTransitionTuning;
   coloredDotsTuning?: BlobColoredDotsTuning;
+  section1Tuning?: BlobSection1Tuning;
   children: ReactNode;
 }) {
   return (
@@ -78,8 +95,10 @@ export function BlobScrollProgressProvider({
         interactionEnabled,
         blobSetup,
         coloredToGrayMix,
+        coloredToGrayMixRef,
         transitionTuning,
         coloredDotsTuning,
+        section1Tuning,
       }}
     >
       {children}
@@ -108,6 +127,10 @@ export function useBlobColoredToGrayMix() {
   return useContext(BlobScrollProgressContext).coloredToGrayMix;
 }
 
+export function useBlobColoredToGrayMixRef() {
+  return useContext(BlobScrollProgressContext).coloredToGrayMixRef;
+}
+
 export function useBlobColoredDotsMix() {
   return 1 - useBlobColoredToGrayMix();
 }
@@ -126,4 +149,8 @@ export function useBlobTransitionTuning() {
 
 export function useBlobColoredDotsTuning() {
   return useContext(BlobScrollProgressContext).coloredDotsTuning;
+}
+
+export function useBlobSection1Tuning() {
+  return useContext(BlobScrollProgressContext).section1Tuning;
 }

@@ -4,7 +4,7 @@ import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlin
 export const BLOB_TRANSITION_DISTORT_PEAK_MUL = 4.25;
 
 /** Hero spread for organic S1 — amplitude only (no freq crunch → stays soft when exploded). */
-export const BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL = 4.2;
+export const BLOB_ORGANIC_TRANSITION_DISTORT_PEAK_MUL = 3.35;
 
 function smoothstep01(t: number): number {
   const x = Math.min(1, Math.max(0, t));

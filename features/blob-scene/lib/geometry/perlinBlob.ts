@@ -13,6 +13,11 @@ export type PerlinBlobParams = {
   time: number;
   /** 0 = organic simplex fBm, 1 = classic perlin (smooth crossfade during scroll). */
   displacementBlend?: number;
+  /** Section 1 organic displacement (Leva Section 1 panel). */
+  organicBodyWeight?: number;
+  organicFlowWeight?: number;
+  organicWarp?: number;
+  organicAmpMul?: number;
 };
 
 export type IcosahedronVertexData = {
@@ -45,11 +50,6 @@ export function createIcosahedronVertices(
 
 const _pos = new THREE.Vector3();
 
-function smoothstep01(t: number): number {
-  const x = Math.min(1, Math.max(0, t));
-  return x * x * (3 - 2 * x);
-}
-
 export function blobDisplacement(
   x: number,
   y: number,
@@ -64,7 +64,14 @@ export function blobDisplacement(
     displacementBlend = 1,
   } = params;
 
-  const blend = smoothstep01(displacementBlend);
+  const blend = Math.min(1, Math.max(0, displacementBlend));
+
+  const organicTuning = {
+    bodyWeight: params.organicBodyWeight,
+    flowWeight: params.organicFlowWeight,
+    warp: params.organicWarp,
+    ampMul: params.organicAmpMul,
+  };
 
   if (blend <= 0.001) {
     return organicDisplacement(
@@ -75,6 +82,7 @@ export function blobDisplacement(
       noiseScale,
       displacementDivisor,
       perlinPeriod,
+      organicTuning,
     );
   }
 
@@ -98,6 +106,7 @@ export function blobDisplacement(
     noiseScale,
     displacementDivisor,
     perlinPeriod,
+    organicTuning,
   );
   const perlin = perlinDisplacement(
     x,

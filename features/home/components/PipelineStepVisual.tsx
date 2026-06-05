@@ -15,7 +15,7 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
 
   return (
     <RevealOnScroll
-      className="pipeline-visual relative pointer-events-none"
+      className="pipeline-visual pointer-events-none"
       aria-live="polite"
       aria-label={activeStep ? `${activeStep.title} illustration` : undefined}
     >

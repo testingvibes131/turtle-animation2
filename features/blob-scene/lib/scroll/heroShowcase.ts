@@ -36,8 +36,11 @@ export function heroShowcaseConnectionCount(): number {
 /** Keep hub + spoke off the cap rim in the hero crop. */
 export const HERO_SHOWCASE_FRONT_MIN_DOT = 0.55;
 
-/** Section 1: push hub logo + line origin 50% farther along the anchor than section 2. */
+/** Section 1 hero demo: multiplier on `hubLogoOutsetSpheres`. */
 export const HERO_SHOWCASE_LOGO_OUTSET_MUL = 1.5;
+
+/** Section 2 interactive hover: multiplier on `hubLogoOutsetSpheres`. */
+export const SECTION_2_LOGO_OUTSET_MUL = 1.5;
 
 /** Section 1: connected dot + outer ring vs section-2 member marker scale. */
 export const HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL = 1.25;

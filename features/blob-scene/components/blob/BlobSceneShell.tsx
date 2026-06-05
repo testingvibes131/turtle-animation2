@@ -9,7 +9,7 @@ import {
   useBlobColoredToGrayMix,
   useBlobInteractionEnabled,
   useBlobScrollProgress,
-  useBlobTransitionTuning,
+  useBlobSection1Tuning,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
   blobVisualExtent,
@@ -22,7 +22,7 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
   const { camera, size } = useThree();
   const scrollProgress = useBlobScrollProgress();
   const coloredToGrayMix = useBlobColoredToGrayMix();
-  const transitionTuning = useBlobTransitionTuning();
+  const section1Tuning = useBlobSection1Tuning();
   const rotationEnabled = useBlobInteractionEnabled();
   const scrollMotion = useMemo(() => {
     const layoutExtent = blobVisualExtent(params);
@@ -33,6 +33,7 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
       scrollProgress,
       rotationEnabled,
       coloredToGrayMix,
+      section1Tuning,
     );
   }, [
     camera,
@@ -40,6 +41,7 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
     params,
     rotationEnabled,
     scrollProgress,
+    section1Tuning,
     size.height,
     size.width,
   ]);

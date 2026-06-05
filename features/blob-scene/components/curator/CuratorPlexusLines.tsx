@@ -9,12 +9,20 @@ import {
   LineSegmentsGeometry,
 } from "three-stdlib";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
+import {
+  useBlobCuratorOverlayEnabled,
+  useBlobHeroShowcaseActive,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import type { CuratorEdge } from "@/features/blob-scene/lib/curators/hoverPlexus";
 import {
   displacedHubAnchorPosition,
   type HubAnchorOptions,
 } from "@/features/blob-scene/lib/curators/zones";
+import {
+  applyHubAnchorRotationLag,
+  hubAnchorRotationLagActive,
+} from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
 import {
   displacedVertexPosition,
@@ -32,6 +40,7 @@ const LINE_GAP_SIZE = 0.01;
 
 const _posA = new THREE.Vector3();
 const _posB = new THREE.Vector3();
+const _hubTarget = new THREE.Vector3();
 
 type PlexusBundle = {
   lines: LineSegments2;
@@ -64,7 +73,13 @@ function PlexusLineBatch({
   lockDashDistances?: boolean;
 }) {
   const size = useThree((s) => s.size);
-  const { getBlobParamsAtTime } = useBlobScene();
+  const {
+    blobGroupRef,
+    getBlobParamsAtTime,
+    hubAnchorRotationLagRef,
+  } = useBlobScene();
+  const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const linePositionsRef = useRef<Float32Array | null>(null);
   const bundleRef = useRef<PlexusBundle | null>(null);
 
@@ -152,8 +167,20 @@ function PlexusLineBatch({
           hubZoneDeg,
           { ...hubPickOptions, hubPickBlob: blobParams },
           blobParams,
-          _posA,
+          _hubTarget,
         );
+        const lagState = hubAnchorRotationLagRef.current;
+        const lagEnabled = curatorOverlayEnabled && !heroShowcaseActive;
+        if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
+          applyHubAnchorRotationLag(
+            _hubTarget,
+            _posA,
+            blobGroupRef.current?.rotation.y ?? 0,
+            lagState.laggedRotationY,
+          );
+        } else {
+          _posA.copy(_hubTarget);
+        }
       } else {
         displacedVertexPosition(vertices, a, blobParams, _posA);
       }

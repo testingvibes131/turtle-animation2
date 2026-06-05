@@ -15,7 +15,7 @@ export function CaseStudyThirdCard({ card }: Props) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div
-          className="flex min-h-0 flex-1 flex-col justify-center"
+          className="flex min-h-0 flex-1 flex-col justify-start"
           style={{
             padding:
               "clamp(14px, 1.4vw, 20px) clamp(14px, 1.4vw, 20px) clamp(8px, 0.8vw, 12px) clamp(14px, 1.4vw, 20px)",

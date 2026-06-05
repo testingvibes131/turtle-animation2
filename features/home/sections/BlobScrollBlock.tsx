@@ -1,6 +1,5 @@
 "use client";
 
-import { Leva } from "leva";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
@@ -13,6 +12,7 @@ import {
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { resolveBlobRuntimeParams } from "@/features/blob-scene/lib/blobRuntimeParams";
 import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
+import { BlobLevaPanel } from "@/features/home/sections/BlobLevaPanel";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
 
@@ -46,7 +46,8 @@ function computeBlobScrollProgress(
  * Leva setup picks params + interaction mode; scroll always drives blob placement.
  */
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
-  const { setup: levaSetup, params, transition, coloredDots } = useBlobControls();
+  const { setup: levaSetup, params, section1, transition, coloredDots } =
+    useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
@@ -56,9 +57,12 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const [coloredToGrayMix, setColoredToGrayMix] = useState(() =>
     levaSetup === "section-1-blob" ? 0 : 1,
   );
+  const coloredToGrayMixRef = useRef(coloredToGrayMix);
+  const scrollRafRef = useRef<number | null>(null);
   const runtimeParams = useMemo(
-    () => resolveBlobRuntimeParams(params, levaSetup, coloredToGrayMix),
-    [coloredToGrayMix, levaSetup, params],
+    () =>
+      resolveBlobRuntimeParams(params, levaSetup, coloredToGrayMix, section1),
+    [coloredToGrayMix, levaSetup, params, section1],
   );
 
   const heroShowcaseActive =
@@ -76,7 +80,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
 
     const mobileQuery = window.matchMedia(MOBILE_BLOB_QUERY);
 
-    const updateScroll = () => {
+    const applyScroll = () => {
+      scrollRafRef.current = null;
       const hero = block.querySelector<HTMLElement>('[data-blob-section="1"]');
       const section2 = block.querySelector<HTMLElement>(
         '[data-blob-section="2"]',
@@ -90,6 +95,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const grayMix = blobColoredToGrayMix(levaSetup, metrics, transition);
       const runtime = blobRuntimeSetup(levaSetup, metrics, transition);
 
+      coloredToGrayMixRef.current = grayMix;
+
       setScrollProgress(
         computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
@@ -100,11 +107,33 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       );
     };
 
+    const updateScroll = () => {
+      const hero = block.querySelector<HTMLElement>('[data-blob-section="1"]');
+      const section2 = block.querySelector<HTMLElement>(
+        '[data-blob-section="2"]',
+      );
+      const heroScroll = hero?.offsetHeight ?? window.innerHeight;
+      const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
+      const scrolled = -block.getBoundingClientRect().top;
+      const metrics = { scrolled, heroScroll, section2Scroll };
+      coloredToGrayMixRef.current = blobColoredToGrayMix(
+        levaSetup,
+        metrics,
+        transition,
+      );
+
+      if (scrollRafRef.current !== null) return;
+      scrollRafRef.current = requestAnimationFrame(applyScroll);
+    };
+
     updateScroll();
     window.addEventListener("scroll", updateScroll, { passive: true });
     window.addEventListener("resize", updateScroll);
     mobileQuery.addEventListener("change", updateScroll);
     return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
       window.removeEventListener("scroll", updateScroll);
       window.removeEventListener("resize", updateScroll);
       mobileQuery.removeEventListener("change", updateScroll);
@@ -113,7 +142,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
 
   return (
     <div ref={blockRef} className="relative isolate">
-      <Leva oneLineLabels titleBar={{ title: "Blob" }} />
+      <BlobLevaPanel />
       <div className="sticky top-0 -z-10 h-screen w-full">
         <div
           className={[
@@ -127,8 +156,10 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
             interactionEnabled={interactionEnabled}
             blobSetup={runtimeSetup}
             coloredToGrayMix={coloredToGrayMix}
+            coloredToGrayMixRef={coloredToGrayMixRef}
             transitionTuning={transition}
             coloredDotsTuning={coloredDots}
+            section1Tuning={section1}
           >
             <BlobExperience params={runtimeParams} />
           </BlobScrollProgressProvider>

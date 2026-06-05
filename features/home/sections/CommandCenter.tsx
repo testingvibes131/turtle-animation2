@@ -32,7 +32,7 @@ export function CommandCenter() {
   return (
     <SectionShell
       paddingY="none"
-      className="flex flex-col py-[clamp(32px,4vw,48px)] lg:h-svh lg:max-h-svh lg:min-h-svh lg:overflow-hidden lg:py-[clamp(20px,3vh,48px)]"
+      className="flex flex-col mt-[clamp(40px,6vh,80px)] pt-[clamp(48px,6vw,64px)] pb-[clamp(32px,4vw,48px)] lg:mt-[clamp(56px,8vh,112px)] lg:h-svh lg:max-h-svh lg:min-h-svh lg:overflow-hidden lg:pt-[clamp(32px,4vh,64px)] lg:pb-[clamp(20px,3vh,48px)]"
       innerClassName="flex flex-col gap-[clamp(24px,3vw,32px)] lg:min-h-0 lg:flex-1 lg:gap-[clamp(16px,2.2vh,32px)]"
     >
       <RevealOnScroll className="shrink-0">

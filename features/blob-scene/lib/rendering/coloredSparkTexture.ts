@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
-/** Radial alpha falloff — matches chart/command-center soft spark (no runtime blur). */
-export function createColoredSparkTexture(size = 64): THREE.CanvasTexture {
+/** Soft radial bloom — wide falloff, no runtime blur. */
+export function createColoredSparkTexture(size = 96): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
@@ -11,19 +11,21 @@ export function createColoredSparkTexture(size = 64): THREE.CanvasTexture {
   }
 
   const center = size * 0.5;
-  const radius = size * 0.5;
+  const outer = size * 0.5;
+  const inner = outer * 0.1;
   const gradient = ctx.createRadialGradient(
     center,
     center,
-    0,
+    inner,
     center,
     center,
-    radius,
+    outer,
   );
-  gradient.addColorStop(0, "rgba(255,255,255,0.9)");
-  gradient.addColorStop(0.28, "rgba(255,255,255,0.78)");
-  gradient.addColorStop(0.55, "rgba(255,255,255,0.46)");
-  gradient.addColorStop(0.8, "rgba(255,255,255,0.16)");
+  gradient.addColorStop(0, "rgba(255,255,255,0.52)");
+  gradient.addColorStop(0.18, "rgba(255,255,255,0.44)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.3)");
+  gradient.addColorStop(0.62, "rgba(255,255,255,0.16)");
+  gradient.addColorStop(0.82, "rgba(255,255,255,0.06)");
   gradient.addColorStop(1, "rgba(255,255,255,0)");
 
   ctx.fillStyle = gradient;

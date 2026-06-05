@@ -35,6 +35,11 @@ function grad(hash: number, x: number, y: number, z: number): number {
   return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
 }
 
+/** Unit-ish 3D Perlin sample in roughly [-1, 1]. */
+export function samplePerlin3(x: number, y: number, z: number): number {
+  return perlin3(x, y, z);
+}
+
 function perlin3(x: number, y: number, z: number): number {
   const xi = Math.floor(x) & 255;
   const yi = Math.floor(y) & 255;

@@ -65,7 +65,13 @@ export function setInstanceOpacityAt(
     "instanceOpacity",
   ) as THREE.InstancedBufferAttribute;
   attr.array[slot] = opacity;
-  attr.needsUpdate = true;
+}
+
+export function markInstanceOpacityDirty(mesh: THREE.InstancedMesh): void {
+  const attr = mesh.geometry.getAttribute(
+    "instanceOpacity",
+  ) as THREE.InstancedBufferAttribute | undefined;
+  if (attr) attr.needsUpdate = true;
 }
 
 /** Depth fade + per-instance opacity (noise slope) for sketch blob spheres. */

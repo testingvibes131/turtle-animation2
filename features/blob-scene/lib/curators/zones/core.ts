@@ -22,6 +22,11 @@ import {
   type IcosahedronVertexData,
   type PerlinBlobParams,
 } from "@/features/blob-scene/lib/geometry/perlinBlob";
+import {
+  curatorScoreJitter,
+  DEFAULT_ZONE_EDGE_JITTER,
+  type ZoneEdgeJitterTuning,
+} from "@/features/blob-scene/lib/curators/zones/zoneEdgeJitter";
 
 const _layoutForward = new THREE.Vector3();
 const _viewForward = new THREE.Vector3();
@@ -422,6 +427,70 @@ function nearestCuratorForDirection(
   return bestName;
 }
 
+function curatorDotsForDirection(
+  dir: THREE.Vector3,
+  layoutAxis: THREE.Vector3,
+  curators: readonly CuratorDef[],
+  options: ZonePickOptions,
+): { name: string; dot: number }[] {
+  const lean = clampBlobCenterLean(options.blobCenterLean);
+  const offset = options.zoneCenterOffsetRight ?? 0;
+  const out: { name: string; dot: number }[] = [];
+  for (const c of curators) {
+    const center = zoneCenterDirection(
+      layoutAxis,
+      curatorZoneClockDeg(c.name),
+      options.frontMinDot,
+      lean,
+      offset,
+    );
+    out.push({ name: c.name, dot: dir.dot(center) });
+  }
+  return out;
+}
+
+function voronoiMargin(dots: readonly { dot: number }[]): number {
+  if (dots.length < 2) return 1;
+  const sorted = [...dots].sort((a, b) => b.dot - a.dot);
+  return sorted[0]!.dot - sorted[1]!.dot;
+}
+
+/** Visual cap partition — same inputs as {@link nearestCuratorForDirection} but wobbly borders. */
+function nearestCuratorForDirectionVisual(
+  dir: THREE.Vector3,
+  layoutAxis: THREE.Vector3,
+  curators: readonly CuratorDef[],
+  options: ZonePickOptions,
+  jitter: ZoneEdgeJitterTuning = DEFAULT_ZONE_EDGE_JITTER,
+): string {
+  const lean = clampBlobCenterLean(options.blobCenterLean);
+  const offset = options.zoneCenterOffsetRight ?? 0;
+  const dots = curatorDotsForDirection(dir, layoutAxis, curators, options);
+  const margin = voronoiMargin(dots);
+
+  let bestName = curators[0]!.name;
+  let bestScore = -Infinity;
+
+  for (let i = 0; i < curators.length; i++) {
+    const c = curators[i]!;
+    const center = zoneCenterDirection(
+      layoutAxis,
+      curatorZoneClockDeg(c.name),
+      options.frontMinDot,
+      lean,
+      offset,
+    );
+    const score =
+      dir.dot(center) + curatorScoreJitter(dir, i, margin, jitter);
+    if (score > bestScore) {
+      bestScore = score;
+      bestName = c.name;
+    }
+  }
+
+  return bestName;
+}
+
 function curatorNameForCapVertex(
   positions: Float32Array,
   index: number,
@@ -804,6 +873,41 @@ export function assignCapMembers(
       layoutAxis,
       curators,
       options,
+    );
+    buckets.get(bestName)!.push(vi);
+  }
+
+  return buckets;
+}
+
+/**
+ * Display-only cap buckets with noisy zone borders.
+ * Hub picking, hover, and plexus still use {@link assignCapMembers}.
+ */
+export function assignCapMembersVisual(
+  positions: Float32Array,
+  vertexCount: number,
+  curators: readonly CuratorDef[],
+  towardCamera: THREE.Vector3,
+  options: ZonePickOptions,
+  jitter: ZoneEdgeJitterTuning = DEFAULT_ZONE_EDGE_JITTER,
+): Map<string, number[]> {
+  const layoutAxis = _layoutForward.copy(towardCamera).normalize();
+  const buckets = new Map<string, number[]>();
+  for (const c of curators) buckets.set(c.name, []);
+
+  for (let vi = 0; vi < vertexCount; vi++) {
+    if (!passesCameraCap(positions, vi, towardCamera, options.frontMinDot)) {
+      continue;
+    }
+
+    vertexDirection(positions, vi, _dir);
+    const bestName = nearestCuratorForDirectionVisual(
+      _dir,
+      layoutAxis,
+      curators,
+      options,
+      jitter,
     );
     buckets.get(bestName)!.push(vi);
   }

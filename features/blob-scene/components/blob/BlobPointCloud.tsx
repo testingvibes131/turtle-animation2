@@ -14,37 +14,33 @@ import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
 import {
   attachBlobPointFade,
   ensureInstanceOpacityBuffer,
+  markInstanceOpacityDirty,
   setInstanceOpacityAt,
 } from "@/features/blob-scene/lib/rendering/blobPointFade";
+import { readCachedVertexPosition } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
 import { createColoredSparkTexture } from "@/features/blob-scene/lib/rendering/coloredSparkTexture";
 import { updateMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
-import { noiseSlopeOpacityMul } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
+import { noiseSlopeOpacityFromDisplacement } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { vertexFacesCamera } from "@/features/blob-scene/lib/geometry/frontHemisphere";
 import { depthSizeMultiplier } from "@/features/blob-scene/lib/geometry/sphereDepthSize";
 import {
   RENDER_DEBUG_PICKABLE,
   RENDER_SPHERE,
 } from "@/features/blob-scene/lib/rendering/renderOrder";
-import {
-  displacedVertexPosition,
-  type PerlinBlobParams,
-} from "@/features/blob-scene/lib/geometry/perlinBlob";
+import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 import { buildCuratorVertexBuckets } from "@/features/blob-scene/lib/geometry/blobVertexCuratorColors";
 import type { RefObject } from "react";
 
 const POINT_COLOR = 0x2c2d2b;
 const DEBUG_PICKABLE_COLOR = 0x2973ff;
 const BLOB_POINT_SCALE_MUL = 1.25;
-/** Gradient sparks read smaller than mesh spheres at the same `pointRadius`. */
-const COLORED_SPARK_RADIUS_MUL = 1.58;
-/** Pull curator brand colors toward the blob palette without going gray. */
-const COLORED_SPARK_COLOR_DIM = 0.86;
 const DEBUG_PICKABLE_SCALE_MUL = 1.08;
 const createSphereGeo = () => new THREE.SphereGeometry(1, 10, 8);
 const createSparkGeo = () => new THREE.PlaneGeometry(1, 1);
 const _dummy = new THREE.Object3D();
 const _worldPos = new THREE.Vector3();
 const _cameraLocal = new THREE.Vector3();
+const _sparkQuat = new THREE.Quaternion();
 
 type BlobPointCloudProps = {
   blobGroupRef: RefObject<THREE.Group | null>;
@@ -67,6 +63,7 @@ export function BlobPointCloud({
     scalesRef,
     getTowardCamera,
     getBlobParamsAtTime,
+    blobFrameCacheRef,
   } = useBlobScene();
   const coloredMix = useBlobColoredDotsMix();
   const grayMix = useBlobColoredToGrayMix();
@@ -88,6 +85,7 @@ export function BlobPointCloud({
   const liveMeshRef = useRef<THREE.InstancedMesh>(null);
   const deadMeshRef = useRef<THREE.InstancedMesh>(null);
   const curatorSparkMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
+  const curatorSparkHaloMeshRefs = useRef<(THREE.InstancedMesh | null)[]>([]);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
 
   const liveMaterial = useMemo(() => {
@@ -112,20 +110,42 @@ export function BlobPointCloud({
     () =>
       CURATORS.map((curator) => {
         const color = new THREE.Color(curator.color).multiplyScalar(
-          COLORED_SPARK_COLOR_DIM,
+          coloredDotsTuning.colorDim,
         );
         const mat = new THREE.MeshBasicMaterial({
           color,
           map: sparkTexture,
           transparent: true,
           opacity: coloredDotsTuning.coreOpacity,
+          blending: THREE.AdditiveBlending,
           toneMapped: false,
           depthWrite: false,
         });
         attachBlobPointFade(mat, depthFadeUniforms);
         return mat;
       }),
-    [coloredDotsTuning.coreOpacity, depthFadeUniforms, sparkTexture],
+    [coloredDotsTuning.colorDim, coloredDotsTuning.coreOpacity, depthFadeUniforms, sparkTexture],
+  );
+
+  const curatorSparkHaloMaterials = useMemo(
+    () =>
+      CURATORS.map((curator) => {
+        const color = new THREE.Color(curator.color).multiplyScalar(
+          coloredDotsTuning.colorDim,
+        );
+        const mat = new THREE.MeshBasicMaterial({
+          color,
+          map: sparkTexture,
+          transparent: true,
+          opacity: coloredDotsTuning.glowOpacity,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false,
+          depthWrite: false,
+        });
+        attachBlobPointFade(mat, depthFadeUniforms);
+        return mat;
+      }),
+    [coloredDotsTuning.colorDim, coloredDotsTuning.glowOpacity, depthFadeUniforms, sparkTexture],
   );
 
   const debugPickableMaterial = useMemo(
@@ -145,6 +165,10 @@ export function BlobPointCloud({
     () => () => curatorSparkMaterials.forEach((mat) => mat.dispose()),
     [curatorSparkMaterials],
   );
+  useEffect(
+    () => () => curatorSparkHaloMaterials.forEach((mat) => mat.dispose()),
+    [curatorSparkHaloMaterials],
+  );
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
   useEffect(() => () => sparkTexture.dispose(), [sparkTexture]);
 
@@ -154,6 +178,9 @@ export function BlobPointCloud({
     const debugMesh = debugPickableMeshRef.current;
     if (debugMesh) debugMesh.raycast = () => {};
     for (const mesh of curatorSparkMeshRefs.current) {
+      if (mesh) mesh.raycast = () => {};
+    }
+    for (const mesh of curatorSparkHaloMeshRefs.current) {
       if (mesh) mesh.raycast = () => {};
     }
   }, []);
@@ -170,6 +197,8 @@ export function BlobPointCloud({
     const blobParams: PerlinBlobParams = getBlobParamsAtTime(
       blobAnimTimeRef.current,
     );
+    const frameCache = blobFrameCacheRef.current;
+    if (!frameCache) return;
 
     const maxDisp =
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
@@ -188,6 +217,16 @@ export function BlobPointCloud({
       scalesRef.current = scales;
     }
 
+    let sparkQuatReady = false;
+    if (coloredMix > 0.001 && group) {
+      _cameraLocal.copy(state.camera.position);
+      group.worldToLocal(_cameraLocal);
+      _dummy.position.set(0, 0, 0);
+      _dummy.lookAt(_cameraLocal);
+      _sparkQuat.copy(_dummy.quaternion);
+      sparkQuatReady = true;
+    }
+
     const writeInstance = (
       mesh: THREE.InstancedMesh,
       vertexIndex: number,
@@ -195,7 +234,7 @@ export function BlobPointCloud({
       scaleMul: number,
       hide: boolean,
     ) => {
-      displacedVertexPosition(vertices, vertexIndex, blobParams, _dummy.position);
+      readCachedVertexPosition(frameCache, vertexIndex, _dummy.position);
       _worldPos.copy(_dummy.position);
       if (group) group.localToWorld(_worldPos);
       const dist = state.camera.position.distanceTo(_worldPos);
@@ -211,6 +250,7 @@ export function BlobPointCloud({
         );
       scales[vertexIndex] = visualScale;
       _dummy.scale.setScalar(hide ? 0 : visualScale);
+      _dummy.rotation.set(0, 0, 0);
       _dummy.updateMatrix();
       mesh.setMatrixAt(slot, _dummy.matrix);
     };
@@ -220,16 +260,18 @@ export function BlobPointCloud({
       vertexIndex: number,
       slot: number,
       hide: boolean,
+      radiusMul = 1,
     ) => {
-      displacedVertexPosition(vertices, vertexIndex, blobParams, _dummy.position);
+      readCachedVertexPosition(frameCache, vertexIndex, _dummy.position);
       _worldPos.copy(_dummy.position);
       if (group) group.localToWorld(_worldPos);
       const dist = state.camera.position.distanceTo(_worldPos);
       const visualScale =
         pointRadius *
         BLOB_POINT_SCALE_MUL *
-        COLORED_SPARK_RADIUS_MUL *
+        coloredDotsTuning.sparkRadiusMul *
         coloredDotsTuning.glowScaleMul *
+        radiusMul *
         depthSizeMultiplier(
           dist,
           sizeNear,
@@ -243,9 +285,7 @@ export function BlobPointCloud({
         _dummy.scale.set(0, 0, 0);
       } else {
         _dummy.scale.set(visualScale, visualScale, 1);
-        _cameraLocal.copy(state.camera.position);
-        if (group) group.worldToLocal(_cameraLocal);
-        _dummy.lookAt(_cameraLocal);
+        if (sparkQuatReady) _dummy.quaternion.copy(_sparkQuat);
       }
       _dummy.updateMatrix();
       mesh.setMatrixAt(slot, _dummy.matrix);
@@ -261,9 +301,8 @@ export function BlobPointCloud({
       setInstanceOpacityAt(
         mesh,
         slot,
-        noiseSlopeOpacityMul(
-          vertices,
-          vertexIndex,
+        noiseSlopeOpacityFromDisplacement(
+          frameCache.displacement[vertexIndex]!,
           blobParams,
           params.noiseSlopeMinOpacity,
           params.noiseSlopeMaxOpacity,
@@ -274,24 +313,44 @@ export function BlobPointCloud({
     if (coloredMix > 0.001) {
       for (let ci = 0; ci < CURATORS.length; ci++) {
         const mesh = curatorSparkMeshRefs.current[ci];
+        const haloMesh = curatorSparkHaloMeshRefs.current[ci];
         const bucket = curatorBuckets.buckets[ci]!;
         if (!mesh) continue;
 
         ensureInstanceOpacityBuffer(mesh, bucket.length);
+        if (haloMesh) ensureInstanceOpacityBuffer(haloMesh, bucket.length);
 
         for (let slot = 0; slot < bucket.length; slot++) {
           const vertexIndex = bucket[slot]!;
           const hidden = zoneUsed.has(vertexIndex);
           writeColoredSparkInstance(mesh, vertexIndex, slot, hidden);
           writeOpacity(mesh, vertexIndex, slot, coloredMix);
+          if (haloMesh) {
+            writeColoredSparkInstance(
+              haloMesh,
+              vertexIndex,
+              slot,
+              hidden,
+              coloredDotsTuning.haloRadiusMul,
+            );
+            writeOpacity(haloMesh, vertexIndex, slot, coloredMix);
+          }
         }
         mesh.count = bucket.length;
         mesh.instanceMatrix.needsUpdate = true;
+        markInstanceOpacityDirty(mesh);
+        if (haloMesh) {
+          haloMesh.count = bucket.length;
+          haloMesh.instanceMatrix.needsUpdate = true;
+          markInstanceOpacityDirty(haloMesh);
+        }
       }
     } else {
       for (let ci = 0; ci < CURATORS.length; ci++) {
         const mesh = curatorSparkMeshRefs.current[ci];
         if (mesh) mesh.count = 0;
+        const haloMesh = curatorSparkHaloMeshRefs.current[ci];
+        if (haloMesh) haloMesh.count = 0;
       }
     }
 
@@ -311,6 +370,7 @@ export function BlobPointCloud({
         }
         liveMesh.count = liveIndices.length;
         liveMesh.instanceMatrix.needsUpdate = true;
+        markInstanceOpacityDirty(liveMesh);
       }
 
       if (deadMesh) {
@@ -328,6 +388,7 @@ export function BlobPointCloud({
         }
         deadMesh.count = deadIndices.length;
         deadMesh.instanceMatrix.needsUpdate = true;
+        markInstanceOpacityDirty(deadMesh);
       }
     } else {
       if (liveMesh) liveMesh.count = 0;
@@ -393,19 +454,32 @@ export function BlobPointCloud({
         renderOrder={RENDER_SPHERE}
       />
       {CURATORS.map((curator, ci) => (
-        <instancedMesh
-          key={curator.name}
-          ref={(mesh) => {
-            curatorSparkMeshRefs.current[ci] = mesh;
-          }}
-          args={[
-            sparkGeo,
-            curatorSparkMaterials[ci]!,
-            Math.max(1, curatorBuckets.maxBucketSize),
-          ]}
-          frustumCulled={false}
-          renderOrder={RENDER_SPHERE}
-        />
+        <group key={curator.name}>
+          <instancedMesh
+            ref={(mesh) => {
+              curatorSparkHaloMeshRefs.current[ci] = mesh;
+            }}
+            args={[
+              sparkGeo,
+              curatorSparkHaloMaterials[ci]!,
+              Math.max(1, curatorBuckets.maxBucketSize),
+            ]}
+            frustumCulled={false}
+            renderOrder={RENDER_SPHERE}
+          />
+          <instancedMesh
+            ref={(mesh) => {
+              curatorSparkMeshRefs.current[ci] = mesh;
+            }}
+            args={[
+              sparkGeo,
+              curatorSparkMaterials[ci]!,
+              Math.max(1, curatorBuckets.maxBucketSize),
+            ]}
+            frustumCulled={false}
+            renderOrder={RENDER_SPHERE + 1}
+          />
+        </group>
       ))}
       <instancedMesh
         ref={debugPickableMeshRef}

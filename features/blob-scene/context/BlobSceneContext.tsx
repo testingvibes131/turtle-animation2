@@ -12,10 +12,12 @@ import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobContro
 import type { MarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import type { CuratorZoneAssignment } from "@/features/blob-scene/lib/curators/zones";
 import type { ConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
+import type { BlobVertexFrameCache } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
 import type {
   IcosahedronVertexData,
   PerlinBlobParams,
 } from "@/features/blob-scene/lib/geometry/perlinBlob";
+import type { HubAnchorRotationLagState } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 
 export type BlobSceneContextValue = {
   vertices: IcosahedronVertexData;
@@ -29,6 +31,8 @@ export type BlobSceneContextValue = {
   depthFadeUniforms: MarkerDepthFadeUniforms;
   blobGroupRef: RefObject<THREE.Group | null>;
   blobAnimTimeRef: MutableRefObject<number>;
+  /** Filled each frame by useBlobFrameGeometry (priority -100). */
+  blobFrameCacheRef: MutableRefObject<BlobVertexFrameCache | null>;
   zoneUsedRef: MutableRefObject<Set<number>>;
   zonesSnapshotRef: MutableRefObject<CuratorZoneAssignment[]>;
   scalesRef: MutableRefObject<Float32Array>;
@@ -39,6 +43,8 @@ export type BlobSceneContextValue = {
   getTowardCamera: () => THREE.Vector3;
   /** Camera-facing layout axis; frozen for the active hover zone. */
   getHubLayoutAxis: () => THREE.Vector3;
+  /** Section 2: smoothed blob Y rotation for lagging hub logo + plexus origin. */
+  hubAnchorRotationLagRef: MutableRefObject<HubAnchorRotationLagState>;
   /** Per-frame layouts for connected dots (orbit rings read after zone write). */
   connectedMarkerLayoutsRef: MutableRefObject<
     Map<number, ConnectedMarkerLayout>
