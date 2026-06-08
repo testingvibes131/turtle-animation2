@@ -1,7 +1,25 @@
 import { GRID_SPACING } from "@/features/home/components/commandCenterGrid";
 
-/** Figma Card-Deals visual inset — separates art from the card shell. */
-export const COMMAND_CENTER_CANVAS_BG = "#000000";
+/** Figma Card-Deals / chart visual inset — top-left to bottom-right. */
+export const COMMAND_CENTER_CANVAS_BG = "#161716";
+export const VISUAL_CANVAS_GRADIENT_START = "#2D2E2D";
+export const VISUAL_CANVAS_GRADIENT_END = "#161716";
+
+/** Tailwind classes for non-canvas chart / feature frames. */
+export const visualCanvasBgClass =
+  "bg-[#161716] [background-image:linear-gradient(to_bottom_right,#2D2E2D_0%,#161716_100%)]";
+
+export function drawVisualCanvasBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, VISUAL_CANVAS_GRADIENT_START);
+  gradient.addColorStop(1, VISUAL_CANVAS_GRADIENT_END);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+}
 
 export type GridCell = { row: number; col: number };
 export type PixelPoint = { x: number; y: number };
@@ -30,8 +48,7 @@ export function clearCommandCenterCanvas(
   width: number,
   height: number,
 ) {
-  ctx.fillStyle = COMMAND_CENTER_CANVAS_BG;
-  ctx.fillRect(0, 0, width, height);
+  drawVisualCanvasBackground(ctx, width, height);
 }
 
 export function resizeCanvas(

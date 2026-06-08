@@ -369,7 +369,7 @@ body {
 
 .pipeline-card[data-state="default"] {
   background: #141514;
-  border-style: dashed;
+  border-style: solid;
 }
 
 .pipeline-card[data-state="default"] .pipeline-card-title {
@@ -658,7 +658,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #191a19;
+  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
   border: 1px dashed #2a2a2a;
   border-radius: 10px;
   width: var(--partner-card-width);

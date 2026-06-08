@@ -7,6 +7,10 @@ import {
   GRID_DOT_RADIUS,
   isInsideChartMargin,
 } from "@/features/home/components/chartCanvasGrid";
+import {
+  drawVisualCanvasBackground,
+  visualCanvasBgClass,
+} from "@/features/home/components/commandCenterCanvas";
 import { drawChartGreenGlow } from "@/features/home/components/chartDotGlow";
 import { cornerSwaps, peakOffInGrown } from "@/features/home/data/tvlChartCliff";
 import { tvlChartLitPath } from "@/features/home/data/tvlChartGridPath";
@@ -130,7 +134,7 @@ export function TvlChartGraph({
     };
 
     const drawAt = (now: number, startedAt: number) => {
-      ctx.clearRect(0, 0, width, height);
+      drawVisualCanvasBackground(ctx, width, height);
 
       drawChartMutedGrid(
         ctx,
@@ -199,7 +203,7 @@ export function TvlChartGraph({
     <div
       ref={wrapRef}
       className={[
-        "relative overflow-hidden rounded-[15px] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10 [background-image:linear-gradient(to_bottom_right,rgba(249,249,249,0.12)_0%,rgba(249,249,249,0.04)_38%,#0f0f0f_100%)]",
+        `relative overflow-hidden rounded-[15px] outline outline-1 -outline-offset-1 outline-stone-50/10 ${visualCanvasBgClass}`,
         shell ? "h-full min-h-0 w-full" : "w-full max-w-[534px] shrink-0",
         className,
       ]

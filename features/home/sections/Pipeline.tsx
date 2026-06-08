@@ -57,7 +57,7 @@ export function Pipeline() {
                 }}
                 role="button"
                 tabIndex={0}
-                className="pipeline-card group flex cursor-pointer flex-col items-start gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10"
+                className="pipeline-card group flex cursor-pointer flex-col items-start justify-between gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
                   height: "clamp(160px, 14vw, 209px)",

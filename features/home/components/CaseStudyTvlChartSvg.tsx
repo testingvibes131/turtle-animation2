@@ -1,3 +1,4 @@
+import { visualCanvasBgClass } from "@/features/home/components/commandCenterCanvas";
 import type { CaseStudy } from "@/features/home/data/caseStudies";
 import {
   TVL_LINE_PATHS,
@@ -22,7 +23,8 @@ export function CaseStudyTvlChartSvg({
   return (
     <div
       className={[
-        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        visualCanvasBgClass,
         "max-md:min-h-[clamp(100px,24vw,160px)] lg:min-h-[clamp(140px,16vw,260px)]",
         className,
       ]
@@ -47,7 +49,7 @@ export function CaseStudyTvlChartSvg({
           d={line}
           fill="none"
           stroke="#73F36C"
-          strokeWidth={1.5}
+          strokeWidth={1}
           strokeLinecap="round"
           strokeLinejoin="round"
         />

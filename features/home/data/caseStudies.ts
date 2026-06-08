@@ -159,11 +159,11 @@ export const caseStudies: CaseStudy[] = [
     logo: "/case-studies/logo-decibel.png",
     title: "Decibel Reaches $10M in first 24 Hours",
     tvl: {
-      target: 800,
+      target: 10,
       prefix: "$",
       suffix: "M",
       display: "$800M",
-      label: "TVL Raised for TAC Launch on TON",
+      label: "Deployed within 24hrs",
     },
     boosted: {
       kind: "range",

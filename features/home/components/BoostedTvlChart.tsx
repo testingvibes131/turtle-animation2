@@ -23,6 +23,10 @@ import {
   drawChartMutedGrid,
   GRID_DOT_RADIUS,
 } from "@/features/home/components/chartCanvasGrid";
+import {
+  drawVisualCanvasBackground,
+  visualCanvasBgClass,
+} from "@/features/home/components/commandCenterCanvas";
 import { drawChartBarGlow } from "@/features/home/components/chartDotGlow";
 
 const IDLE_HOLD_MS = 3000;
@@ -177,7 +181,7 @@ export function BoostedTvlChart({
     };
 
     const drawAt = (now: number, startedAt: number) => {
-      ctx.clearRect(0, 0, width, height);
+      drawVisualCanvasBackground(ctx, width, height);
 
       drawChartMutedGrid(
         ctx,
@@ -258,7 +262,7 @@ export function BoostedTvlChart({
     <div
       ref={wrapRef}
       className={[
-        "relative overflow-hidden rounded-[15px] bg-[#0f0f0f] outline outline-1 -outline-offset-1 outline-stone-50/10 [background-image:linear-gradient(to_bottom_right,rgba(249,249,249,0.12)_0%,rgba(249,249,249,0.04)_38%,#0f0f0f_100%)]",
+        `relative overflow-hidden rounded-[15px] outline outline-1 -outline-offset-1 outline-stone-50/10 ${visualCanvasBgClass}`,
         shell ? "h-full min-h-0 w-full" : "w-full",
         className,
       ]

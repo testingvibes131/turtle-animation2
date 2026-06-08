@@ -23,16 +23,8 @@ export function HeroSection() {
                 Aggregated, Diligenced, Personalized
               </p>
               <div className="pointer-events-auto mt-6 flex flex-wrap justify-center gap-2 lg:mt-7 lg:justify-start">
-                <CtaPill
-                  href="#"
-                  label="For Investors"
-                  className="py-3 pl-5 pr-1.5"
-                />
-                <CtaPill
-                  href="#"
-                  label="For Asset Issuers"
-                  className="py-3 pl-5 pr-1.5"
-                />
+                <CtaPill href="#" label="For Investors" />
+                <CtaPill href="#" label="For Asset Issuers" />
               </div>
             </SectionIntro>
           </RevealOnScroll>
