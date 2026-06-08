@@ -1,5 +1,8 @@
 import { GRID_SPACING } from "@/features/home/components/commandCenterGrid";
 
+/** Figma Card-Deals visual inset — separates art from the card shell. */
+export const COMMAND_CENTER_CANVAS_BG = "#000000";
+
 export type GridCell = { row: number; col: number };
 export type PixelPoint = { x: number; y: number };
 export type PixelRect = { minX: number; minY: number; maxX: number; maxY: number };
@@ -20,6 +23,15 @@ export function getGridDimensions(width: number, height: number) {
     cols: Math.ceil((width - offsetX) / GRID_SPACING) + 1,
     rows: Math.ceil((height - offsetY) / GRID_SPACING) + 1,
   };
+}
+
+export function clearCommandCenterCanvas(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = COMMAND_CENTER_CANVAS_BG;
+  ctx.fillRect(0, 0, width, height);
 }
 
 export function resizeCanvas(

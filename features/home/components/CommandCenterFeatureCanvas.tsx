@@ -3,6 +3,7 @@
 
 import { useRef } from "react";
 import {
+  clearCommandCenterCanvas,
   getGridDimensions,
   type GridCell,
   type PixelPoint,
@@ -159,7 +160,7 @@ function drawScene(
   connectorSlotsRef: { current: (SpiderLegSlot | null)[] },
   travelSmoothRef: { current: { vx: number; vy: number } },
 ) {
-  ctx.clearRect(0, 0, width, height);
+  clearCommandCenterCanvas(ctx, width, height);
 
   mainDot.setBounds(createFlyBounds(width, height, PORTFOLIO_FLY_MARGIN));
   mainDot.update(dt);

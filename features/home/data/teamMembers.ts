@@ -20,25 +20,25 @@ export const teamMembers: TeamMember[] = [
     id: "nick",
     name: "Nick",
     role: "Co-Founder & CTO",
-    photo: teamPhoto("image 4.png"),
+    photo: teamPhoto("Nick Turtle.png"),
   },
   {
     id: "tim",
     name: "Tim",
     role: "CMO",
-    photo: teamPhoto("Niek Turtle.png"),
+    photo: teamPhoto("Tim Turtle.png"),
   },
   {
     id: "waseem",
     name: "Waseem",
     role: "COO",
-    photo: teamPhoto("image 6.png"),
+    photo: teamPhoto("Waseem Turtle.png"),
   },
   {
     id: "kunz",
     name: "Kunz",
     role: "Head of BD",
-    photo: teamPhoto("image 5.png"),
+    photo: teamPhoto("Kunz Turtle.png"),
   },
   {
     id: "duncan",
@@ -50,7 +50,7 @@ export const teamMembers: TeamMember[] = [
     id: "nicolai",
     name: "Nicolai",
     role: "Head of Liquidity Desk",
-    photo: teamPhoto("Felix Turtle.png"),
+    photo: teamPhoto("Nicolai Turtle.png"),
   },
   {
     id: "pedro",

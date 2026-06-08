@@ -7,7 +7,7 @@ import { BLOB_INTERACTION_SECTION1_START_FRAC } from "@/features/blob-scene/lib/
 export const BLOB_CAMERA_POSITION: [number, number, number] = [0, 0.12, 2.7];
 export const BLOB_CAMERA_FOV = 50;
 
-/** Fraction of blob diameter past the right viewport edge (lower = further left). */
+/** Fraction of blob diameter past the right viewport edge (legacy crop helper). */
 export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 
 /** Section 1: shift blob down by this fraction of half the viewport height. */
@@ -51,6 +51,23 @@ function viewHalfExtents(
   };
 }
 
+/**
+ * Blob center X for one viewport half. `side` 1 = right half, -1 = left half.
+ * Clamps so the full blob diameter stays inside the viewport.
+ */
+export function computeBlobOffsetXInHalf(
+  camera: THREE.PerspectiveCamera,
+  viewportAspect: number,
+  extent: number,
+  side: 1 | -1,
+): number {
+  const { halfViewWidth } = viewHalfExtents(camera, viewportAspect);
+  const targetX = (side * halfViewWidth) / 2;
+  const maxX = halfViewWidth - extent;
+  const minX = -halfViewWidth + extent;
+  return Math.min(maxX, Math.max(minX, targetX));
+}
+
 export function computeBlobOffsetXForScroll(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
@@ -58,16 +75,16 @@ export function computeBlobOffsetXForScroll(
   /** 0 = hero (left), 1 = section 2 (right on desktop, centered on portrait). */
   scrollProgress: number,
 ): number {
-  const right = computeBlobOffsetX(
-    camera,
-    viewportAspect,
-    extent,
-    BLOB_RIGHT_CROP_FRACTION,
-  );
-  const left = -right;
   const t = clampScrollProgress(scrollProgress);
-  const endX = viewportAspect < 1 ? 0 : right;
-  return left + (endX - left) * t;
+  const section2X =
+    viewportAspect < 1
+      ? 0
+      : computeBlobOffsetXInHalf(camera, viewportAspect, extent, 1);
+  const section1X =
+    viewportAspect < 1
+      ? computeBlobOffsetXInHalf(camera, viewportAspect, extent, -1)
+      : -section2X;
+  return section1X + (section2X - section1X) * t;
 }
 
 export function computeBlobOffsetYForScroll(

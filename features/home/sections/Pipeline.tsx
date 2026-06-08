@@ -84,10 +84,7 @@ export function Pipeline() {
                   className="flex w-full flex-col"
                   style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
                 >
-                  <h3
-                    className="pipeline-card-title font-normal"
-                    style={{ fontSize: "clamp(20px, 2.1vw, 30px)", lineHeight: 1.3 }}
-                  >
+                  <h3 className="pipeline-card-title text-2xl font-normal leading-[1.3] tracking-[0.015em]">
                     {step.title}
                   </h3>
                   <p

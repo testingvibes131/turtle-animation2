@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import {
+  clearCommandCenterCanvas,
   getGridDimensions,
   type GridCell,
 } from "@/features/home/components/commandCenterCanvas";
@@ -184,7 +185,7 @@ function drawScene(
   zoneHubRef: { current: GridCell | null },
   zoneCenterState: ReturnType<typeof createZoneCenterState>,
 ) {
-  ctx.clearRect(0, 0, width, height);
+  clearCommandCenterCanvas(ctx, width, height);
 
   mainDot.setBounds(createFlyBounds(width, height, FLY_BOUNDS_MARGIN));
   mainDot.update(dt);

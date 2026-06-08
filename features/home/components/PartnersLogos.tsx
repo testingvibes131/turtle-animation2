@@ -15,7 +15,8 @@ export function PartnersLogos({ variant = "overlay" }: PartnersLogosProps) {
     <section
       className={[
         "pointer-events-none z-10 w-full",
-        variant === "flow" && "relative shrink-0",
+        variant === "flow" &&
+          "relative shrink-0 -mx-6 w-[calc(100%+3rem)] md:-mx-10 md:w-[calc(100%+5rem)] lg:-mx-[100px] lg:w-[calc(100%+200px)]",
         variant === "pinned" && "absolute inset-x-0 bottom-0",
         variant === "overlay" && "absolute inset-x-0 bottom-0",
       ]

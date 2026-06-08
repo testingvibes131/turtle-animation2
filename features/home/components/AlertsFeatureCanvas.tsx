@@ -2,7 +2,10 @@
 "use client";
 
 import { useRef } from "react";
-import { getGridDimensions } from "@/features/home/components/commandCenterCanvas";
+import {
+  clearCommandCenterCanvas,
+  getGridDimensions,
+} from "@/features/home/components/commandCenterCanvas";
 import {
   clamp01,
   GRID_DOT_RADIUS,
@@ -365,7 +368,7 @@ export function AlertsFeatureCanvas() {
 
   const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
     ({ ctx, width, height, dt }) => {
-      ctx.clearRect(0, 0, width, height);
+      clearCommandCenterCanvas(ctx, width, height);
       drawAlertsGrid(ctx, width, height, runtimeRef.current, dt);
     },
   );

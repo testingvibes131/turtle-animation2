@@ -2,7 +2,11 @@ import { SectionIntro } from "@/components/layout/SectionIntro";
 import { SectionShell } from "@/components/layout/SectionShell";
 import { CtaPill } from "@/components/ui/CtaPill";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
-import { CommandCenterCardShell } from "@/features/home/components/CommandCenterCardShell";
+import {
+  CommandCenterCardShell,
+  commandCenterCardCopyClass,
+  commandCenterCardFooterClass,
+} from "@/features/home/components/CommandCenterCardShell";
 import { CommandCenterFeatureVisual } from "@/features/home/components/CommandCenterFeatureVisual";
 import { commandCenterVisualFrameClass } from "@/features/home/components/commandCenterVisualFrame";
 import { commandCenterFeatures } from "@/features/home/data/updates";
@@ -11,7 +15,7 @@ function FeatureTitle({ title }: { title: string }) {
   const lastSpace = title.lastIndexOf(" ");
   if (lastSpace <= 0) {
     return (
-      <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] text-transparent text-gradient-heading-h">
+      <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h">
         {title}
       </h3>
     );
@@ -21,9 +25,9 @@ function FeatureTitle({ title }: { title: string }) {
   const tail = title.slice(lastSpace + 1);
 
   return (
-    <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] text-transparent text-gradient-heading-h">
+    <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h">
       {lead}{" "}
-      <span className="font-extralight tracking-[-0.02em]">{tail}</span>
+      <span className="font-extralight tracking-[0.01em]">{tail}</span>
     </h3>
   );
 }
@@ -68,11 +72,13 @@ export function CommandCenter() {
                   image={feature.image}
                 />
               </div>
-              <div className="flex shrink-0 flex-col gap-[clamp(9px,0.77vh,13px)] px-1.5 text-sm">
-                <FeatureTitle title={feature.title} />
-                <p className="line-clamp-3 min-h-[3lh] leading-[1.4] text-ink-subtle">
-                  {feature.description}
-                </p>
+              <div className={commandCenterCardFooterClass}>
+                <div className={commandCenterCardCopyClass}>
+                  <FeatureTitle title={feature.title} />
+                  <p className="line-clamp-3 min-h-[3lh] leading-[1.4] tracking-[0.02em] text-ink-subtle">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
             </CommandCenterCardShell>
           </RevealOnScroll>
