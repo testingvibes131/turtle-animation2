@@ -193,6 +193,10 @@ body {
   --pipeline-visual-lift: clamp(40px, 6vh, 88px);
   --pipeline-visual-width: clamp(638px, 105.6vw, 1188px);
   --pipeline-visual-max-h: clamp(411px, 58vh, 729px);
+  --pipeline-visual-height: min(
+    calc(var(--pipeline-visual-width) * 701 / 711),
+    var(--pipeline-visual-max-h)
+  );
   --pipeline-visual-scale: 1;
   --pipeline-visual-offset-y: 0px;
   --pipeline-visual-top: auto;
@@ -215,8 +219,7 @@ body {
   bottom: var(--pipeline-visual-bottom);
   z-index: 0;
   width: var(--pipeline-visual-width);
-  height: auto;
-  aspect-ratio: 711 / 701;
+  height: var(--pipeline-visual-height);
   max-height: var(--pipeline-visual-max-h);
   overflow: visible;
   transform-origin: bottom center;
@@ -231,7 +234,14 @@ body {
 .pipeline-visual__slide {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+}
+
+/* Safari: object-fit needs an explicit % position (keywords skew per intrinsic width). */
+.pipeline-visual__slide img {
+  object-fit: contain;
 }
 
 .pipeline-stage-main .pipeline-cards {
@@ -284,6 +294,7 @@ body {
     left: auto;
     z-index: 0;
     width: min(252px, 70.2vw);
+    height: calc(min(252px, 70.2vw) * 701 / 711);
     max-height: none;
     margin-inline: auto;
     flex-shrink: 0;

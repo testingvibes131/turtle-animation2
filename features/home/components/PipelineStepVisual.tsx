@@ -23,10 +23,10 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
         const isFirst = index === 0;
         const isLast = index === steps.length - 1;
         const objectPosition = isFirst
-          ? "object-left-bottom"
+          ? "0% 100%"
           : isLast
-            ? "object-right-bottom"
-            : "object-bottom";
+            ? "100% 100%"
+            : "50% 100%";
 
         return (
           <div
@@ -42,9 +42,9 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
               sizes="(max-width: 1023px) 220px, (max-width: 1535px) 51vw, 1024px"
               className={[
                 "object-contain transition-opacity duration-500 ease-out motion-reduce:transition-none",
-                objectPosition,
                 index === activeIndex ? "opacity-100" : "opacity-0",
               ].join(" ")}
+              style={{ objectPosition }}
             />
           </div>
         );
