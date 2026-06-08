@@ -5,10 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
-import {
-  useBlobCuratorOverlayEnabled,
-  useBlobHeroShowcaseActive,
-} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { useBlobCuratorOverlayEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { curatorLogoPath, CURATOR_LOGO_PATHS } from "@/features/blob-scene/lib/curators/logo";
 import {
@@ -65,7 +62,6 @@ export function CuratorHubBillboard({
   const { blobGroupRef, getBlobParamsAtTime, hubAnchorRotationLagRef } =
     useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
-  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const texture = useTexture(curatorLogoPath(curatorName));
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -103,7 +99,7 @@ export function CuratorHubBillboard({
     );
 
     const lagState = hubAnchorRotationLagRef.current;
-    const lagEnabled = curatorOverlayEnabled && !heroShowcaseActive;
+    const lagEnabled = curatorOverlayEnabled;
     if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
       applyHubAnchorRotationLag(
         _hubPos,

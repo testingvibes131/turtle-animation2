@@ -40,6 +40,9 @@ export type BlobSceneContextValue = {
   setActiveZone: React.Dispatch<
     React.SetStateAction<CuratorZoneAssignment | null>
   >;
+  /** Section 1 cap sweep — updated each frame, spheres only. */
+  waveZoneRef: MutableRefObject<CuratorZoneAssignment | null>;
+  waveStrengthRef: MutableRefObject<number>;
   getTowardCamera: () => THREE.Vector3;
   /** Camera-facing layout axis; frozen for the active hover zone. */
   getHubLayoutAxis: () => THREE.Vector3;

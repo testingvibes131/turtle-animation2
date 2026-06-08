@@ -29,6 +29,26 @@ export function curatorZoneClockDeg(curatorName: string): number {
   return CURATOR_ZONE_CLOCK_DEG[curatorName] ?? 90;
 }
 
+/** Mirror hub/zone clock across the vertical axis (section 1 ↔ section 2). */
+export function mirrorCapClockDeg(deg: number): number {
+  return (180 - deg + 360) % 360;
+}
+
+export function zoneClockDegForLayout(
+  curatorName: string,
+  layoutMirrored = false,
+): number {
+  const deg = curatorZoneClockDeg(curatorName);
+  return layoutMirrored ? mirrorCapClockDeg(deg) : deg;
+}
+
+export function zoneCenterOffsetForLayout(
+  zoneCenterOffsetRight = 0,
+  layoutMirrored = false,
+): number {
+  return layoutMirrored ? -zoneCenterOffsetRight : zoneCenterOffsetRight;
+}
+
 function clampFrontMinDot(frontMinDot: number): number {
   return Math.min(0.95, Math.max(-1, frontMinDot));
 }
@@ -78,6 +98,8 @@ export type ZonePickOptions = {
   hubPickBlob?: PerlinBlobParams;
   /** Slide zone centers on the cap toward screen-right (tangent +right, ~0.05–0.2). */
   zoneCenterOffsetRight?: number;
+  /** Section 1: mirror zone clocks and horizontal offset across the viewport. */
+  layoutMirrored?: boolean;
   /** Hub arc distance from zone center in “sphere spacings” (0 = balanced hub). */
   hubOffsetSpheres?: number;
   /** Push logo + plexus hub outward along the anchor (sphere spacings; 0 = on surface). */
@@ -90,6 +112,7 @@ export type HubAnchorOptions = Pick<
   | "frontMinDot"
   | "blobCenterLean"
   | "zoneCenterOffsetRight"
+  | "layoutMirrored"
   | "hubOffsetSpheres"
   | "hubLogoOutsetSpheres"
   | "hubPickMesh"

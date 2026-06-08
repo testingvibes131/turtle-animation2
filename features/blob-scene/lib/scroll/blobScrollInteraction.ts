@@ -2,16 +2,19 @@ import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 
 /** Hover + scroll metrics for the hero → section 2 blob block. */
 
-/**
- * Hover starts after this fraction of section 1 (hero) has scrolled past.
- * 0.5 = second half of the hero.
- */
-export const BLOB_INTERACTION_SECTION1_START_FRAC = 0.5;
+/** Scroll-progress remap for blob motion (hero → section 2). */
+export const BLOB_INTERACTION_SECTION1_START_FRAC = 0;
 
-/** Option 2 visual transition begins at first scroll (fraction of hero). */
+/**
+ * Hover when the viewport bottom crosses this fraction down section 2 (from its top).
+ * 2/3 = bottom of screen reaches the two-thirds line of section 2.
+ */
+export const BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC = 2 / 3;
+
+/** Visual transition begins at first scroll (fraction of hero). */
 export const BLOB_VISUAL_TRANSITION_START_FRAC = 0;
 
-/** Option 2 visual transition completes here (after interaction, for a long blend). */
+/** Visual transition completes here (after interaction, for a long blend). */
 export const BLOB_VISUAL_TRANSITION_END_FRAC = 0.78;
 
 export type BlobScrollMetrics = {
@@ -23,82 +26,69 @@ export type BlobScrollMetrics = {
 export type BlobScrollTuning = {
   visualStartFrac?: number;
   visualEndFrac?: number;
+  /** Fraction down section 2 where viewport bottom must reach (0.67 = two-thirds). */
   interactionStartFrac?: number;
 };
 
-/** Scroll offset where pointer hover turns on (mid-hero at 0.5). */
-export function blobInteractionStartScroll(
-  { heroScroll }: Pick<BlobScrollMetrics, "heroScroll">,
-  interactionStartFrac = BLOB_INTERACTION_SECTION1_START_FRAC,
-): number {
-  return heroScroll * interactionStartFrac;
+function siteHeaderBottomPx(): number {
+  if (typeof document === "undefined") return 76;
+  const header = document.querySelector<HTMLElement>(".site-header");
+  return header?.getBoundingClientRect().bottom ?? 76;
 }
 
-function smoothstep01(t: number): number {
-  const x = Math.min(1, Math.max(0, t));
-  return x * x * (3 - 2 * x);
+function viewportHeightPx(): number {
+  if (typeof window === "undefined") return 800;
+  return window.innerHeight;
 }
 
-/** Option 1 enables the S2 experience from here (shared boundary for Option 2). */
-export function blobPastSection1Threshold(
-  metrics: BlobScrollMetrics,
-  interactionStartFrac = BLOB_INTERACTION_SECTION1_START_FRAC,
+/** Hover on once viewport bottom has reached `sectionFrac` down section 2. */
+export function blobInteractionEnabledFromSection2Viewport(
+  section2: HTMLElement,
+  sectionFrac = BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
 ): boolean {
-  return (
-    metrics.scrolled >=
-    blobInteractionStartScroll(metrics, interactionStartFrac) - 1
-  );
+  const headerBottom = siteHeaderBottomPx();
+  const viewportBottom = viewportHeightPx();
+  const { top, bottom, height } = section2.getBoundingClientRect();
+
+  if (height <= 0 || bottom <= headerBottom) return false;
+
+  const triggerY = top + height * sectionFrac;
+  return viewportBottom >= triggerY;
 }
 
-/**
- * Option 2 dot palette: 0 = full color (S1), 1 = full gray (S2).
- * Starts on the first pixel of scroll; runs most of the way through the hero.
- * Option 1 is always 1.
- */
-export function blobColoredToGrayMix(
-  levaSetup: BlobSetupId,
+/** Scroll-offset fallback when the section node is unavailable. */
+export function blobInteractionEnabledFromScrollMetrics(
   metrics: BlobScrollMetrics,
   tuning: BlobScrollTuning = {},
-): number {
-  if (levaSetup !== "section-1-blob") return 1;
-
-  const visualStartFrac =
-    tuning.visualStartFrac ?? BLOB_VISUAL_TRANSITION_START_FRAC;
-  const visualEndFrac =
-    tuning.visualEndFrac ?? BLOB_VISUAL_TRANSITION_END_FRAC;
-  const start = metrics.heroScroll * visualStartFrac;
-  const end = metrics.heroScroll * visualEndFrac;
-  const span = Math.max(end - start, 1);
-  const t = (metrics.scrolled - start) / span;
-  return smoothstep01(t);
+): boolean {
+  const { scrolled, heroScroll, section2Scroll } = metrics;
+  const sectionFrac =
+    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC;
+  const section2End = heroScroll + section2Scroll;
+  const threshold =
+    heroScroll + section2Scroll * sectionFrac - viewportHeightPx();
+  return scrolled >= threshold - 1 && scrolled < section2End - 1;
 }
 
-/** @param setup Runtime setup from {@link blobRuntimeSetup}. */
+/** True while the hero (section 1) is still the active scroll stage. */
+export function blobInSection1({ scrolled, heroScroll }: BlobScrollMetrics): boolean {
+  return scrolled < heroScroll - 1;
+}
+
 export function blobInteractionEnabledFromScroll(
   metrics: BlobScrollMetrics,
-  _levaSetup: BlobSetupId = "connected-lines",
   tuning: BlobScrollTuning = {},
+  section2?: HTMLElement | null,
 ): boolean {
-  return blobPastSection1Threshold(
-    metrics,
-    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION1_START_FRAC,
-  );
+  const sectionFrac =
+    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC;
+  if (section2) {
+    return blobInteractionEnabledFromSection2Viewport(section2, sectionFrac);
+  }
+  return blobInteractionEnabledFromScrollMetrics(metrics, tuning);
 }
 
-/**
- * Leva setup + scroll → runtime canvas mode.
- * Option 2 flips at the shared interaction threshold (mid-hero).
- */
-export function blobRuntimeSetup(
-  levaSetup: BlobSetupId,
-  metrics: BlobScrollMetrics,
-  tuning: BlobScrollTuning = {},
-): BlobSetupId {
-  if (levaSetup !== "section-1-blob") return "connected-lines";
-  return blobPastSection1Threshold(
-    metrics,
-    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION1_START_FRAC,
-  )
-    ? "connected-lines"
-    : "section-1-blob";
+/** Runtime canvas mode — always connected lines (gray dots). */
+export function blobRuntimeSetup(): BlobSetupId {
+  return "connected-lines";
 }

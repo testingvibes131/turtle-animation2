@@ -1,24 +1,17 @@
 import * as THREE from "three";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
-import type { BlobSection1Tuning } from "@/features/blob-scene/lib/blobSection1Tuning";
-import { DEFAULT_SECTION_1_TUNING } from "@/features/blob-scene/lib/blobSection1Tuning";
 import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
-import { blobTransitionDistortStrength } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import { BLOB_INTERACTION_SECTION1_START_FRAC } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 
-export type HeroViewportTuning = Pick<
-  BlobSection1Tuning,
-  "heroScale" | "heroLeftCrop" | "heroBelowViewport"
->;
+/** Default perspective camera for the blob canvas. */
+export const BLOB_CAMERA_POSITION: [number, number, number] = [0, 0.12, 2.7];
+export const BLOB_CAMERA_FOV = 50;
 
 /** Fraction of blob diameter past the right viewport edge (lower = further left). */
 export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 
-/** Extra left crop for the hero (mirrors right-edge logic; higher = more off-screen). */
-export const BLOB_HERO_LEFT_CROP_FRACTION = 0.2;
-
-/** Fraction of blob diameter that sits below the viewport bottom in the hero. */
-export const BLOB_HERO_BELOW_VIEWPORT_FRACTION = 0.7;
+/** Section 1: shift blob down by this fraction of half the viewport height. */
+export const BLOB_SECTION1_Y_LOWER_FRAC = 0.5;
 
 export function blobVisualExtent(
   params: Pick<PerlinBlobParams, "radius" | "noiseScale" | "displacementDivisor">,
@@ -42,58 +35,7 @@ export function computeBlobOffsetX(
   const hFov = 2 * Math.atan(Math.tan(vFov / 2) * viewportAspect);
   const halfViewWidth = dist * Math.tan(hFov / 2);
   const diameter = extent * 2;
-  // Camera looks at origin; blob at +X so ~cropFraction of diameter clears the right edge.
   return halfViewWidth - extent + cropFraction * diameter;
-}
-
-export function computeBlobOffsetXForScroll(
-  camera: THREE.PerspectiveCamera,
-  viewportAspect: number,
-  extent: number,
-  /** 0 = hero (left), 1 = section 2 (right on desktop, centered on portrait). */
-  scrollProgress: number,
-): number {
-  const right = computeBlobOffsetX(
-    camera,
-    viewportAspect,
-    extent,
-    BLOB_RIGHT_CROP_FRACTION,
-  );
-  // Mirror the final right placement across the viewport center.
-  const left = -right;
-  const t = Math.min(1, Math.max(0, scrollProgress));
-  const endX = viewportAspect < 1 ? 0 : right;
-  return left + (endX - left) * t;
-}
-
-/** Hero (section 1) scale; section 2 uses 1. */
-export const BLOB_HERO_SCALE = 1.18;
-
-/** Full Y-axis turn while scrolling hero → section 2. */
-export const BLOB_SCROLL_ROTATION_Y = Math.PI * 2;
-
-function clampScrollProgress(scrollProgress: number): number {
-  return Math.min(1, Math.max(0, scrollProgress));
-}
-
-export function computeBlobScaleForScroll(
-  scrollProgress: number,
-  heroScale = BLOB_HERO_SCALE,
-): number {
-  const t = clampScrollProgress(scrollProgress);
-  return heroScale + (1 - heroScale) * t;
-}
-
-export function computeBlobRotationYForScroll(
-  scrollProgress: number,
-  rotationEnabled: boolean,
-): number {
-  if (!rotationEnabled) return 0;
-  const span = 1 - BLOB_INTERACTION_SECTION1_START_FRAC;
-  const t = clampScrollProgress(
-    (scrollProgress - BLOB_INTERACTION_SECTION1_START_FRAC) / span,
-  );
-  return t * BLOB_SCROLL_ROTATION_Y;
 }
 
 function viewHalfExtents(
@@ -109,45 +51,49 @@ function viewHalfExtents(
   };
 }
 
-/**
- * Hero bottom-left placement (scroll progress 0).
- * Uses layout `extent` only — hero scale is applied on the group, not here.
- */
-export function computeBlobHeroBottomLeftOffset(
+export function computeBlobOffsetXForScroll(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
   extent: number,
-  hero: HeroViewportTuning = DEFAULT_SECTION_1_TUNING,
-): { x: number; y: number } {
-  const { halfViewHeight } = viewHalfExtents(camera, viewportAspect);
-  const x = -computeBlobOffsetX(
+  /** 0 = hero (left), 1 = section 2 (right on desktop, centered on portrait). */
+  scrollProgress: number,
+): number {
+  const right = computeBlobOffsetX(
     camera,
     viewportAspect,
     extent,
-    hero.heroLeftCrop,
+    BLOB_RIGHT_CROP_FRACTION,
   );
-  const visualRadius = extent * hero.heroScale;
-  const below = hero.heroBelowViewport * visualRadius * 2;
-  const y = -halfViewHeight + visualRadius - below;
-  return { x, y };
+  const left = -right;
+  const t = clampScrollProgress(scrollProgress);
+  const endX = viewportAspect < 1 ? 0 : right;
+  return left + (endX - left) * t;
 }
 
-/** Vertical scroll offset; hero (t=0) uses bottom-left corner pinning. */
 export function computeBlobOffsetYForScroll(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
-  extent: number,
   scrollProgress: number,
-  heroViewport: HeroViewportTuning = DEFAULT_SECTION_1_TUNING,
 ): number {
+  const { halfViewHeight } = viewHalfExtents(camera, viewportAspect);
   const t = clampScrollProgress(scrollProgress);
-  const hero = computeBlobHeroBottomLeftOffset(
-    camera,
-    viewportAspect,
-    extent,
-    heroViewport,
+  const section1Y = -halfViewHeight * BLOB_SECTION1_Y_LOWER_FRAC;
+  return section1Y * (1 - t);
+}
+
+/** Full Y-axis turn while scrolling hero → section 2. */
+export const BLOB_SCROLL_ROTATION_Y = Math.PI * 2;
+
+function clampScrollProgress(scrollProgress: number): number {
+  return Math.min(1, Math.max(0, scrollProgress));
+}
+
+export function computeBlobRotationYForScroll(scrollProgress: number): number {
+  const span = 1 - BLOB_INTERACTION_SECTION1_START_FRAC;
+  const t = clampScrollProgress(
+    (scrollProgress - BLOB_INTERACTION_SECTION1_START_FRAC) / span,
   );
-  return hero.y * (1 - t);
+  return t * BLOB_SCROLL_ROTATION_Y;
 }
 
 export type BlobScrollMotion = {
@@ -157,55 +103,33 @@ export type BlobScrollMotion = {
   rotationY: number;
 };
 
+/** Section 1 mirrors section 2 placement on the opposite (left) side. */
 export function computeBlobScrollMotion(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
   extent: number,
   scrollProgress: number,
-  rotationEnabled: boolean,
-  coloredToGrayMix = 1,
-  heroViewport: HeroViewportTuning = DEFAULT_SECTION_1_TUNING,
 ): BlobScrollMotion {
-  const scrollX = computeBlobOffsetXForScroll(
-    camera,
-    viewportAspect,
-    extent,
-    scrollProgress,
-  );
-  const scrollY = computeBlobOffsetYForScroll(
-    camera,
-    viewportAspect,
-    extent,
-    scrollProgress,
-    heroViewport,
-  );
-  const scrollScale = computeBlobScaleForScroll(
-    scrollProgress,
-    heroViewport.heroScale,
-  );
-
-  const heroAnchor = blobTransitionDistortStrength(coloredToGrayMix);
-  if (heroAnchor <= 0.001) {
-    return {
-      offsetX: scrollX,
-      offsetY: scrollY,
-      scale: scrollScale,
-      rotationY: computeBlobRotationYForScroll(scrollProgress, rotationEnabled),
-    };
-  }
-
-  const hero = computeBlobHeroBottomLeftOffset(
-    camera,
-    viewportAspect,
-    extent,
-    heroViewport,
-  );
-  const inv = 1 - heroAnchor;
-
   return {
-    offsetX: hero.x * heroAnchor + scrollX * inv,
-    offsetY: hero.y * heroAnchor + scrollY * inv,
-    scale: heroViewport.heroScale * heroAnchor + scrollScale * inv,
-    rotationY: computeBlobRotationYForScroll(scrollProgress, rotationEnabled),
+    offsetX: computeBlobOffsetXForScroll(
+      camera,
+      viewportAspect,
+      extent,
+      scrollProgress,
+    ),
+    offsetY: computeBlobOffsetYForScroll(
+      camera,
+      viewportAspect,
+      scrollProgress,
+    ),
+    scale: 1,
+    rotationY: computeBlobRotationYForScroll(scrollProgress),
   };
 }
+
+/** @deprecated Hero-only crop; section 1 now mirrors section 2. */
+export const BLOB_HERO_LEFT_CROP_FRACTION = 0.2;
+/** @deprecated Hero-only scale; section 1 now matches section 2. */
+export const BLOB_HERO_SCALE = 1;
+/** @deprecated Hero-only vertical pin; section 1 now matches section 2. */
+export const BLOB_HERO_BELOW_VIEWPORT_FRACTION = 0;

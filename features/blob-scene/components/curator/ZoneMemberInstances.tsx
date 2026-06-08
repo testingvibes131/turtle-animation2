@@ -4,7 +4,10 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
-import { useBlobCuratorOverlayEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobCuratorOverlayEnabled,
+  useBlobLayoutMirrored,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
 import {
   assignCapMembersVisual,
@@ -18,7 +21,6 @@ import {
   ZONE_MEMBER_SCALE,
   ZONE_PARTNER_SCALE,
 } from "@/features/blob-scene/lib/curators/zoneOverlay";
-import { HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL } from "@/features/blob-scene/lib/scroll/heroShowcase";
 import {
   attachBlobPointFade,
   ensureInstanceOpacityBuffer,
@@ -38,14 +40,11 @@ const ZONE_INNER_TINT_OPACITY = 0.1;
 
 type ZoneMemberInstancesProps = {
   activeZone: CuratorZoneAssignment | null;
-  /** Hero demo: only draw spokes’ endpoint dots (no full-zone gray wash). */
-  connectedOnly?: boolean;
   onZonesChange: (zones: CuratorZoneAssignment[]) => void;
 };
 
 export function ZoneMemberInstances({
   activeZone,
-  connectedOnly = false,
   onZonesChange,
 }: ZoneMemberInstancesProps) {
   const {
@@ -61,10 +60,15 @@ export function ZoneMemberInstances({
     depthFadeUniforms,
     connectedMarkerLayoutsRef,
     getBlobParamsAtTime,
+    waveZoneRef,
+    waveStrengthRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const layoutMirrored = useBlobLayoutMirrored();
   const curatorOverlayEnabledRef = useRef(curatorOverlayEnabled);
   curatorOverlayEnabledRef.current = curatorOverlayEnabled;
+  const layoutMirroredRef = useRef(layoutMirrored);
+  layoutMirroredRef.current = layoutMirrored;
 
   const meshRefs = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const capGrayMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -75,8 +79,6 @@ export function ZoneMemberInstances({
   const zonesSigRef = useRef("");
   const activeZoneRef = useRef(activeZone);
   activeZoneRef.current = activeZone;
-  const connectedOnlyRef = useRef(connectedOnly);
-  connectedOnlyRef.current = connectedOnly;
   const maxInstances = vertices.count;
 
   const { capGrayMaterial, zoneInnerDimMaterial, highlightMaterials } =
@@ -154,7 +156,7 @@ export function ZoneMemberInstances({
       vertexCountRef.current = vertices.count;
     }
 
-    const layoutKey = `v18-zonehub:${params.frontMinDot}:${params.clusterMaxAngleDeg}:${params.blobCenterLean}:${params.hubConnectionMul}:${params.zoneCenterOffsetRight}:${params.hubOffsetSpheres}`;
+    const layoutKey = `v19-zonehub:${params.frontMinDot}:${params.clusterMaxAngleDeg}:${params.blobCenterLean}:${params.hubConnectionMul}:${params.zoneCenterOffsetRight}:${params.hubOffsetSpheres}:${layoutMirroredRef.current}`;
     if (layoutParamsRef.current !== layoutKey) {
       layoutParamsRef.current = layoutKey;
       slotCacheRef.current.clear();
@@ -175,6 +177,7 @@ export function ZoneMemberInstances({
         blobCenterLean: params.blobCenterLean,
         hubConnectionMul: params.hubConnectionMul,
         zoneCenterOffsetRight: params.zoneCenterOffsetRight,
+        layoutMirrored: layoutMirroredRef.current,
         hubOffsetSpheres: params.hubOffsetSpheres,
         hubPickMesh: vertices,
         hubPickBlob: getBlobParamsAtTime(blobAnimTimeRef.current),
@@ -183,14 +186,8 @@ export function ZoneMemberInstances({
     );
 
     const used = new Set<number>();
-    if (connectedOnlyRef.current && activeZoneRef.current) {
-      for (const vi of connectedMemberSet(activeZoneRef.current)) {
-        used.add(vi);
-      }
-    } else {
-      for (const z of nextZones) {
-        for (const m of z.members) used.add(m);
-      }
+    for (const z of nextZones) {
+      for (const m of z.members) used.add(m);
     }
     zoneUsedRef.current = used;
     zonesSnapshotRef.current = nextZones;
@@ -204,6 +201,13 @@ export function ZoneMemberInstances({
     }
 
     const activeName = activeZone?.curator.name ?? null;
+    const waveZone = waveZoneRef.current;
+    const waveName =
+      waveZone && waveZone.curator.name !== activeName
+        ? waveZone.curator.name
+        : null;
+    const waveStrength = waveName ? waveStrengthRef.current : 0;
+
     const activeCurator = activeName
       ? CURATORS.find((c) => c.name === activeName)
       : undefined;
@@ -213,7 +217,14 @@ export function ZoneMemberInstances({
     }
     for (const c of CURATORS) {
       const mat = highlightMaterials.get(c.name);
-      if (mat) mat.opacity = activeName === c.name ? 1 : 0;
+      if (!mat) continue;
+      if (activeName === c.name) {
+        mat.opacity = 1;
+      } else if (waveName === c.name) {
+        mat.opacity = waveStrength;
+      } else {
+        mat.opacity = 0;
+      }
     }
 
     const blobParams: PerlinBlobParams = getBlobParamsAtTime(
@@ -306,57 +317,61 @@ export function ZoneMemberInstances({
       }
     };
 
-    const heroConnectedOnly = connectedOnlyRef.current;
     const zonePickOptions = {
       frontMinDot: params.frontMinDot,
       blobCenterLean: params.blobCenterLean,
       zoneCenterOffsetRight: params.zoneCenterOffsetRight,
+      layoutMirrored: layoutMirroredRef.current,
       maxAngleFromHubDeg: params.clusterMaxAngleDeg,
     };
-    const visualBuckets = heroConnectedOnly
-      ? null
-      : assignCapMembersVisual(
-          vertices.positions,
-          vertices.count,
-          CURATORS,
-          toward,
-          zonePickOptions,
-        );
+    const visualBuckets = assignCapMembersVisual(
+      vertices.positions,
+      vertices.count,
+      CURATORS,
+      toward,
+      zonePickOptions,
+    );
 
     for (const zone of nextZones) {
       const fullMesh = meshRefs.current.get(zone.curator.name);
       if (!fullMesh || !capGrayMesh) continue;
-      const needsInnerDim = Boolean(
-        activeName && zoneInnerDimMesh && !heroConnectedOnly,
-      );
+      const needsInnerDim = Boolean(activeName && zoneInnerDimMesh);
 
       const partners = new Set(zone.partners);
-      const isSelected = activeName === zone.curator.name;
-      if (heroConnectedOnly && !isSelected) continue;
+      const isHoverSelected = activeName === zone.curator.name;
+      const isWaveSelected = waveName === zone.curator.name;
 
       const hovered = activeZoneRef.current;
       const connected =
-        isSelected && hovered?.curator.name === zone.curator.name
+        isHoverSelected && hovered?.curator.name === zone.curator.name
           ? connectedMemberSet(hovered)
           : connectedMemberSet(zone);
       const displayHub =
-        isSelected && hovered?.hub != null && hovered.hub >= 0
+        isHoverSelected && hovered?.hub != null && hovered.hub >= 0
           ? hovered.hub
           : zone.hub;
       let fullSlot = 0;
 
-      for (const vi of zone.members) {
-        if (vi === displayHub) continue;
-        if (!isSelected || !connected.has(vi)) continue;
-        if (heroConnectedOnly && !connected.has(vi)) continue;
-        const baseScale = partners.has(vi)
-          ? ZONE_PARTNER_SCALE
-          : ZONE_MEMBER_SCALE;
-        const scaleMul = heroConnectedOnly
-          ? baseScale * HERO_SHOWCASE_CONNECTED_MARKER_SCALE_MUL
-          : baseScale;
-        write(fullMesh, fullSlot, vi, scaleMul, 1, true);
-        fullSlot++;
+      if (isHoverSelected) {
+        for (const vi of zone.members) {
+          if (vi === displayHub) continue;
+          if (!connected.has(vi)) continue;
+          const scaleMul = partners.has(vi)
+            ? ZONE_PARTNER_SCALE
+            : ZONE_MEMBER_SCALE;
+          write(fullMesh, fullSlot, vi, scaleMul, 1, true);
+          fullSlot++;
+        }
+      } else if (isWaveSelected && visualBuckets) {
+        const capMembers = visualBuckets.get(zone.curator.name) ?? [];
+        for (const vi of capMembers) {
+          if (vi === zone.hub) continue;
+          const scaleMul = partners.has(vi)
+            ? ZONE_PARTNER_SCALE
+            : ZONE_MEMBER_SCALE;
+          write(fullMesh, fullSlot, vi, scaleMul, waveStrength);
+          fullSlot++;
+        }
       }
 
       fullMesh.count = fullSlot;
@@ -367,24 +382,26 @@ export function ZoneMemberInstances({
       for (const zone of nextZones) {
         if (!capGrayMesh) continue;
         const visualMembers = visualBuckets.get(zone.curator.name) ?? [];
-        const isSelected = activeName === zone.curator.name;
+        const isHoverSelected = activeName === zone.curator.name;
+        const isWaveSelected = waveName === zone.curator.name;
         const needsInnerDim = Boolean(
-          activeName && zoneInnerDimMesh && isSelected,
+          activeName && zoneInnerDimMesh && isHoverSelected,
         );
         const hovered = activeZoneRef.current;
         const connected =
-          isSelected && hovered?.curator.name === zone.curator.name
+          isHoverSelected && hovered?.curator.name === zone.curator.name
             ? connectedMemberSet(hovered)
             : connectedMemberSet(zone);
         const displayHub =
-          isSelected && hovered?.hub != null && hovered.hub >= 0
+          isHoverSelected && hovered?.hub != null && hovered.hub >= 0
             ? hovered.hub
             : zone.hub;
 
         for (const vi of visualMembers) {
           if (vi === displayHub) continue;
-          if (isSelected && connected.has(vi)) continue;
-          if (isSelected && needsInnerDim && activeCurator) {
+          if (isHoverSelected && connected.has(vi)) continue;
+          if (isWaveSelected && vi !== zone.hub) continue;
+          if (isHoverSelected && needsInnerDim && activeCurator) {
             const op = noiseOpacity(vi);
             write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, op);
             graySlot++;

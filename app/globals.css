@@ -55,10 +55,13 @@
   --text-small--font-weight: 500;
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -889,17 +892,9 @@ body {
   border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
-@media (min-width: 1024px) {
+@media (prefers-reduced-motion: no-preference) {
   html {
-    scroll-snap-type: y proximity;
-  }
-  main > section {
-    scroll-snap-align: start;
-  }
-  main > section:first-of-type,
-  main > section.scroll-stage,
-  main > section:has(.case-cards) {
-    scroll-snap-align: none;
+    scroll-behavior: smooth;
   }
 }
 

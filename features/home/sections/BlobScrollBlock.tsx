@@ -3,83 +3,47 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
-import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
-  blobColoredToGrayMix,
+  blobInSection1,
   blobInteractionEnabledFromScroll,
   blobRuntimeSetup,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
+import { computeBlobScrollProgress } from "@/features/blob-scene/lib/scroll/blobScrollProgress";
+import { scrollWobbleStrengthFromDelta } from "@/features/blob-scene/lib/geometry/blobScrollWobble";
 import { resolveBlobRuntimeParams } from "@/features/blob-scene/lib/blobRuntimeParams";
-import { blobHeroShowcaseActive } from "@/features/blob-scene/lib/scroll/heroShowcase";
 import { BlobLevaPanel } from "@/features/home/sections/BlobLevaPanel";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
-
-function computeBlobScrollProgress(
-  scrolled: number,
-  heroScroll: number,
-  section2: HTMLElement | null,
-  isMobile: boolean,
-): number {
-  if (!isMobile || !section2) {
-    return Math.min(1, Math.max(0, scrolled / Math.max(heroScroll, 1)));
-  }
-
-  const textBlock = section2.querySelector<HTMLElement>("[data-blob-mobile-text]");
-  const visualBlock = section2.querySelector<HTMLElement>(
-    "[data-blob-mobile-visual]",
-  );
-  const textHeight = textBlock?.offsetHeight ?? 0;
-  const visualHeight = visualBlock?.offsetHeight ?? window.innerHeight;
-  const visualStart = heroScroll + textHeight;
-
-  if (scrolled <= visualStart) {
-    return 0;
-  }
-
-  return Math.min(1, (scrolled - visualStart) / Math.max(visualHeight, 1));
-}
+const GRAY_DOT_MIX = 1;
+/** Hero (section 1) uses mirrored section-2 layout until scroll crosses center. */
+const LAYOUT_MIRROR_THRESHOLD = 0.5;
 
 /**
  * One blob canvas for hero + section 2: sticky backdrop with scrollable content overlaid.
- * Leva setup picks params + interaction mode; scroll always drives blob placement.
+ * Section 1 mirrors section 2 on the left; scroll moves the blob to the right.
  */
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
-  const { setup: levaSetup, params, section1, transition, coloredDots } =
-    useBlobControls();
+  const { params, transition } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [inSection1, setInSection1] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
-  const [runtimeSetup, setRuntimeSetup] = useState<BlobSetupId>(() =>
-    levaSetup === "section-1-blob" ? "section-1-blob" : "connected-lines",
-  );
-  const [coloredToGrayMix, setColoredToGrayMix] = useState(() =>
-    levaSetup === "section-1-blob" ? 0 : 1,
-  );
-  const coloredToGrayMixRef = useRef(coloredToGrayMix);
+  const coloredToGrayMixRef = useRef(GRAY_DOT_MIX);
+  const scrollWobbleStrengthRef = useRef(0);
+  const prevScrolledRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
   const runtimeParams = useMemo(
-    () =>
-      resolveBlobRuntimeParams(params, levaSetup, coloredToGrayMix, section1),
-    [coloredToGrayMix, levaSetup, params, section1],
+    () => resolveBlobRuntimeParams(params),
+    [params],
   );
-
-  const heroShowcaseActive =
-    runtimeSetup === "connected-lines" &&
-    blobHeroShowcaseActive(scrollProgress, interactionEnabled);
-
-  useEffect(() => {
-    if (levaSetup !== "section-1-blob") return;
-    window.scrollTo(0, 0);
-  }, [levaSetup]);
+  const layoutMirrored = scrollProgress < LAYOUT_MIRROR_THRESHOLD;
 
   useEffect(() => {
     const block = blockRef.current;
     if (!block) return;
 
     const mobileQuery = window.matchMedia(MOBILE_BLOB_QUERY);
-
     const applyScroll = () => {
       scrollRafRef.current = null;
       const hero = block.querySelector<HTMLElement>('[data-blob-section="1"]');
@@ -89,39 +53,26 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const heroScroll = hero?.offsetHeight ?? window.innerHeight;
       const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
       const scrolled = -block.getBoundingClientRect().top;
+      const scrollDelta = Math.abs(scrolled - prevScrolledRef.current);
+      prevScrolledRef.current = scrolled;
+      scrollWobbleStrengthRef.current = scrollWobbleStrengthFromDelta(
+        scrollDelta,
+        scrollWobbleStrengthRef.current,
+      );
 
       const metrics = { scrolled, heroScroll, section2Scroll };
       const isMobile = mobileQuery.matches;
-      const grayMix = blobColoredToGrayMix(levaSetup, metrics, transition);
-      const runtime = blobRuntimeSetup(levaSetup, metrics, transition);
-
-      coloredToGrayMixRef.current = grayMix;
 
       setScrollProgress(
         computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
-      setColoredToGrayMix(grayMix);
-      setRuntimeSetup(runtime);
+      setInSection1(blobInSection1(metrics));
       setInteractionEnabled(
-        blobInteractionEnabledFromScroll(metrics, levaSetup, transition),
+        blobInteractionEnabledFromScroll(metrics, transition, section2),
       );
     };
 
     const updateScroll = () => {
-      const hero = block.querySelector<HTMLElement>('[data-blob-section="1"]');
-      const section2 = block.querySelector<HTMLElement>(
-        '[data-blob-section="2"]',
-      );
-      const heroScroll = hero?.offsetHeight ?? window.innerHeight;
-      const section2Scroll = section2?.offsetHeight ?? window.innerHeight;
-      const scrolled = -block.getBoundingClientRect().top;
-      const metrics = { scrolled, heroScroll, section2Scroll };
-      coloredToGrayMixRef.current = blobColoredToGrayMix(
-        levaSetup,
-        metrics,
-        transition,
-      );
-
       if (scrollRafRef.current !== null) return;
       scrollRafRef.current = requestAnimationFrame(applyScroll);
     };
@@ -138,7 +89,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       window.removeEventListener("resize", updateScroll);
       mobileQuery.removeEventListener("change", updateScroll);
     };
-  }, [levaSetup, transition]);
+  }, [transition]);
 
   return (
     <div ref={blockRef} className="relative isolate">
@@ -152,14 +103,14 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         >
           <BlobScrollProgressProvider
             progress={scrollProgress}
-            heroShowcaseActive={heroShowcaseActive}
+            inSection1={inSection1}
             interactionEnabled={interactionEnabled}
-            blobSetup={runtimeSetup}
-            coloredToGrayMix={coloredToGrayMix}
+            blobSetup={blobRuntimeSetup()}
+            coloredToGrayMix={GRAY_DOT_MIX}
             coloredToGrayMixRef={coloredToGrayMixRef}
+            scrollWobbleStrengthRef={scrollWobbleStrengthRef}
+            layoutMirrored={layoutMirrored}
             transitionTuning={transition}
-            coloredDotsTuning={coloredDots}
-            section1Tuning={section1}
           >
             <BlobExperience params={runtimeParams} />
           </BlobScrollProgressProvider>

@@ -7,6 +7,7 @@ import {
   type BlobSceneContextValue,
 } from "@/features/blob-scene/context/BlobSceneContext";
 import { ActiveCuratorZones } from "@/features/blob-scene/components/curator/ActiveCuratorZones";
+import { Section1CapWave } from "@/features/blob-scene/components/curator/Section1CapWave";
 import { BlobPointCloud } from "@/features/blob-scene/components/blob/BlobPointCloud";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { useBlobGeometry } from "@/features/blob-scene/hooks/useBlobGeometry";
@@ -14,15 +15,8 @@ import {
   useBlobAnimationFreeze,
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
-import {
-  useBlobColoredToGrayMixRef,
-  useBlobInteractionEnabled,
-  useBlobSection1Tuning,
-  useBlobTransitionTuning,
-} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
-import { applyOrganicTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
-import { useHeroShowcase } from "@/features/blob-scene/hooks/useHeroShowcase";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
@@ -54,6 +48,8 @@ export function BlobSceneContent({
   );
   const hubAnchorRotationLagRef = useRef(createHubAnchorRotationLagState());
   const [activeZone, setActiveZone] = useState<BlobSceneContextValue["activeZone"]>(null);
+  const waveZoneRef = useRef<BlobSceneContextValue["waveZoneRef"]["current"]>(null);
+  const waveStrengthRef = useRef(0);
 
   const { vertices, liveVertices, liveIndices, deadIndices, pointRadius } =
     useBlobGeometry(params);
@@ -82,36 +78,9 @@ export function BlobSceneContent({
     return frozenLayoutAxisRef.current ?? getTowardCamera();
   }, [getTowardCamera]);
 
-  const coloredToGrayMixRef = useBlobColoredToGrayMixRef();
-  const transitionTuning = useBlobTransitionTuning();
-  const section1Tuning = useBlobSection1Tuning();
-
   const getBlobParamsAtTime = useCallback(
-    (time: number) => {
-      const rawMix = coloredToGrayMixRef.current;
-      const x = Math.min(1, Math.max(0, rawMix));
-      const blend = x * x * (3 - 2 * x);
-      const organicPeak = section1Tuning.organicDistortPeak;
-      const distortPeak =
-        organicPeak +
-        blend * (transitionTuning.distortPeakMul - organicPeak);
-
-      return applyOrganicTransitionDistort(
-        {
-          ...params,
-          time,
-          displacementBlend: blend,
-        },
-        rawMix,
-        distortPeak,
-      );
-    },
-    [
-      coloredToGrayMixRef,
-      params,
-      section1Tuning.organicDistortPeak,
-      transitionTuning.distortPeakMul,
-    ],
+    (time: number) => ({ ...params, time }),
+    [params],
   );
 
   const contextValue = useMemo<BlobSceneContextValue>(
@@ -131,6 +100,8 @@ export function BlobSceneContent({
       scalesRef,
       activeZone,
       setActiveZone,
+      waveZoneRef,
+      waveStrengthRef,
       getTowardCamera,
       getHubLayoutAxis,
       hubAnchorRotationLagRef,
@@ -153,14 +124,6 @@ export function BlobSceneContent({
       vertices,
     ],
   );
-
-  useHeroShowcase({
-    vertices,
-    params,
-    blobAnimTimeRef,
-    getHubLayoutAxis,
-    setActiveZone,
-  });
 
   useBlobInteraction({
     vertices,
@@ -190,6 +153,7 @@ export function BlobSceneContent({
   return (
     <BlobSceneProvider value={contextValue}>
       <BlobFrameGeometryCache />
+      <Section1CapWave />
       <group
         position={[offsetX, offsetY, 0]}
         rotation={[0, rotationY, 0]}

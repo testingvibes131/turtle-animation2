@@ -5,15 +5,11 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSceneContext";
 import {
-  useBlobColoredToGrayMix,
-  useBlobHeroShowcaseActive,
   useBlobInteractionEnabled,
-  useBlobTransitionTuning,
+  useBlobLayoutMirrored,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { applyTransitionDistort } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
-import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
-import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
+import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import {
   buildZoneHubEdgesRandom,
   findZoneForMemberVertex,
@@ -66,28 +62,21 @@ export function useBlobInteraction({
   frozenLayoutAxisRef,
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
-  const coloredToGrayMix = useBlobColoredToGrayMix();
-  const transitionTuning = useBlobTransitionTuning();
-  const coloredToGrayMixRef = useRef(coloredToGrayMix);
-  coloredToGrayMixRef.current = coloredToGrayMix;
-  const distortPeakMulRef = useRef(transitionTuning.distortPeakMul);
-  distortPeakMulRef.current = transitionTuning.distortPeakMul;
   const interactionEnabled = useBlobInteractionEnabled();
-  const heroShowcaseActive = useBlobHeroShowcaseActive();
+  const layoutMirrored = useBlobLayoutMirrored();
   const interactionEnabledRef = useRef(interactionEnabled);
   interactionEnabledRef.current = interactionEnabled;
-  const heroShowcaseActiveRef = useRef(heroShowcaseActive);
-  heroShowcaseActiveRef.current = heroShowcaseActive;
+  const layoutMirroredRef = useRef(layoutMirrored);
+  layoutMirroredRef.current = layoutMirrored;
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useEffect(() => {
-    if (interactionEnabled || heroShowcaseActive) return;
+    if (interactionEnabled) return;
     setActiveZone(null);
     frozenAnimTimeRef.current = null;
     frozenLayoutAxisRef.current = null;
   }, [
     interactionEnabled,
-    heroShowcaseActive,
     frozenAnimTimeRef,
     frozenLayoutAxisRef,
     setActiveZone,
@@ -112,11 +101,7 @@ export function useBlobInteraction({
       if (zones.length === 0) return null;
 
       const animTime = blobAnimTimeRef.current;
-      const blobParams: PerlinBlobParams = applyTransitionDistort(
-        { ...params, time: animTime },
-        coloredToGrayMixRef.current,
-        distortPeakMulRef.current,
-      );
+      const blobParams: PerlinBlobParams = { ...params, time: animTime };
 
       const capZone = pickZoneAtCapRay(
         _pickRay,
@@ -130,6 +115,7 @@ export function useBlobInteraction({
           frontMinDot: params.frontMinDot,
           zoneCenterOffsetRight: params.zoneCenterOffsetRight,
           blobCenterLean: params.blobCenterLean,
+          layoutMirrored: layoutMirroredRef.current,
         },
       );
       if (capZone) return capZone;
@@ -240,34 +226,16 @@ export function useBlobAnimationFreeze(
   /** Freeze Perlin time while hovered after interaction is enabled. */
   freezeTime: boolean,
 ) {
-  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const activeZoneRef = useRef(activeZone);
   activeZoneRef.current = activeZone;
   const freezeTimeRef = useRef(freezeTime);
   freezeTimeRef.current = freezeTime;
-  const heroShowcaseActiveRef = useRef(heroShowcaseActive);
-  heroShowcaseActiveRef.current = heroShowcaseActive;
-  const frozenZoneSigRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!heroShowcaseActive || !activeZone) {
-      if (!heroShowcaseActive) frozenZoneSigRef.current = null;
-      return;
-    }
-    const sig = zoneLayoutSignature(activeZone);
-    if (frozenZoneSigRef.current !== sig) {
-      frozenZoneSigRef.current = sig;
-      frozenAnimTimeRef.current = null;
-    }
-  }, [heroShowcaseActive, activeZone, frozenAnimTimeRef]);
 
   return {
     activeZoneRef,
     tickAnimationTime: (clockTime: number) => {
       const zone = activeZoneRef.current;
-      const shouldFreeze =
-        zone != null &&
-        (freezeTimeRef.current || heroShowcaseActiveRef.current);
+      const shouldFreeze = zone != null && freezeTimeRef.current;
       if (shouldFreeze) {
         if (frozenAnimTimeRef.current === null) {
           frozenAnimTimeRef.current = clockTime;

@@ -11,7 +11,6 @@ import {
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import {
   useBlobCuratorOverlayEnabled,
-  useBlobHeroShowcaseActive,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import type { CuratorEdge } from "@/features/blob-scene/lib/curators/hoverPlexus";
@@ -79,7 +78,6 @@ function PlexusLineBatch({
     hubAnchorRotationLagRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
-  const heroShowcaseActive = useBlobHeroShowcaseActive();
   const linePositionsRef = useRef<Float32Array | null>(null);
   const bundleRef = useRef<PlexusBundle | null>(null);
 
@@ -170,7 +168,7 @@ function PlexusLineBatch({
           _hubTarget,
         );
         const lagState = hubAnchorRotationLagRef.current;
-        const lagEnabled = curatorOverlayEnabled && !heroShowcaseActive;
+        const lagEnabled = curatorOverlayEnabled;
         if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
           applyHubAnchorRotationLag(
             _hubTarget,

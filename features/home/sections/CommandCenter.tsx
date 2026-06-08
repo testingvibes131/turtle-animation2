@@ -48,8 +48,8 @@ export function CommandCenter() {
           </p>
           <CtaPill
             href="#"
-            label="Grail CTA"
-            className="w-full max-w-[240px] sm:w-[240px]"
+            label="Manage your assets with Turtle"
+            className="w-full max-w-[280px] sm:w-[280px]"
           />
         </SectionIntro>
       </RevealOnScroll>

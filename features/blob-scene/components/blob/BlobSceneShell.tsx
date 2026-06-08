@@ -5,12 +5,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { BlobSceneContent } from "@/features/blob-scene/components/blob/BlobSceneContent";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
-import {
-  useBlobColoredToGrayMix,
-  useBlobInteractionEnabled,
-  useBlobScrollProgress,
-  useBlobSection1Tuning,
-} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { useBlobScrollProgress } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
   blobVisualExtent,
   computeBlobScrollMotion,
@@ -21,9 +16,6 @@ const BG = "#141514";
 export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
   const { camera, size } = useThree();
   const scrollProgress = useBlobScrollProgress();
-  const coloredToGrayMix = useBlobColoredToGrayMix();
-  const section1Tuning = useBlobSection1Tuning();
-  const rotationEnabled = useBlobInteractionEnabled();
   const scrollMotion = useMemo(() => {
     const layoutExtent = blobVisualExtent(params);
     return computeBlobScrollMotion(
@@ -31,20 +23,8 @@ export function BlobSceneShell({ params }: { params: BlobVisualParams }) {
       size.width / Math.max(size.height, 1),
       layoutExtent,
       scrollProgress,
-      rotationEnabled,
-      coloredToGrayMix,
-      section1Tuning,
     );
-  }, [
-    camera,
-    coloredToGrayMix,
-    params,
-    rotationEnabled,
-    scrollProgress,
-    section1Tuning,
-    size.height,
-    size.width,
-  ]);
+  }, [camera, params, scrollProgress, size.height, size.width]);
 
   return (
     <>

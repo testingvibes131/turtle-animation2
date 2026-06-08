@@ -7,98 +7,90 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  DEFAULT_COLORED_DOTS,
-  type BlobColoredDotsTuning,
-  type BlobTransitionTuning,
-} from "@/features/blob-scene/hooks/useBlobControls";
-import {
-  DEFAULT_SECTION_1_TUNING,
-  type BlobSection1Tuning,
-} from "@/features/blob-scene/lib/blobSection1Tuning";
+import type { BlobTransitionTuning } from "@/features/blob-scene/hooks/useBlobControls";
 import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BLOB_TRANSITION_DISTORT_PEAK_MUL } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import {
-  BLOB_INTERACTION_SECTION1_START_FRAC,
+  BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   BLOB_VISUAL_TRANSITION_END_FRAC,
   BLOB_VISUAL_TRANSITION_START_FRAC,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 
 type BlobScrollState = {
   progress: number;
-  heroShowcaseActive: boolean;
+  /** Hero / section 1 scroll stage (ambient lightning). */
+  inSection1: boolean;
   interactionEnabled: boolean;
-  /** Runtime mode (`connected-lines` everywhere except Option 2 section 1). */
   blobSetup: BlobSetupId;
-  /** 0 = colored dots (S1), 1 = gray dots (S2). Option 1 stays at 1. */
+  /** Always 1 — gray dots throughout. */
   coloredToGrayMix: number;
+  /** Section 1 mirrors section 2 curator layout on the opposite side. */
+  layoutMirrored: boolean;
   transitionTuning: BlobTransitionTuning;
-  coloredDotsTuning: BlobColoredDotsTuning;
-  section1Tuning: BlobSection1Tuning;
-  /** Synced on scroll before React state — use in useFrame for smooth motion. */
   coloredToGrayMixRef: MutableRefObject<number>;
+  /** 0–1, driven by scroll velocity — modulates noise wobble in the canvas. */
+  scrollWobbleStrengthRef: MutableRefObject<number>;
 };
 
 const defaultTransitionTuning: BlobTransitionTuning = {
   visualStartFrac: BLOB_VISUAL_TRANSITION_START_FRAC,
   visualEndFrac: BLOB_VISUAL_TRANSITION_END_FRAC,
-  interactionStartFrac: BLOB_INTERACTION_SECTION1_START_FRAC,
+  interactionStartFrac: BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   distortPeakMul: BLOB_TRANSITION_DISTORT_PEAK_MUL,
 };
 
-const defaultColoredDotsTuning: BlobColoredDotsTuning = DEFAULT_COLORED_DOTS;
-
 const defaultColoredToGrayMixRef = { current: 1 };
+const defaultScrollWobbleStrengthRef = { current: 0 };
 
 const defaultState: BlobScrollState = {
   progress: 1,
-  heroShowcaseActive: false,
+  inSection1: false,
   interactionEnabled: true,
   blobSetup: "connected-lines",
   coloredToGrayMix: 1,
+  layoutMirrored: false,
   transitionTuning: defaultTransitionTuning,
-  coloredDotsTuning: defaultColoredDotsTuning,
-  section1Tuning: DEFAULT_SECTION_1_TUNING,
   coloredToGrayMixRef: defaultColoredToGrayMixRef,
+  scrollWobbleStrengthRef: defaultScrollWobbleStrengthRef,
 };
 
 const BlobScrollProgressContext = createContext<BlobScrollState>(defaultState);
 
 export function BlobScrollProgressProvider({
   progress,
-  heroShowcaseActive,
+  inSection1,
   interactionEnabled,
   blobSetup,
   coloredToGrayMix,
   coloredToGrayMixRef,
+  scrollWobbleStrengthRef,
+  layoutMirrored,
   transitionTuning = defaultTransitionTuning,
-  coloredDotsTuning = defaultColoredDotsTuning,
-  section1Tuning = DEFAULT_SECTION_1_TUNING,
   children,
 }: {
   progress: number;
-  heroShowcaseActive: boolean;
+  inSection1: boolean;
   interactionEnabled: boolean;
   blobSetup: BlobSetupId;
   coloredToGrayMix: number;
   coloredToGrayMixRef: MutableRefObject<number>;
+  scrollWobbleStrengthRef: MutableRefObject<number>;
+  layoutMirrored: boolean;
   transitionTuning?: BlobTransitionTuning;
-  coloredDotsTuning?: BlobColoredDotsTuning;
-  section1Tuning?: BlobSection1Tuning;
   children: ReactNode;
 }) {
   return (
     <BlobScrollProgressContext.Provider
       value={{
         progress,
-        heroShowcaseActive,
+        inSection1,
         interactionEnabled,
         blobSetup,
         coloredToGrayMix,
         coloredToGrayMixRef,
+        scrollWobbleStrengthRef,
+        layoutMirrored,
         transitionTuning,
-        coloredDotsTuning,
-        section1Tuning,
       }}
     >
       {children}
@@ -111,12 +103,22 @@ export function useBlobScrollProgress() {
   return useContext(BlobScrollProgressContext).progress;
 }
 
+export function useBlobInSection1() {
+  return useContext(BlobScrollProgressContext).inSection1;
+}
+
 export function useBlobInteractionEnabled() {
   return useContext(BlobScrollProgressContext).interactionEnabled;
 }
 
-export function useBlobHeroShowcaseActive() {
-  return useContext(BlobScrollProgressContext).heroShowcaseActive;
+/** Zone layout + ambient lightning (section 1 or section 2 hover stage). */
+export function useBlobZonesLayoutEnabled() {
+  const { inSection1, interactionEnabled } = useContext(BlobScrollProgressContext);
+  return inSection1 || interactionEnabled;
+}
+
+export function useBlobLayoutMirrored() {
+  return useContext(BlobScrollProgressContext).layoutMirrored;
 }
 
 export function useBlobSetup() {
@@ -131,26 +133,14 @@ export function useBlobColoredToGrayMixRef() {
   return useContext(BlobScrollProgressContext).coloredToGrayMixRef;
 }
 
-export function useBlobColoredDotsMix() {
-  return 1 - useBlobColoredToGrayMix();
-}
-
-export function useBlobColoredDots() {
-  return useBlobColoredDotsMix() > 0.001;
-}
-
 export function useBlobCuratorOverlayEnabled() {
-  return useBlobInteractionEnabled();
+  return useBlobZonesLayoutEnabled();
 }
 
 export function useBlobTransitionTuning() {
   return useContext(BlobScrollProgressContext).transitionTuning;
 }
 
-export function useBlobColoredDotsTuning() {
-  return useContext(BlobScrollProgressContext).coloredDotsTuning;
-}
-
-export function useBlobSection1Tuning() {
-  return useContext(BlobScrollProgressContext).section1Tuning;
+export function useBlobScrollWobbleStrengthRef() {
+  return useContext(BlobScrollProgressContext).scrollWobbleStrengthRef;
 }

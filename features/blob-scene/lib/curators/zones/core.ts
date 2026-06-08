@@ -8,6 +8,8 @@ import {
   clampBlobCenterLean,
   curatorZoneClockDeg,
   HOVER_ZONE_HALF_WIDTH_MUL,
+  zoneCenterOffsetForLayout,
+  zoneClockDegForLayout,
   ZONE_MIN_ANGLE_FROM_HUB_DEG,
   zoneHalfWidthDeg,
   zoneHubCenterDot,
@@ -405,14 +407,17 @@ function nearestCuratorForDirection(
   options: ZonePickOptions,
 ): string {
   const lean = clampBlobCenterLean(options.blobCenterLean);
-  const offset = options.zoneCenterOffsetRight ?? 0;
+  const offset = zoneCenterOffsetForLayout(
+    options.zoneCenterOffsetRight,
+    options.layoutMirrored,
+  );
   let bestName = curators[0]!.name;
   let bestDot = -Infinity;
 
   for (const c of curators) {
     const center = zoneCenterDirection(
       layoutAxis,
-      curatorZoneClockDeg(c.name),
+      zoneClockDegForLayout(c.name, options.layoutMirrored),
       options.frontMinDot,
       lean,
       offset,
@@ -434,12 +439,15 @@ function curatorDotsForDirection(
   options: ZonePickOptions,
 ): { name: string; dot: number }[] {
   const lean = clampBlobCenterLean(options.blobCenterLean);
-  const offset = options.zoneCenterOffsetRight ?? 0;
+  const offset = zoneCenterOffsetForLayout(
+    options.zoneCenterOffsetRight,
+    options.layoutMirrored,
+  );
   const out: { name: string; dot: number }[] = [];
   for (const c of curators) {
     const center = zoneCenterDirection(
       layoutAxis,
-      curatorZoneClockDeg(c.name),
+      zoneClockDegForLayout(c.name, options.layoutMirrored),
       options.frontMinDot,
       lean,
       offset,
@@ -464,7 +472,10 @@ function nearestCuratorForDirectionVisual(
   jitter: ZoneEdgeJitterTuning = DEFAULT_ZONE_EDGE_JITTER,
 ): string {
   const lean = clampBlobCenterLean(options.blobCenterLean);
-  const offset = options.zoneCenterOffsetRight ?? 0;
+  const offset = zoneCenterOffsetForLayout(
+    options.zoneCenterOffsetRight,
+    options.layoutMirrored,
+  );
   const dots = curatorDotsForDirection(dir, layoutAxis, curators, options);
   const margin = voronoiMargin(dots);
 
@@ -475,7 +486,7 @@ function nearestCuratorForDirectionVisual(
     const c = curators[i]!;
     const center = zoneCenterDirection(
       layoutAxis,
-      curatorZoneClockDeg(c.name),
+      zoneClockDegForLayout(c.name, options.layoutMirrored),
       options.frontMinDot,
       lean,
       offset,
@@ -566,7 +577,10 @@ export function computeHubAnchorDirection(
     zoneDeg,
     options.frontMinDot,
     lean,
-    options.zoneCenterOffsetRight ?? 0,
+    zoneCenterOffsetForLayout(
+      options.zoneCenterOffsetRight,
+      options.layoutMirrored,
+    ),
   );
 
   const offsetSpheres = Math.max(0, options.hubOffsetSpheres ?? 0);
@@ -817,7 +831,10 @@ export function pickZoneAtCapRay(
   _halfWidthMul = HOVER_ZONE_HALF_WIDTH_MUL,
   zonePickOptions?: Pick<
     ZonePickOptions,
-    "zoneCenterOffsetRight" | "blobCenterLean" | "frontMinDot"
+    | "zoneCenterOffsetRight"
+    | "blobCenterLean"
+    | "frontMinDot"
+    | "layoutMirrored"
   >,
 ): CuratorZoneAssignment | null {
   if (zones.length === 0 || sphereRadius <= 0) return null;
@@ -844,6 +861,7 @@ export function pickZoneAtCapRay(
     maxAngleFromHubDeg: 12,
     zoneCenterOffsetRight: zonePickOptions?.zoneCenterOffsetRight ?? 0,
     blobCenterLean: zonePickOptions?.blobCenterLean,
+    layoutMirrored: zonePickOptions?.layoutMirrored,
   });
 }
 
@@ -1073,7 +1091,7 @@ function pickZonePartners(
   halfWidthDeg: number,
   used: Set<number>,
 ): number[] {
-  const zoneDeg = curatorZoneClockDeg(curator.name);
+  const zoneDeg = zoneClockDegForLayout(curator.name, options.layoutMirrored);
   const edgeCount = curator.opportunities;
   if (edgeCount <= 0) return [];
 
@@ -1166,7 +1184,7 @@ export function assignStableCuratorZones(
   }
 
   for (const curator of curators) {
-    const zoneDeg = curatorZoneClockDeg(curator.name);
+    const zoneDeg = zoneClockDegForLayout(curator.name, options.layoutMirrored);
     const members = memberBuckets.get(curator.name) ?? [];
     if (members.length === 0) {
       cache.delete(curator.name);

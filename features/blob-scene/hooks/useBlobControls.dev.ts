@@ -2,38 +2,20 @@
 
 import { useControls } from "leva";
 import { useMemo } from "react";
+import { SECTION_2_PARAMS } from "@/features/blob-scene/lib/blobVisualPresets";
 import {
-  BLOB_SETUP_OPTIONS,
-  blobParamsForSetup,
-  type BlobSetupId,
-} from "@/features/blob-scene/lib/blobVisualPresets";
-import {
-  BLOB_INTERACTION_SECTION1_START_FRAC,
+  BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   BLOB_VISUAL_TRANSITION_END_FRAC,
   BLOB_VISUAL_TRANSITION_START_FRAC,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import {
-  DEFAULT_SECTION_1_TUNING,
-  type BlobSection1Tuning,
-} from "@/features/blob-scene/lib/blobSection1Tuning";
-import { BLOB_TRANSITION_DISTORT_PEAK_MUL } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
-import {
-  DEFAULT_COLORED_DOTS,
-  type BlobColoredDotsTuning,
   type BlobControls,
   type BlobTransitionTuning,
   type BlobVisualParams,
 } from "@/features/blob-scene/hooks/blobControlTypes";
 
 export function useBlobControlsDev(): BlobControls {
-  const { setup } = useControls("Setup", {
-    setup: {
-      value: "section-1-blob" satisfies BlobSetupId,
-      options: BLOB_SETUP_OPTIONS,
-    },
-  });
-
-  const defaults = blobParamsForSetup(setup as BlobSetupId);
+  const defaults = SECTION_2_PARAMS;
 
   const shape = useControls(
     "Shape",
@@ -50,106 +32,8 @@ export function useBlobControlsDev(): BlobControls {
     { collapsed: true },
   );
 
-  const section1 = useControls(
-    "Section 1",
-    {
-      noiseScale: {
-        value: DEFAULT_SECTION_1_TUNING.noiseScale,
-        min: 0.5,
-        max: 12,
-        step: 0.05,
-        label: "noise scale",
-      },
-      displacementDivisor: {
-        value: DEFAULT_SECTION_1_TUNING.displacementDivisor,
-        min: 5,
-        max: 200,
-        step: 1,
-        label: "displacement",
-      },
-      perlinPeriod: {
-        value: DEFAULT_SECTION_1_TUNING.perlinPeriod,
-        min: 0.05,
-        max: 2,
-        step: 0.01,
-        label: "period",
-      },
-      noiseSlopeMinOpacity: {
-        value: DEFAULT_SECTION_1_TUNING.noiseSlopeMinOpacity,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "slope min",
-      },
-      noiseSlopeMaxOpacity: {
-        value: DEFAULT_SECTION_1_TUNING.noiseSlopeMaxOpacity,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "slope max",
-      },
-      organicDistortPeak: {
-        value: DEFAULT_SECTION_1_TUNING.organicDistortPeak,
-        min: 1,
-        max: 10,
-        step: 0.05,
-        label: "spread peak",
-      },
-      heroScale: {
-        value: DEFAULT_SECTION_1_TUNING.heroScale,
-        min: 0.5,
-        max: 2,
-        step: 0.01,
-        label: "hero scale",
-      },
-      heroLeftCrop: {
-        value: DEFAULT_SECTION_1_TUNING.heroLeftCrop,
-        min: 0,
-        max: 0.5,
-        step: 0.01,
-        label: "left crop",
-      },
-      heroBelowViewport: {
-        value: DEFAULT_SECTION_1_TUNING.heroBelowViewport,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "below viewport",
-      },
-      organicBodyWeight: {
-        value: DEFAULT_SECTION_1_TUNING.organicBodyWeight,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "body weight",
-      },
-      organicFlowWeight: {
-        value: DEFAULT_SECTION_1_TUNING.organicFlowWeight,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "flow weight",
-      },
-      organicWarp: {
-        value: DEFAULT_SECTION_1_TUNING.organicWarp,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "warp",
-      },
-      organicAmpMul: {
-        value: DEFAULT_SECTION_1_TUNING.organicAmpMul,
-        min: 0.5,
-        max: 3,
-        step: 0.01,
-        label: "amp mul",
-      },
-    },
-    { collapsed: false },
-  );
-
   const noise = useControls(
-    "Noise (Section 2)",
+    "Noise",
     {
       noiseScale: { value: defaults.noiseScale, min: 0.5, max: 12, step: 0.05 },
       displacementDivisor: {
@@ -302,67 +186,18 @@ export function useBlobControlsDev(): BlobControls {
         label: "visual end",
       },
       interactionStartFrac: {
-        value: BLOB_INTERACTION_SECTION1_START_FRAC,
+        value: BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
         min: 0,
-        max: 0.9,
+        max: 1,
         step: 0.01,
-        label: "interaction start",
+        label: "viewport bottom @ section 2",
       },
       distortPeakMul: {
-        value: BLOB_TRANSITION_DISTORT_PEAK_MUL,
+        value: 1,
         min: 1,
         max: 10,
         step: 0.05,
         label: "distort peak",
-      },
-    },
-    { collapsed: true },
-  );
-
-  const coloredDots = useControls(
-    "Colored dots",
-    {
-      coreOpacity: {
-        value: DEFAULT_COLORED_DOTS.coreOpacity,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "peak opacity",
-      },
-      glowScaleMul: {
-        value: DEFAULT_COLORED_DOTS.glowScaleMul,
-        min: 1,
-        max: 6,
-        step: 0.05,
-        label: "spark radius",
-      },
-      glowOpacity: {
-        value: DEFAULT_COLORED_DOTS.glowOpacity,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        label: "glow opacity",
-      },
-      sparkRadiusMul: {
-        value: DEFAULT_COLORED_DOTS.sparkRadiusMul,
-        min: 0.5,
-        max: 3,
-        step: 0.01,
-        label: "spark size mul",
-      },
-      haloRadiusMul: {
-        value: DEFAULT_COLORED_DOTS.haloRadiusMul,
-        min: 1,
-        max: 4,
-        step: 0.01,
-        label: "halo size mul",
-      },
-      colorDim: {
-        value: DEFAULT_COLORED_DOTS.colorDim,
-        min: 0.2,
-        max: 1.2,
-        step: 0.01,
-        label: "color dim",
       },
     },
     { collapsed: true },
@@ -391,10 +226,7 @@ export function useBlobControlsDev(): BlobControls {
   );
 
   return {
-    setup: setup as BlobSetupId,
     params,
-    section1: section1 as BlobSection1Tuning,
     transition: transition as BlobTransitionTuning,
-    coloredDots: coloredDots as BlobColoredDotsTuning,
   };
 }
