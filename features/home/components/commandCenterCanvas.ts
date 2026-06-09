@@ -1,5 +1,8 @@
 import { GRID_SPACING } from "@/features/home/components/commandCenterGrid";
 
+/** Figma Card-Deals visual — width / height. */
+export const COMMAND_CENTER_VISUAL_ASPECT = 570 / 499;
+
 /** Figma Card-Deals / chart visual inset — top-left to bottom-right. */
 export const COMMAND_CENTER_CANVAS_BG = "#161716";
 export const VISUAL_CANVAS_GRADIENT_START = "#2D2E2D";
@@ -24,7 +27,26 @@ export function drawVisualCanvasBackground(
 export type GridCell = { row: number; col: number };
 export type PixelPoint = { x: number; y: number };
 export type PixelRect = { minX: number; minY: number; maxX: number; maxY: number };
-export type CanvasSize = { width: number; height: number };
+export type CanvasSize = { width: number; height: number; dpr: number };
+
+/** Touch viewports — 1× buffer to save GPU memory next to the WebGL blob. */
+export const COMMAND_CENTER_MOBILE_QUERY = "(max-width: 1023px)";
+
+/** Desktop cap — iPhone reports 3 but we never exceed 2 on large screens. */
+export const COMMAND_CENTER_CANVAS_MAX_DPR = 2;
+
+/** Max CSS-side length before DPR scaling (guards runaway getBoundingClientRect). */
+export const COMMAND_CENTER_CANVAS_MAX_CSS_PX = 600;
+
+export function getCommandCenterCanvasDpr() {
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia(COMMAND_CENTER_MOBILE_QUERY).matches
+  ) {
+    return 1;
+  }
+  return Math.min(window.devicePixelRatio || 1, COMMAND_CENTER_CANVAS_MAX_DPR);
+}
 
 export function gridOffsets(width: number, height: number) {
   return {
@@ -56,16 +78,50 @@ export function resizeCanvas(
   ctx: CanvasRenderingContext2D,
   container: HTMLDivElement,
 ): CanvasSize | null {
-  const { width, height } = container.getBoundingClientRect();
-  if (width === 0 || height === 0) return null;
+  const containerRect = container.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  let width =
+    containerRect.width ||
+    canvasRect.width ||
+    container.clientWidth ||
+    container.offsetWidth;
+  let height =
+    containerRect.height ||
+    canvasRect.height ||
+    container.clientHeight ||
+    container.offsetHeight;
 
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
+  if (height <= 0 && width > 0) {
+    height = width / COMMAND_CENTER_VISUAL_ASPECT;
+  }
+
+  if (width <= 0 && container.parentElement) {
+    width = container.parentElement.clientWidth;
+  }
+
+  if (height <= 0 && container.parentElement) {
+    height = container.parentElement.clientHeight;
+  }
+
+  if (width <= 0 || height <= 0) return null;
+
+  width = Math.min(width, COMMAND_CENTER_CANVAS_MAX_CSS_PX);
+  height = Math.min(height, COMMAND_CENTER_CANVAS_MAX_CSS_PX);
+
+  const dpr = getCommandCenterCanvasDpr();
+  const bufferW = Math.max(1, Math.round(width * dpr));
+  const bufferH = Math.max(1, Math.round(height * dpr));
+
+  if (canvas.width !== bufferW || canvas.height !== bufferH) {
+    canvas.width = bufferW;
+    canvas.height = bufferH;
+  }
+
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return { width, height };
+
+  return { width, height, dpr };
 }
 
 export function cellsEqual(a: GridCell, b: GridCell) {

@@ -13,7 +13,7 @@ export type PerlinBlobParams = {
   time: number;
   /** 0 = organic simplex fBm, 1 = classic perlin (smooth crossfade during scroll). */
   displacementBlend?: number;
-  /** Section 1 organic displacement (Leva Section 1 panel). */
+  /** Section 1 organic displacement tuning. */
   organicBodyWeight?: number;
   organicFlowWeight?: number;
   organicWarp?: number;

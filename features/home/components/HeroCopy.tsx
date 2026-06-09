@@ -7,8 +7,8 @@ import {
 export function HeroCopy({ className = "" }: { className?: string }) {
   return (
     <SectionIntro
-      width="38"
-      className={className}
+      width="none"
+      className={["w-full lg:max-w-[700px]", className].filter(Boolean).join(" ")}
       aria-labelledby="home-hero-heading"
     >
       <h2

@@ -94,7 +94,7 @@ export function LandingPage() {
   return (
     <>
       <SiteHeader />
-      <main className="bg-surface-0 text-ink-primary">
+      <main className="relative z-0 bg-surface-0 text-ink-primary">
         <BlobScrollBlock>
           {show("hero") ? <HeroSection /> : null}
           {show("greedy") ? <GreedyParanoidSection /> : null}

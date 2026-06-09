@@ -53,7 +53,7 @@ export function drawWhiteGlowCircle(
   const deep = tone ? { r: core.r, g: core.g, b: core.b } : WHITE_DEEP;
 
   ctx.save();
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = "source-over";
 
   const gradient = ctx.createRadialGradient(x, y, 0, x, y, outer);
   gradient.addColorStop(0, rgba(core.r, core.g, core.b, glowAlpha));

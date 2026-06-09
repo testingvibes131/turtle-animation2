@@ -5,7 +5,7 @@ type Props = {
   member: TeamMember;
 };
 
-/** Figma Card-Member (1358:27910). */
+/** Figma Card-Member desktop (1358:27910), mobile (1385:44826). */
 export function TeamMemberCard({ member }: Props) {
   return (
     <article className="team-card">
@@ -17,9 +17,10 @@ export function TeamMemberCard({ member }: Props) {
         <Image
           src={member.photo}
           alt=""
-          fill
+          width={129}
+          height={128}
           className="team-card__avatar"
-          sizes="(max-width: 640px) 42vw, (max-width: 1280px) 21vw, 129px"
+          sizes="(max-width: 1279px) 129px, 129px"
         />
       </div>
     </article>

@@ -13,7 +13,8 @@ const widthClass = {
   none: "",
 };
 
-/** Shared vertical rhythm: title → copy → CTA (see `.section-intro` in globals.css). */
+/** Shared vertical rhythm: title → copy → CTA (see `.section-intro` in globals.css).
+ *  Body copy belongs in `SectionIntroCopy`; direct `<p>` children are taglines with their own type scale. */
 export function SectionIntro({
   children,
   className = "",

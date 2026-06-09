@@ -3,27 +3,34 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 
 const MANUAL_LOCK_MS = 500;
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
-function indexFromHorizontalScroll(scroller: HTMLElement) {
+/** True when the pipeline cards row is a horizontal scroller (mobile layout). */
+function isCarouselScroller(scroller: HTMLElement) {
+  return scroller.scrollWidth > scroller.clientWidth + 1;
+}
+
+/** Nearest snapped card using layout offsets (padding lives on the track, not the scroller). */
+function indexFromScroller(scroller: HTMLElement) {
   const cards = scroller.querySelectorAll<HTMLElement>("[data-pipeline-card]");
   if (!cards.length) return 0;
 
-  const rootRect = scroller.getBoundingClientRect();
-  const rootCenter = rootRect.left + rootRect.width / 2;
+  const style = getComputedStyle(scroller);
+  const paddingStart =
+    parseFloat(style.scrollPaddingInlineStart || style.scrollPaddingLeft) || 0;
+  const snapTarget = scroller.scrollLeft + paddingStart;
 
   let bestIdx = 0;
   let bestDist = Infinity;
 
   cards.forEach((card, index) => {
-    const rect = card.getBoundingClientRect();
-    const center = rect.left + rect.width / 2;
-    const dist = Math.abs(center - rootCenter);
+    const dist = Math.abs(card.offsetLeft - snapTarget);
     if (dist < bestDist) {
       bestDist = dist;
       bestIdx = index;
@@ -33,14 +40,46 @@ function indexFromHorizontalScroll(scroller: HTMLElement) {
   return bestIdx;
 }
 
+/** Fallback using viewport snap line — works when scrollLeft reads 0 on iOS mid-gesture. */
+function indexFromSnapLine(scroller: HTMLElement) {
+  const cards = scroller.querySelectorAll<HTMLElement>("[data-pipeline-card]");
+  if (!cards.length) return 0;
+
+  const scrollerRect = scroller.getBoundingClientRect();
+  const style = getComputedStyle(scroller);
+  const paddingStart =
+    parseFloat(style.scrollPaddingInlineStart || style.scrollPaddingLeft) || 0;
+  const snapLine = scrollerRect.left + paddingStart;
+
+  let bestIdx = 0;
+  let bestDist = Infinity;
+
+  cards.forEach((card, index) => {
+    const dist = Math.abs(card.getBoundingClientRect().left - snapLine);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = index;
+    }
+  });
+
+  return bestIdx;
+}
+
+function activeCarouselIndex(scroller: HTMLElement) {
+  const fromScroll = indexFromScroller(scroller);
+  const fromSnap = indexFromSnapLine(scroller);
+  return scroller.scrollLeft > 2 ? fromScroll : fromSnap;
+}
+
 export function usePipelineScroll(
   cardCount: number,
-  cardsRef?: RefObject<HTMLElement | null>,
+  cardsEl: HTMLElement | null,
 ) {
   const sectionRef = useRef<HTMLElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const manualClickAt = useRef(0);
   const ticking = useRef(false);
+  const pollTimer = useRef(0);
 
   const activate = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(cardCount - 1, idx));
@@ -63,7 +102,7 @@ export function usePipelineScroll(
   }, [cardCount]);
 
   useEffect(() => {
-    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const desktopQuery = window.matchMedia(DESKTOP_QUERY);
 
     const onWindowScroll = () => {
       if (!desktopQuery.matches) return;
@@ -85,49 +124,95 @@ export function usePipelineScroll(
     };
   }, [activate, progressToIndex]);
 
-  useEffect(() => {
-    const desktopQuery = window.matchMedia("(min-width: 1024px)");
-    const scroller = cardsRef?.current;
-    if (!scroller) return;
+  useLayoutEffect(() => {
+    const scroller = cardsEl;
+    if (!scroller || !(scroller instanceof HTMLElement)) return;
 
-    const syncFromCarousel = () => {
-      if (desktopQuery.matches) return;
-      if (Date.now() - manualClickAt.current < MANUAL_LOCK_MS) return;
-      activate(indexFromHorizontalScroll(scroller));
+    const syncFromCarousel = (force = false) => {
+      if (!isCarouselScroller(scroller)) return;
+      if (!force && Date.now() - manualClickAt.current < MANUAL_LOCK_MS) return;
+      activate(activeCarouselIndex(scroller));
     };
 
-    const onScroll = () => {
-      requestAnimationFrame(syncFromCarousel);
+    const scheduleSettleSync = () => {
+      syncFromCarousel(true);
+      requestAnimationFrame(() => syncFromCarousel(true));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => syncFromCarousel(true));
+      });
+      window.setTimeout(() => syncFromCarousel(true), 50);
+      window.setTimeout(() => syncFromCarousel(true), 180);
+      window.setTimeout(() => syncFromCarousel(true), 400);
     };
 
-    syncFromCarousel();
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    desktopQuery.addEventListener("change", syncFromCarousel);
+    const onScrollerScroll = () => {
+      requestAnimationFrame(() => syncFromCarousel(true));
+    };
+
+    const startPoll = () => {
+      window.clearInterval(pollTimer.current);
+      pollTimer.current = window.setInterval(() => syncFromCarousel(true), 120);
+    };
+
+    const stopPoll = () => {
+      window.clearInterval(pollTimer.current);
+      pollTimer.current = 0;
+    };
+
+    const onTouchStart = () => {
+      startPoll();
+      syncFromCarousel(true);
+    };
+
+    const onTouchEnd = () => {
+      scheduleSettleSync();
+      window.setTimeout(stopPoll, 500);
+    };
+
+    syncFromCarousel(true);
+
+    scroller.addEventListener("scroll", onScrollerScroll, { passive: true });
+    scroller.addEventListener("scrollend", scheduleSettleSync, { passive: true });
+    scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+    scroller.addEventListener("touchend", onTouchEnd, { passive: true });
+    scroller.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    const section = sectionRef.current;
+    const visibilityObserver =
+      section &&
+      new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            syncFromCarousel(true);
+          }
+        },
+        { threshold: 0.15 },
+      );
+    if (section) visibilityObserver?.observe(section);
+
+    const onResize = () => syncFromCarousel(true);
+    window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
-      scroller.removeEventListener("scroll", onScroll);
-      desktopQuery.removeEventListener("change", syncFromCarousel);
+      stopPoll();
+      scroller.removeEventListener("scroll", onScrollerScroll);
+      scroller.removeEventListener("scrollend", scheduleSettleSync);
+      scroller.removeEventListener("touchstart", onTouchStart);
+      scroller.removeEventListener("touchend", onTouchEnd);
+      scroller.removeEventListener("touchcancel", onTouchEnd);
+      visibilityObserver?.disconnect();
+      window.removeEventListener("resize", onResize);
     };
-  }, [activate, cardsRef]);
+  }, [activate, cardsEl]);
 
   const selectCard = useCallback(
     (idx: number) => {
+      if (cardsEl && isCarouselScroller(cardsEl)) return;
+
       manualClickAt.current = Date.now();
       activate(idx);
-
-      const scroller = cardsRef?.current;
-      if (!scroller || window.matchMedia("(min-width: 1024px)").matches) {
-        return;
-      }
-
-      const card = scroller.querySelectorAll<HTMLElement>("[data-pipeline-card]")[idx];
-      card?.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
     },
-    [activate, cardsRef],
+    [activate, cardsEl],
   );
 
   return { sectionRef, selectedIndex, selectCard };

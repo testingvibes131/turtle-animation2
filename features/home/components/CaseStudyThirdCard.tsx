@@ -32,8 +32,8 @@ export function CaseStudyThirdCard({ card }: Props) {
                     : "",
                 ].join(" ")}
                 style={{
-                  gap: "clamp(10px, 0.9vw, 14px)",
-                  padding: "clamp(10px, 1vw, 14px) 0",
+                  gap: "clamp(8px, 0.9vw, 14px)",
+                  padding: "clamp(8px, 1vw, 14px) 0",
                 }}
               >
                 <Image
@@ -41,13 +41,13 @@ export function CaseStudyThirdCard({ card }: Props) {
                   alt=""
                   width={40}
                   height={40}
-                  className="size-9 shrink-0 rounded-full object-cover lg:size-10"
+                  className="size-7 shrink-0 rounded-full object-cover lg:size-10"
                 />
                 <div className="min-w-0 text-left leading-[1.35]">
-                  <p className="text-stone-50 max-lg:text-[13px] lg:text-[clamp(14px,1.15vw,17px)]">
+                  <p className="text-stone-50 max-lg:text-[10px] lg:text-[clamp(14px,1.15vw,17px)]">
                     {app.name}
                   </p>
-                  <p className="text-white/50 max-lg:text-[11px] lg:text-[clamp(12px,1vw,14px)]">
+                  <p className="text-white/50 max-lg:text-[9px] lg:text-[clamp(12px,1vw,14px)]">
                     {app.category}
                   </p>
                 </div>
@@ -62,12 +62,9 @@ export function CaseStudyThirdCard({ card }: Props) {
               "clamp(8px, 0.8vw, 12px) clamp(14px, 1.4vw, 20px) clamp(18px, 1.6vw, 24px) clamp(14px, 1.4vw, 20px)",
           }}
         >
-          <div className="text-left leading-[1.25]">
+          <div className="text-left leading-[1.4]">
             {card.footerLines.map((line) => (
-              <p
-                key={line}
-                className="font-normal text-stone-50 max-lg:text-lg lg:text-[clamp(18px,1.6vw,22px)]"
-              >
+              <p key={line} className="text-stone-50 max-lg:text-sm lg:text-lg">
                 {line}
               </p>
             ))}
@@ -79,7 +76,7 @@ export function CaseStudyThirdCard({ card }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <CaseStudyQuoteText text={card.text} />
+      <CaseStudyQuoteText text={card.text} mobileText={card.mobileText} />
       <div
         className="flex shrink-0 items-end overflow-hidden"
         style={{

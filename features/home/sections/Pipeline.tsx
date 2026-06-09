@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { PipelineStepVisual } from "@/features/home/components/PipelineStepVisual";
 import { pipelineSteps } from "@/features/home/data/pipelineSteps";
@@ -8,12 +8,36 @@ import { usePipelineCardAnchor } from "@/features/home/hooks/usePipelineCardAnch
 import { usePipelineScroll } from "@/features/home/hooks/usePipelineScroll";
 
 export function Pipeline() {
-  const cardsRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement | null>(null);
+  const [cardsEl, setCardsEl] = useState<HTMLDivElement | null>(null);
+  const setCardsNode = useCallback((node: HTMLDivElement | null) => {
+    cardsRef.current = node;
+    setCardsEl(node);
+  }, []);
   const { sectionRef, selectedIndex, selectCard } = usePipelineScroll(
     pipelineSteps.length,
-    cardsRef,
+    cardsEl,
   );
   const anchorX = usePipelineCardAnchor(cardsRef, selectedIndex);
+  const [carouselMode, setCarouselMode] = useState(false);
+
+  useEffect(() => {
+    const scroller = cardsEl;
+    if (!scroller) return;
+
+    const update = () => {
+      setCarouselMode(scroller.scrollWidth > scroller.clientWidth + 1);
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(scroller);
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [cardsEl]);
 
   return (
     <section
@@ -39,7 +63,7 @@ export function Pipeline() {
         >
           <PipelineStepVisual steps={pipelineSteps} activeIndex={selectedIndex} />
 
-          <div ref={cardsRef} className="pipeline-cards mx-auto w-full min-w-0 shrink-0">
+          <div ref={setCardsNode} className="pipeline-cards mx-auto w-full min-w-0 shrink-0">
             <div className="pipeline-cards__track">
             {pipelineSteps.map((step, index) => {
               const state = index === selectedIndex ? "selected" : "default";
@@ -47,17 +71,22 @@ export function Pipeline() {
               <article
                 key={step.title}
                 data-pipeline-card
+                data-pipeline-index={index}
                 data-state={state}
                 onClick={() => selectCard(index)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    selectCard(index);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                className="pipeline-card group flex cursor-pointer flex-col items-start justify-between gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10"
+                onKeyDown={
+                  carouselMode
+                    ? undefined
+                    : (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          selectCard(index);
+                        }
+                      }
+                }
+                role={carouselMode ? undefined : "button"}
+                tabIndex={carouselMode ? undefined : 0}
+                className="pipeline-card group flex flex-col items-start justify-between gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10 max-lg:cursor-default lg:cursor-pointer"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
                   height: "clamp(160px, 14vw, 209px)",

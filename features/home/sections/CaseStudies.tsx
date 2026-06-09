@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { SectionIntro } from "@/components/layout/SectionIntro";
+import { SectionIntro, SectionIntroCopy } from "@/components/layout/SectionIntro";
 import { SectionShell } from "@/components/layout/SectionShell";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { CaseStudyBoostedTvlChartSvg } from "@/features/home/components/CaseStudyBoostedTvlChartSvg";
@@ -117,26 +117,37 @@ export function CaseStudies() {
     cardsRoot.querySelectorAll<HTMLElement>("[data-counter]").forEach(animateMetric);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const cardsRoot = cardsRef.current;
     if (!cardsRoot) return;
 
     let started = false;
-    const io = new IntersectionObserver(
+    let io: IntersectionObserver | null = null;
+
+    const trigger = () => {
+      if (started) return;
+      started = true;
+      runAnimation();
+      io?.disconnect();
+    };
+
+    const rect = cardsRoot.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      trigger();
+      return;
+    }
+
+    io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !started) {
-            started = true;
-            runAnimation();
-            io.disconnect();
-          }
+          if (entry.isIntersecting) trigger();
         });
       },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+      { threshold: 0, rootMargin: "0px 0px -5% 0px" },
     );
 
     io.observe(cardsRoot);
-    return () => io.disconnect();
+    return () => io?.disconnect();
   }, []);
 
   const selectPill = (index: number) => {
@@ -156,11 +167,13 @@ export function CaseStudies() {
               <br />
               before you commit a dollar
             </h2>
-            <p>
-              The receipts speak for themselves.
-              <br />
-              Check the case studies, see the history, swim with the whales.
-            </p>
+            <SectionIntroCopy>
+              <p>
+                The receipts speak for themselves.
+                <br />
+                Check the case studies, see the history, swim with the whales.
+              </p>
+            </SectionIntroCopy>
           </SectionIntro>
         </RevealOnScroll>
 
@@ -353,7 +366,7 @@ export function CaseStudies() {
                   >
                     {sortAprBadgesByApy(activeStudy.boosted.badges).map((apr) => (
                       <span
-                        key={apr.label}
+                        key={apr.src}
                         className="max-lg:text-[6px] min-w-0 truncate font-medium leading-[1.2] text-stone-50 lg:text-[clamp(9px,0.75vw,11px)]"
                       >
                         {apr.label}

@@ -30,7 +30,7 @@ import {
   loadCommandCenterMagnifyingImage,
 } from "@/features/home/components/commandCenterMagnifyingRing";
 import { drawGreenGlowCircle } from "@/features/home/components/commandCenterGreenGlow";
-import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
+import { CommandCenterCanvasFrame } from "@/features/home/components/CommandCenterCanvasFrame";
 
 const FLY_BOUNDS_MARGIN = GRID_DOT_RADIUS * 4;
 
@@ -231,7 +231,11 @@ function drawScene(
   );
 }
 
-export function DealsFeatureCanvas() {
+type DealsFeatureCanvasProps = {
+  frameClassName: string;
+};
+
+export function DealsFeatureCanvas({ frameClassName }: DealsFeatureCanvasProps) {
   useEffect(() => {
     loadCommandCenterMagnifyingImage();
   }, []);
@@ -242,24 +246,21 @@ export function DealsFeatureCanvas() {
   const zoneHubRef = useRef<GridCell | null>(null);
   const zoneCenterStateRef = useRef(createZoneCenterState());
 
-  const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
-    ({ ctx, width, height, dt, timeS }) => {
-      drawScene(
-        ctx,
-        width,
-        height,
-        mainDotRef.current,
-        dt,
-        timeS,
-        zoneHubRef,
-        zoneCenterStateRef.current,
-      );
-    },
-  );
-
   return (
-    <div ref={containerRef} className="absolute inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full" />
-    </div>
+    <CommandCenterCanvasFrame
+      frameClassName={frameClassName}
+      onFrame={({ ctx, width, height, dt, timeS }) => {
+        drawScene(
+          ctx,
+          width,
+          height,
+          mainDotRef.current,
+          dt,
+          timeS,
+          zoneHubRef,
+          zoneCenterStateRef.current,
+        );
+      }}
+    />
   );
 }

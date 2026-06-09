@@ -118,7 +118,7 @@ export function SiteHeader() {
   }, [menuOpen]);
 
   return (
-    <header className="site-header pointer-events-auto sticky top-0 z-50 w-full bg-surface-0/70 pb-4 pt-5 backdrop-blur-md lg:pb-4 lg:pt-5">
+    <header className="site-header is-visible pointer-events-auto sticky top-0 z-[100] isolate w-full bg-surface-0/70 pb-4 pt-5 backdrop-blur-md lg:pb-4 lg:pt-5">
       <nav
         className="relative mx-auto flex h-10 w-full max-w-[1728px] items-center justify-between px-6 md:px-10 lg:h-auto lg:px-[60px]"
         aria-label="Main"
@@ -180,11 +180,13 @@ export function SiteHeader() {
         {/* Right actions — Figma 1381:44609: Enter App + hamburger (mobile) */}
         <div className="relative z-10 flex shrink-0 items-center gap-2.5 lg:gap-2">
           <Link
-            href="#"
+            href="https://app.turtle.xyz/earn"
+            target="_blank"
+            rel="noopener noreferrer"
             className={[
               headerMenuShell,
               "px-5 py-3 text-[12px] font-normal leading-[1.2] transition-colors",
-              "text-green-400 lg:text-xs lg:text-ink-primary lg:hover:text-green-400",
+              "text-ink-primary lg:text-xs",
             ].join(" ")}
           >
             Enter App

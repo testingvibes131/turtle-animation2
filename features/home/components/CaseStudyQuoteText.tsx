@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
   text: string;
+  mobileText?: string;
 };
 
 function measureLineClamp(container: HTMLElement, textEl: HTMLElement): number | undefined {
@@ -36,10 +37,21 @@ function measureLineClamp(container: HTMLElement, textEl: HTMLElement): number |
 }
 
 /** Quote copy fills the top lobe and ellipsizes at the union waist. */
-export function CaseStudyQuoteText({ text }: Props) {
+export function CaseStudyQuoteText({ text, mobileText }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLParagraphElement>(null);
   const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
+  const [isMobile, setIsMobile] = useState(false);
+
+  const displayText = isMobile && mobileText ? mobileText : text;
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -56,7 +68,7 @@ export function CaseStudyQuoteText({ text }: Props) {
     void document.fonts?.ready.then(update);
 
     return () => ro.disconnect();
-  }, [text]);
+  }, [displayText]);
 
   return (
     <div
@@ -72,7 +84,7 @@ export function CaseStudyQuoteText({ text }: Props) {
         className="overflow-hidden max-lg:text-sm leading-[1.35] text-stone-50 [display:-webkit-box] [-webkit-box-orient:vertical] lg:text-base"
         style={lineClamp !== undefined ? { WebkitLineClamp: lineClamp } : undefined}
       >
-        &ldquo;{text}&rdquo;
+        &ldquo;{displayText}&rdquo;
       </p>
     </div>
   );

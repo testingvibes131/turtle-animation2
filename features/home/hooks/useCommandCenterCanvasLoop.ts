@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  type RefObject,
+} from "react";
+import { getCommandCenterCanvasContext } from "@/features/home/components/commandCenterCanvasContext";
 import { resizeCanvas } from "@/features/home/components/commandCenterCanvas";
 import { loadCommandCenterAlertDotImage } from "@/features/home/components/commandCenterMagnifyingRing";
 import { loadCommandCenterTurtleImage } from "@/features/home/components/commandCenterTurtleMark";
@@ -15,28 +21,31 @@ export type CommandCenterFrameArgs = {
 
 export function useCommandCenterCanvasLoop(
   onFrame: (args: CommandCenterFrameArgs) => void,
+  containerRef: RefObject<HTMLDivElement | null>,
+  canvasRef: RefObject<HTMLCanvasElement | null>,
 ) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const startTimeRef = useRef<number | null>(null);
   const onFrameRef = useRef(onFrame);
+  const teardownRef = useRef<(() => void) | null>(null);
   onFrameRef.current = onFrame;
 
-  useEffect(() => {
+  const mountLoop = useCallback(() => {
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return false;
+
+    if (teardownRef.current) return true;
+
     loadCommandCenterTurtleImage();
     loadCommandCenterAlertDotImage();
 
-    const container = containerRef.current;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = getCommandCenterCanvasContext(canvas);
+    if (!ctx) return true;
 
     let frameId = 0;
     let lastTime = performance.now();
 
-    const frame = (now: number) => {
+    const paint = (now: number) => {
       if (startTimeRef.current === null) {
         startTimeRef.current = now;
       }
@@ -45,34 +54,76 @@ export function useCommandCenterCanvasLoop(
       const timeS = (now - startTimeRef.current) / 1000;
 
       const size = resizeCanvas(canvas, ctx, container);
-      if (size) {
-        onFrameRef.current({
-          ctx,
-          width: size.width,
-          height: size.height,
-          dt,
-          timeS,
-        });
-      }
+      if (!size) return;
 
+      onFrameRef.current({
+        ctx,
+        width: size.width,
+        height: size.height,
+        dt,
+        timeS,
+      });
+    };
+
+    const frame = (now: number) => {
+      paint(now);
       frameId = requestAnimationFrame(frame);
     };
 
-    frameId = requestAnimationFrame(frame);
-    const observer = new ResizeObserver(() => {
-      resizeCanvas(canvas, ctx, container);
-    });
-    observer.observe(container);
+    const repaint = () => {
+      paint(performance.now());
+    };
 
+    frameId = requestAnimationFrame(frame);
+
+    const resizeObserver = new ResizeObserver(repaint);
+    resizeObserver.observe(container);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") repaint();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", repaint);
+    window.addEventListener("orientationchange", repaint);
+
+    repaint();
     requestAnimationFrame(() => {
-      resizeCanvas(canvas, ctx, container);
+      requestAnimationFrame(repaint);
     });
+
+    teardownRef.current = () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", repaint);
+      window.removeEventListener("orientationchange", repaint);
+      teardownRef.current = null;
+      startTimeRef.current = null;
+    };
+
+    return true;
+  }, [canvasRef, containerRef]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    let retryId = 0;
+    let attempts = 0;
+
+    const tryMount = () => {
+      if (cancelled) return;
+      const mounted = mountLoop();
+      if (!mounted && attempts < 60) {
+        attempts += 1;
+        retryId = requestAnimationFrame(tryMount);
+      }
+    };
+
+    tryMount();
 
     return () => {
-      cancelAnimationFrame(frameId);
-      observer.disconnect();
+      cancelled = true;
+      cancelAnimationFrame(retryId);
+      teardownRef.current?.();
     };
-  }, []);
-
-  return { containerRef, canvasRef };
+  }, [canvasRef, containerRef, mountLoop]);
 }

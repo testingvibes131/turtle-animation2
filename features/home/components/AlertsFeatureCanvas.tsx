@@ -22,7 +22,7 @@ import {
 } from "@/features/home/components/commandCenterMagnifyingRing";
 import { drawRedGlowCircle } from "@/features/home/components/commandCenterRedGlow";
 import { drawWhiteGlowCircle } from "@/features/home/components/commandCenterWhiteGlow";
-import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
+import { CommandCenterCanvasFrame } from "@/features/home/components/CommandCenterCanvasFrame";
 
 /** Circular vignette from card center (fraction of min canvas side). */
 const FALLOFF_OUTER_FRAC = 0.52;
@@ -355,7 +355,11 @@ function drawAlertsGrid(
   }
 }
 
-export function AlertsFeatureCanvas() {
+type AlertsFeatureCanvasProps = {
+  frameClassName: string;
+};
+
+export function AlertsFeatureCanvas({ frameClassName }: AlertsFeatureCanvasProps) {
   const runtimeRef = useRef<SweepRuntime>({
     sweepCol: 0,
     stepAccS: 0,
@@ -366,16 +370,13 @@ export function AlertsFeatureCanvas() {
     rows: 0,
   });
 
-  const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
-    ({ ctx, width, height, dt }) => {
-      clearCommandCenterCanvas(ctx, width, height);
-      drawAlertsGrid(ctx, width, height, runtimeRef.current, dt);
-    },
-  );
-
   return (
-    <div ref={containerRef} className="absolute inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full" />
-    </div>
+    <CommandCenterCanvasFrame
+      frameClassName={frameClassName}
+      onFrame={({ ctx, width, height, dt }) => {
+        clearCommandCenterCanvas(ctx, width, height);
+        drawAlertsGrid(ctx, width, height, runtimeRef.current, dt);
+      }}
+    />
   );
 }

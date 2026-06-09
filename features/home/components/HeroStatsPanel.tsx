@@ -1,13 +1,12 @@
-/** Figma hero stats — mobile 1437:116033, desktop 1442:27812. */
+/** Figma hero stats — mobile 1599:10939, desktop 1442:27812. */
 
 import { Fragment } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 
 const stakeWidgetShell =
-  "overflow-hidden backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b] rounded-[20px] p-5";
+  "overflow-hidden backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b]";
 
-const widgetWidthDesktop = "lg:w-[280px]";
-const widgetWidthMobile = "w-[179px] max-w-full";
+const widgetWidth = "w-[200px] max-w-full lg:w-[280px]";
 
 function StatDivider() {
   return <div className="h-px w-full shrink-0 bg-[rgba(249,249,249,0.06)]" aria-hidden="true" />;
@@ -20,7 +19,7 @@ type StatRowProps = {
 
 function StatRow({ label, value }: StatRowProps) {
   return (
-    <div className="flex w-full items-center justify-between gap-2 text-[14px] font-medium leading-[1.2]">
+    <div className="flex w-full items-center justify-between gap-2 text-[10px] font-medium leading-[1.2] lg:text-[14px]">
       <span className="min-w-0 text-ink-subtle">{label}</span>
       <span className="shrink-0 text-right text-ink-primary">{value}</span>
     </div>
@@ -38,7 +37,7 @@ function BenchmarkDotBar({
 }) {
   return (
     <div
-      className="flex w-[143px] shrink-0 items-center justify-between overflow-hidden"
+      className="flex min-w-0 flex-1 items-center justify-between overflow-hidden lg:w-[143px] lg:flex-none"
       aria-hidden="true"
     >
       {Array.from({ length: BENCHMARK_DOT_COUNT }, (_, i) => (
@@ -50,67 +49,6 @@ function BenchmarkDotBar({
           ].join(" ")}
         />
       ))}
-    </div>
-  );
-}
-
-type TrendDotBarProps = {
-  count: number;
-  activeIndex: number;
-  activeClass: string;
-};
-
-/** Mobile trend sparkline (Figma 1374:36377 — 9 or 18 dots, single highlight). */
-function TrendDotBar({ count, activeIndex, activeClass }: TrendDotBarProps) {
-  return (
-    <div
-      className="flex min-w-0 flex-1 items-center justify-between gap-[5px] overflow-hidden px-0.5"
-      aria-hidden="true"
-    >
-      {Array.from({ length: count }, (_, i) => (
-        <span
-          key={i}
-          className={[
-            "size-[3px] shrink-0 rounded-full",
-            i === activeIndex ? activeClass : "bg-ink-faint",
-          ].join(" ")}
-        />
-      ))}
-    </div>
-  );
-}
-
-type TrendPeriodRowProps = {
-  period: string;
-  dotCount: number;
-  activeIndex: number;
-  activeDotClass: string;
-  value: string;
-  valueClass: string;
-};
-
-function TrendPeriodRow({
-  period,
-  dotCount,
-  activeIndex,
-  activeDotClass,
-  value,
-  valueClass,
-}: TrendPeriodRowProps) {
-  return (
-    <div className="flex w-full items-center justify-between gap-2">
-      <span className="w-5 shrink-0 text-[10px] font-medium leading-[1.2] text-ink-subtle">
-        {period}
-      </span>
-      <TrendDotBar count={dotCount} activeIndex={activeIndex} activeClass={activeDotClass} />
-      <span
-        className={[
-          "shrink-0 text-right text-[10px] font-medium leading-[1.2]",
-          valueClass,
-        ].join(" ")}
-      >
-        {value}
-      </span>
     </div>
   );
 }
@@ -131,7 +69,7 @@ function BenchmarkRateRow({
   valueClass,
 }: BenchmarkRateRowProps) {
   return (
-    <div className="flex w-full items-center justify-between gap-2">
+    <div className="flex w-full items-center gap-[5px]">
       <span className="w-10 shrink-0 text-[14px] font-medium leading-[1.2] text-ink-subtle">
         {asset}
       </span>
@@ -178,62 +116,26 @@ const benchmarkRates = [
   },
 ] as const;
 
-const MOBILE_TVL_TRENDS = [
-  {
-    period: "7d",
-    dotCount: 9,
-    activeIndex: 4,
-    activeDotClass: "bg-[#ff1f00]",
-    value: "-2.34%",
-    valueClass: "text-[#ff1f00]",
-  },
-  {
-    period: "30d",
-    dotCount: 9,
-    activeIndex: 6,
-    activeDotClass: "bg-green-400",
-    value: "+1.34%",
-    valueClass: "text-green-400",
-  },
-] as const;
-
 function CoordinatedCapitalCard() {
   return (
     <div
       className={[
         stakeWidgetShell,
-        widgetWidthMobile,
-        widgetWidthDesktop,
+        widgetWidth,
+        "rounded-[14px] p-3.5 lg:rounded-[20px] lg:p-5",
         "flex flex-col lg:h-[255px]",
       ].join(" ")}
     >
-      {/* Mobile — Figma 1374:36258 */}
-      <div className="flex w-full flex-col gap-5 lg:hidden">
-        <p className="text-[10px] font-medium leading-[1.2] text-ink-subtle">
-          Turtle Capital Coordinated
-        </p>
-        <p className="text-[24px] font-normal leading-[1.2] tracking-[-0.192px] text-ink-primary">
-          $4.2bn
-        </p>
-        <div className="flex w-full flex-col gap-[13px]">
-          <TrendDotBar count={18} activeIndex={6} activeClass="bg-green-400" />
-          <p className="text-[10px] font-medium leading-[1.2] text-green-400">
-            +$45.9K (7d)
-          </p>
-        </div>
-      </div>
-
-      {/* Desktop — Figma 1442:27814 */}
-      <div className="hidden h-full w-full flex-col justify-between lg:flex">
-        <div className="flex flex-col gap-5">
-          <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">
+      <div className="flex h-full w-full flex-col justify-between">
+        <div className="flex flex-col gap-3.5 lg:gap-5">
+          <p className="text-[10px] font-medium leading-[1.2] text-ink-subtle lg:text-[14px]">
             Turtle Capital Coordinated
           </p>
-          <p className="whitespace-nowrap text-[50px] font-normal leading-[1.2] tracking-[-0.4px] text-ink-primary">
+          <p className="text-[36px] font-normal leading-[1.2] tracking-[-0.285px] text-ink-primary lg:text-[50px] lg:tracking-[-0.4px] lg:whitespace-nowrap">
             $4.2bn
           </p>
         </div>
-        <div className="flex flex-col gap-[9px]">
+        <div className="mt-3.5 flex flex-col gap-1.5 lg:mt-0 lg:gap-[9px]">
           {coordinatedStats.map((stat, index) => (
             <Fragment key={stat.label}>
               <StatRow label={stat.label} value={stat.value} />
@@ -248,24 +150,8 @@ function CoordinatedCapitalCard() {
 
 function DefiTvlCard() {
   return (
-    <div className={[stakeWidgetShell, widgetWidthMobile, widgetWidthDesktop].join(" ")}>
-      {/* Mobile — Figma 1374:36349 */}
-      <div className="flex w-full flex-col lg:hidden">
-        <div className="flex flex-col gap-2">
-          <p className="text-[10px] font-medium leading-[1.2] text-ink-subtle">
-            Total Defi TVL
-          </p>
-          <p className="text-[20px] font-normal leading-[1.4] text-ink-primary">$134.23bn</p>
-        </div>
-        <div className="mt-5 flex flex-col gap-2.5">
-          {MOBILE_TVL_TRENDS.map((trend) => (
-            <TrendPeriodRow key={trend.period} {...trend} />
-          ))}
-        </div>
-      </div>
-
-      {/* Desktop — Figma 1442:27837 */}
-      <div className="hidden w-full flex-col gap-4 lg:flex">
+    <div className={[stakeWidgetShell, widgetWidth, "rounded-[20px] p-5"].join(" ")}>
+      <div className="flex w-full flex-col gap-4">
         <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">Total Defi TVL</p>
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-[26px] font-normal leading-none text-ink-primary">$134.2bn</p>
@@ -281,14 +167,7 @@ function DefiTvlCard() {
 
 function BenchmarkRatesCard() {
   return (
-    <div
-      className={[
-        stakeWidgetShell,
-        widgetWidthMobile,
-        widgetWidthDesktop,
-        "hidden lg:block",
-      ].join(" ")}
-    >
+    <div className={[stakeWidgetShell, widgetWidth, "rounded-[20px] p-5"].join(" ")}>
       <div className="flex w-full flex-col gap-3.5">
         <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">Benchmark Rates</p>
         <div className="flex flex-col gap-2.5">
@@ -304,21 +183,20 @@ function BenchmarkRatesCard() {
 export function HeroStatsPanel() {
   return (
     <aside
-      className="pointer-events-none relative isolate z-10 flex w-full flex-col items-end pb-10"
+      className="relative isolate z-10 mt-8 flex w-full flex-col pb-4 lg:mt-0 lg:pb-10 lg:pointer-events-none lg:items-end"
       aria-label="Platform statistics"
     >
-      <div className="flex flex-col items-end gap-1.5 lg:flex-row lg:gap-[14px]">
-        <div className="order-1 flex flex-col items-end gap-[14px] lg:order-2">
+      {/* Mobile: stacked column. Desktop: big card left, TVL + benchmark stacked right. */}
+      <div className="flex w-full flex-col items-end gap-[14px] lg:w-auto lg:flex-row lg:items-end">
+        <RevealOnScroll>
+          <CoordinatedCapitalCard />
+        </RevealOnScroll>
+        <div className="flex flex-col items-end gap-[14px]">
           <RevealOnScroll delayMs={120}>
             <DefiTvlCard />
           </RevealOnScroll>
           <RevealOnScroll delayMs={240}>
             <BenchmarkRatesCard />
-          </RevealOnScroll>
-        </div>
-        <div className="order-2 lg:order-1">
-          <RevealOnScroll>
-            <CoordinatedCapitalCard />
           </RevealOnScroll>
         </div>
       </div>

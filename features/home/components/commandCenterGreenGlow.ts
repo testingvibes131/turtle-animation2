@@ -79,7 +79,7 @@ export function drawGreenGlowCircle(
   const deepFalloff = tone === "vivid" ? 0.32 : 0.28;
 
   ctx.save();
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = "source-over";
 
   const gradient = ctx.createRadialGradient(x, y, 0, x, y, outer);
   gradient.addColorStop(0, rgba(core.r, core.g, core.b, glowAlpha));

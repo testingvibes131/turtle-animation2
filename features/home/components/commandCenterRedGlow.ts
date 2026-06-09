@@ -40,7 +40,7 @@ export function drawRedGlowCircle(
   const glowAlpha = Math.min(1, alpha * RED_GLOW_OPACITY_BOOST);
 
   ctx.save();
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = "source-over";
 
   const gradient = ctx.createRadialGradient(x, y, 0, x, y, outer);
   gradient.addColorStop(0, rgba(RED_CORE.r, RED_CORE.g, RED_CORE.b, glowAlpha));

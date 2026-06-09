@@ -1,17 +1,19 @@
-import { visualCanvasBgClass } from "@/features/home/components/commandCenterCanvas";
-
-/** Figma feature art frame (Card-Deals visual). */
-export const COMMAND_CENTER_VISUAL_ASPECT = 570 / 499;
+/** Outer shell — background is painted by the canvas only. */
+export const commandCenterVisualFrameClass = [
+  "relative w-full shrink-0",
+  "rounded-[clamp(9px,0.77vw,12px)]",
+].join(" ");
 
 /**
- * Keeps the visual frame aspect on all breakpoints; on md+ caps height for the
- * viewport-fitted section so width shrinks with the ratio instead of squashing.
+ * Grid + aspect-ratio sizing — canvas sits in-flow (no absolute) so iOS
+ * composites the bitmap reliably.
  */
-
-export const commandCenterVisualFrameClass = [
-  "relative isolate w-full shrink-0 overflow-hidden rounded-[clamp(9px,0.77vw,12px)]",
-  visualCanvasBgClass,
+export const commandCenterVisualFrameInnerClass = [
+  "relative grid w-full grid-cols-1 grid-rows-1",
   "aspect-[570/499]",
-  "max-md:max-h-none max-md:max-w-full",
   "md:mx-auto md:max-h-[min(330px,38.5vh)] md:max-w-[min(100%,calc(min(330px,38.5vh)*570/499))]",
 ].join(" ");
+
+/** Canvas layer — same grid cell as the aspect-ratio box. */
+export const commandCenterVisualFrameCanvasClass =
+  "col-start-1 row-start-1 min-h-0 w-full min-w-0";

@@ -1,4 +1,6 @@
-import { SectionIntro } from "@/components/layout/SectionIntro";
+"use client";
+
+import { SectionIntro, SectionIntroCopy } from "@/components/layout/SectionIntro";
 import { SectionShell } from "@/components/layout/SectionShell";
 import { CtaPill } from "@/components/ui/CtaPill";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
@@ -46,10 +48,12 @@ export function CommandCenter() {
             <br />
             one command center.
           </h2>
-          <p>
-            Find diligenced deals, track every position, and get alerted when it
-            matters. All trustless, all self-custodial.
-          </p>
+          <SectionIntroCopy>
+            <p>
+              Find diligenced deals, track every position, and get alerted when it
+              matters. All trustless, all self-custodial.
+            </p>
+          </SectionIntroCopy>
           <CtaPill
             href="#"
             label="Manage your assets with Turtle"
@@ -66,12 +70,11 @@ export function CommandCenter() {
             className="flex w-full max-md:mx-auto max-md:max-w-[min(100%,28rem)] md:justify-center"
           >
             <CommandCenterCardShell className="w-full md:max-w-[min(396px,34vw)]">
-              <div className={commandCenterVisualFrameClass}>
-                <CommandCenterFeatureVisual
-                  visual={feature.visual}
-                  image={feature.image}
-                />
-              </div>
+              <CommandCenterFeatureVisual
+                visual={feature.visual}
+                image={feature.image}
+                frameClassName={commandCenterVisualFrameClass}
+              />
               <div className={commandCenterCardFooterClass}>
                 <div className={commandCenterCardCopyClass}>
                   <FeatureTitle title={feature.title} />

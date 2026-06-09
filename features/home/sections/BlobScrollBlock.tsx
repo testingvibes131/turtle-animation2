@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { BlobExperience } from "@/features/blob-scene";
 import { useBlobControls } from "@/features/blob-scene/hooks/useBlobControls";
 import { BlobScrollProgressProvider } from "@/features/blob-scene/context/BlobScrollProgressContext";
@@ -11,8 +11,6 @@ import {
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { computeBlobScrollProgress } from "@/features/blob-scene/lib/scroll/blobScrollProgress";
 import { scrollWobbleStrengthFromDelta } from "@/features/blob-scene/lib/geometry/blobScrollWobble";
-import { resolveBlobRuntimeParams } from "@/features/blob-scene/lib/blobRuntimeParams";
-import { BlobLevaPanel } from "@/features/home/sections/BlobLevaPanel";
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
 const GRAY_DOT_MIX = 1;
@@ -33,10 +31,6 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const scrollWobbleStrengthRef = useRef(0);
   const prevScrolledRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
-  const runtimeParams = useMemo(
-    () => resolveBlobRuntimeParams(params),
-    [params],
-  );
   const layoutMirrored = scrollProgress < LAYOUT_MIRROR_THRESHOLD;
 
   useEffect(() => {
@@ -68,7 +62,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       );
       setInSection1(blobInSection1(metrics));
       setInteractionEnabled(
-        blobInteractionEnabledFromScroll(metrics, transition, section2),
+        !isMobile &&
+          blobInteractionEnabledFromScroll(metrics, transition, section2),
       );
     };
 
@@ -92,13 +87,15 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   }, [transition]);
 
   return (
-    <div ref={blockRef} className="relative isolate">
-      <BlobLevaPanel />
-      <div className="sticky top-0 -z-10 h-screen w-full">
+    <div ref={blockRef} className="relative">
+      {/* Canvas backdrop — z-0, no pointer events (mobile + desktop); desktop interaction re-enabled on hit target only */}
+      <div className="pointer-events-none sticky top-0 z-0 h-svh w-full">
         <div
           className={[
-            "absolute inset-0 touch-none",
-            interactionEnabled ? "pointer-events-auto" : "pointer-events-none",
+            "absolute inset-0 z-0 touch-none",
+            interactionEnabled
+              ? "pointer-events-none lg:pointer-events-auto"
+              : "pointer-events-none",
           ].join(" ")}
         >
           <BlobScrollProgressProvider
@@ -112,11 +109,11 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
             layoutMirrored={layoutMirrored}
             transitionTuning={transition}
           >
-            <BlobExperience params={runtimeParams} />
+            <BlobExperience params={params} />
           </BlobScrollProgressProvider>
         </div>
       </div>
-      <div className="relative z-0 -mt-[100vh] pointer-events-none">
+      <div className="pointer-events-none relative z-10 -mt-[100svh]">
         {children}
       </div>
     </div>

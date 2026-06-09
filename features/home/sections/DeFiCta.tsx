@@ -25,9 +25,9 @@ export function DeFiCta() {
             Aggregated, Diligenced, Personalized
           </p>
 
-          <div className="flex w-full max-w-full flex-row flex-nowrap items-center justify-start gap-[15px] max-lg:px-1 lg:flex-wrap">
-            <CtaPill href="#" label="For Investors" size="lg" className="min-w-0 shrink" />
-            <CtaPill href="#" label="For Asset Issuers" size="lg" className="min-w-0 shrink" />
+          <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
+            <CtaPill href="#" label="For Investors" />
+            <CtaPill href="#" label="For Asset Issuers" />
           </div>
         </SectionIntro>
       </RevealOnScroll>

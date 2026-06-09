@@ -43,7 +43,7 @@ import {
   COMMAND_CENTER_TURTLE_HALF_EXTENT,
   drawCommandCenterTurtleMark,
 } from "@/features/home/components/commandCenterTurtleMark";
-import { useCommandCenterCanvasLoop } from "@/features/home/hooks/useCommandCenterCanvasLoop";
+import { CommandCenterCanvasFrame } from "@/features/home/components/CommandCenterCanvasFrame";
 
 const CONNECTOR_LINE_WIDTH = 1;
 const CONNECTOR_LINE_COLOR = "rgba(171, 174, 170, 1)";
@@ -279,7 +279,13 @@ const PORTFOLIO_TURTLE_MOTION = {
   edgeBiasInset: GRID_SPACING * 2.2,
 } as const;
 
-export function CommandCenterFeatureCanvas() {
+type CommandCenterFeatureCanvasProps = {
+  frameClassName: string;
+};
+
+export function CommandCenterFeatureCanvas({
+  frameClassName,
+}: CommandCenterFeatureCanvasProps) {
   const mainDotRef = useRef(
     new FlyingMainDot(
       { minX: 0, minY: 0, maxX: 0, maxY: 0 },
@@ -292,26 +298,23 @@ export function CommandCenterFeatureCanvas() {
     Array.from({ length: CONNECTOR_COUNT }, () => null),
   );
   const travelSmoothRef = useRef({ vx: 0, vy: 0 });
-  const { containerRef, canvasRef } = useCommandCenterCanvasLoop(
-    ({ ctx, width, height, dt, timeS }) => {
-      drawScene(
-        ctx,
-        width,
-        height,
-        mainDotRef.current,
-        dt,
-        timeS,
-        zoneHubRef,
-        zoneCenterStateRef.current,
-        connectorSlotsRef,
-        travelSmoothRef,
-      );
-    },
-  );
-
   return (
-    <div ref={containerRef} className="absolute inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full" />
-    </div>
+    <CommandCenterCanvasFrame
+      frameClassName={frameClassName}
+      onFrame={({ ctx, width, height, dt, timeS }) => {
+        drawScene(
+          ctx,
+          width,
+          height,
+          mainDotRef.current,
+          dt,
+          timeS,
+          zoneHubRef,
+          zoneCenterStateRef.current,
+          connectorSlotsRef,
+          travelSmoothRef,
+        );
+      }}
+    />
   );
 }

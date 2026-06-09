@@ -84,7 +84,7 @@ export function zoneHalfWidthDeg(
 export type ZonePickOptions = {
   frontMinDot: number;
   liveVertices?: ReadonlySet<number>;
-  /** Max angle hub → partner on the sphere (Leva: max angle from hub °). */
+  /** Max angle hub → partner on the sphere (degrees from hub). */
   maxAngleFromHubDeg: number;
   minAngleFromHubDeg?: number;
   /** 0 = per-zone wedge only; 1 = strong pull toward camera-facing blob center. */

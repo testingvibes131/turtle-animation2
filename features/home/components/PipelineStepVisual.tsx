@@ -9,46 +9,73 @@ type Props = {
   activeIndex: number;
 };
 
+function slideObjectPosition(index: number, count: number) {
+  if (index === 0) return "0% 100%";
+  if (index === count - 1) return "100% 100%";
+  return "50% 100%";
+}
+
 /** Crossfades pipeline step illustrations (`/pipeline/{StepName}.png`). */
 export function PipelineStepVisual({ steps, activeIndex }: Props) {
   const activeStep = steps[activeIndex];
+  const ariaLabel = activeStep ? `${activeStep.title} illustration` : undefined;
 
   return (
-    <RevealOnScroll
-      className="pipeline-visual pointer-events-none"
-      aria-live="polite"
-      aria-label={activeStep ? `${activeStep.title} illustration` : undefined}
-    >
-      {steps.map((step, index) => {
-        const isFirst = index === 0;
-        const isLast = index === steps.length - 1;
-        const objectPosition = isFirst
-          ? "0% 100%"
-          : isLast
-            ? "100% 100%"
-            : "50% 100%";
+    <>
+      {/* Mobile: single keyed image — stacked opacity layers are unreliable on iOS Safari. */}
+      <div
+        className="pipeline-visual pointer-events-none lg:hidden"
+        aria-live="polite"
+        aria-label={ariaLabel}
+      >
+        <div className="pipeline-visual__slide">
+          <Image
+            key={activeStep.image}
+            src={activeStep.image}
+            alt=""
+            fill
+            priority
+            sizes="420px"
+            className="object-contain"
+            style={{ objectPosition: slideObjectPosition(activeIndex, steps.length) }}
+          />
+        </div>
+      </div>
 
-        return (
-          <div
-            key={step.image}
-            className="pipeline-visual__slide"
-            aria-hidden={index !== activeIndex}
-          >
-            <Image
-              src={step.image}
-              alt=""
-              fill
-              priority={index === 0}
-              sizes="(max-width: 1023px) 220px, (max-width: 1535px) 51vw, 1024px"
+      {/* Desktop: crossfade stack */}
+      <RevealOnScroll
+        className="pipeline-visual pointer-events-none hidden lg:block"
+        aria-live="polite"
+        aria-label={ariaLabel}
+      >
+        {steps.map((step, index) => {
+          const isActive = index === activeIndex;
+
+          return (
+            <div
+              key={step.image}
               className={[
-                "object-contain transition-opacity duration-500 ease-out motion-reduce:transition-none",
-                index === activeIndex ? "opacity-100" : "opacity-0",
+                "pipeline-visual__slide",
+                isActive ? "z-1" : "z-0",
               ].join(" ")}
-              style={{ objectPosition }}
-            />
-          </div>
-        );
-      })}
-    </RevealOnScroll>
+              aria-hidden={!isActive}
+            >
+              <Image
+                src={step.image}
+                alt=""
+                fill
+                priority={index === 0}
+                sizes="(max-width: 1535px) 51vw, 1024px"
+                className={[
+                  "object-contain transition-opacity duration-500 ease-out motion-reduce:transition-none",
+                  isActive ? "opacity-100" : "opacity-0",
+                ].join(" ")}
+                style={{ objectPosition: slideObjectPosition(index, steps.length) }}
+              />
+            </div>
+          );
+        })}
+      </RevealOnScroll>
+    </>
   );
 }

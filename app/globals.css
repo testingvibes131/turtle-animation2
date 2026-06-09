@@ -5,10 +5,7 @@
   --foreground: #f9f9f9;
   /* SiteHeader: pt-5 + pb-4 + nav row */
   --site-header-height: 4.75rem;
-  /* Leva dev panel: gap below sticky SiteHeader */
-  --leva-panel-top: calc(var(--site-header-height) + 10px);
   --z-mobile-nav: 2147483647;
-  --z-leva: 999999;
   /* Section intro: title → copy / copy → CTA */
   --section-intro-gap: clamp(16px, 1.8vw, 24px);
   /* Stacked paragraphs inside copy */
@@ -94,27 +91,16 @@ body {
   gap: var(--section-intro-gap);
 }
 
-.section-intro > p,
 .section-intro__copy {
+  gap: var(--section-intro-copy-gap);
+}
+
+.section-intro__copy p {
   font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
   line-height: 1.4;
   color: var(--color-ink-subtle);
 }
 
-.section-intro__copy {
-  gap: var(--section-intro-copy-gap);
-}
-
-/* Hero: tight title → tagline; slightly more tagline → CTAs */
-.section-intro.hero-intro {
-  gap: 0;
-}
-
-.section-intro.hero-intro > p {
-  margin-top: clamp(6px, 0.55vw, 8px);
-  font-size: 1.55rem; /* text-2xl */
-  line-height: 1.3;
-}
 
 
 /* ---------- horizontal logo marquee ---------- */
@@ -179,6 +165,24 @@ body {
 }
 
 /* ---------- pipeline stage ---------- */
+/* Matches Pipeline section px-6 / md:px-10 / lg:px-[100px] */
+.pipeline-stage {
+  --pipeline-gutter: 24px;
+  overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .pipeline-stage {
+    --pipeline-gutter: 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pipeline-stage {
+    --pipeline-gutter: 100px;
+  }
+}
+
 .pipeline-stage-inner {
   display: flex;
   flex-direction: column;
@@ -271,16 +275,28 @@ body {
 @media (max-width: 1023px) {
   .pipeline-stage-inner {
     gap: clamp(20px, 4vh, 28px);
+    overflow: visible;
   }
 
-  /* Figma mobile: title → monitor (in flow) → horizontal cards */
+  /* Wide anchored visual + object-position pins edge brackets to first/last cards */
   .pipeline-stage-main {
+    --pipeline-visual-width: min(calc(100vw - 48px), 420px);
+    --pipeline-visual-height: calc(var(--pipeline-visual-width) * 701 / 711);
+    --pipeline-visual-max-h: none;
+    --pipeline-visual-scale: 1;
+    --pipeline-visual-top: 0;
+    --pipeline-visual-bottom: auto;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: clamp(24px, 5vh, 32px);
+    gap: 0;
     flex: none;
     min-height: 0;
+    overflow: visible;
+    padding-top: calc(
+      var(--pipeline-visual-height) + clamp(24px, 5vh, 32px)
+    );
   }
 
   .pipeline-stage-main .pipeline-cards {
@@ -288,29 +304,21 @@ body {
   }
 
   .pipeline-visual {
-    position: relative;
-    top: auto;
+    top: 0;
     bottom: auto;
-    left: auto;
-    z-index: 0;
-    width: min(252px, 70.2vw);
-    height: calc(min(252px, 70.2vw) * 701 / 711);
     max-height: none;
-    margin-inline: auto;
+    margin-inline: 0;
     flex-shrink: 0;
-    transform: none;
+    /* Snap to card anchor — no left transition (feels like re-centering during swipe) */
     transition: opacity 0.5s ease;
-  }
-
-  .pipeline-visual.reveal-on-scroll,
-  .pipeline-visual.reveal-on-scroll.is-visible {
-    transform: none;
   }
 
   .pipeline-cards {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     scroll-padding-inline: 24px;
     padding-inline: 24px;
@@ -327,6 +335,7 @@ body {
     width: max-content;
     min-width: 100%;
     padding-inline: 0;
+    box-sizing: border-box;
   }
 
   .pipeline-cards__track .pipeline-card {
@@ -335,6 +344,11 @@ body {
     min-width: min(300px, calc(100vw - 56px));
     max-width: min(300px, calc(100vw - 56px));
     scroll-snap-align: start;
+    scroll-snap-stop: always;
+    touch-action: pan-x;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
     will-change: auto;
   }
 }
@@ -442,6 +456,14 @@ body {
     overflow: hidden;
   }
 
+  .pipeline-stage {
+    overflow: visible;
+  }
+
+  .pipeline-stage .scroll-stage-inner {
+    overflow: visible;
+  }
+
   .pipeline-stage-inner {
     padding-top: clamp(12px, 2vh, 28px);
     padding-bottom: clamp(32px, 5vh, 64px);
@@ -451,8 +473,12 @@ body {
     flex-shrink: 0;
   }
 
+  /* Full section width for the illustration; cards stay in the guttered column */
   .pipeline-stage-main {
+    width: calc(100% + 2 * var(--pipeline-gutter));
+    margin-inline: calc(-1 * var(--pipeline-gutter));
     min-height: 0;
+    overflow: visible;
     --pipeline-visual-scale: 0.88;
     --pipeline-visual-lift: 0px;
     /* Anchor ~mid-card (red-line reference); PNG baseline via object-bottom + offset */
@@ -463,8 +489,10 @@ body {
     --pipeline-visual-max-h: min(67.3dvh, calc((100dvh - 10.5rem) * 0.935));
   }
 
-  .pipeline-stage-inner .pipeline-cards {
+  .pipeline-stage .pipeline-cards {
     flex-shrink: 0;
+    padding-inline: var(--pipeline-gutter);
+    box-sizing: border-box;
   }
 }
 
@@ -589,6 +617,21 @@ body {
   }
 }
 
+/* Touch viewports: show chart graphics even before the IO animation fires */
+@media (max-width: 1023px) {
+  .case-cards:not(.is-animating) .tvl-line {
+    stroke-dashoffset: 0;
+  }
+
+  .case-cards:not(.is-animating) .tvl-area {
+    opacity: 1;
+  }
+
+  .case-cards:not(.is-animating) .bar-grow {
+    transform: scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .case-cards .tvl-line {
     stroke-dashoffset: 0;
@@ -659,7 +702,7 @@ body {
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
-  border: 1px dashed #2a2a2a;
+  border: 1px solid #2a2a2a;
   border-radius: 10px;
   width: var(--partner-card-width);
   height: var(--partner-card-height);
@@ -764,13 +807,66 @@ body {
   width: var(--team-avatar-w);
   min-width: 0;
   margin-left: auto;
+  overflow: hidden;
 }
 
 .team-card__avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: bottom;
   pointer-events: none;
   user-select: none;
+}
+
+/* Mobile Card-Member (1385:44826) — after base rules so overrides win in cascade */
+@media (max-width: 1279px) {
+  .team-grid {
+    --team-card-ratio: 177.5 / 208;
+    --team-avatar-w: 129px;
+  }
+
+  .team-grid > li:not(.team-grid__cta) {
+    align-self: start;
+  }
+
+  .team-card {
+    flex: none;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: start;
+    gap: 15px;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 177.5 / 208;
+    padding: 20px 0 0 20px;
+  }
+
+  .team-card__copy {
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 100%;
+  }
+
+  .team-card__name {
+    font-size: 20px;
+    color: #eff8ed;
+  }
+
+  .team-card__role {
+    font-size: 12px;
+  }
+
+  .team-card__avatar-wrap {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    align-self: flex-end;
+    width: 129px;
+    height: 128px;
+    min-height: 128px;
+    margin-left: 0;
+  }
 }
 
 .team-grid__cta {
@@ -787,6 +883,15 @@ body {
   line-height: 1.4;
   color: #f9f9f9;
   text-align: center;
+}
+
+@media (max-width: 1279px) {
+  .team-grid__cta {
+    grid-column: auto;
+    align-self: stretch;
+    aspect-ratio: auto;
+    min-height: 0;
+  }
 }
 
 /* ---------- latest updates scroll ---------- */
@@ -921,6 +1026,16 @@ body {
   transform: translateY(0);
 }
 
+/* Above-the-fold content must not wait on hydration/IO on touch viewports */
+@media (max-width: 1023px) {
+  .reveal-on-scroll {
+    opacity: 1;
+    transform: none;
+    /* Nested will-change + canvas compositing blanks canvases on iOS Safari */
+    will-change: auto;
+  }
+}
+
 @media (min-width: 1024px) {
   /* Keep card-anchored centering when reveal shares the same node as .pipeline-visual */
   .pipeline-visual.reveal-on-scroll {
@@ -977,27 +1092,13 @@ body {
   }
 }
 
-/* Leva debug panel: stitches default is top:10px / z-index:1000 */
-[class*="leva-c-"][class*="fill-false"] {
-  top: var(--leva-panel-top) !important;
-  z-index: var(--z-leva) !important;
-  isolation: isolate;
-}
-
-/* Portaled Leva popovers (color picker, tooltips, etc.) */
-body > [class*="leva-c-"] {
-  z-index: var(--z-leva) !important;
-}
-
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .site-header {
     transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.32s ease;
+  }
+  .site-header:not(.is-visible) {
     transform: translateY(calc(-100% - 4px));
     opacity: 0;
-  }
-  .site-header.is-visible {
-    transform: translateY(0);
-    opacity: 1;
   }
 }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
 import { HeroCopy } from "@/features/home/components/HeroCopy";
 import { PartnersLogos } from "@/features/home/components/PartnersLogos";
 
@@ -12,51 +11,38 @@ const section2DesktopPad =
 
 /** Section 2 — copy + partners, then blob reveal on mobile; side-by-side on desktop. */
 export function GreedyParanoidSection() {
-  const [fadeIn, setFadeIn] = useState(false);
-
-  useLayoutEffect(() => {
-    setFadeIn(true);
-  }, []);
-
   return (
     <section
       data-blob-section="2"
       className={[
-        "pointer-events-none relative flex w-full flex-col",
-        "min-h-[calc(100svh-var(--site-header-height))] lg:min-h-svh",
-        "transition-opacity duration-500 ease-out motion-reduce:transition-none",
-        fadeIn ? "opacity-100" : "opacity-0",
-        "motion-reduce:opacity-100",
+        "relative z-10 flex w-full flex-col pointer-events-none",
+        "lg:min-h-svh",
+        "opacity-100",
       ].join(" ")}
     >
-      {/* Mobile: one viewport — copy top, marquee bottom */}
+      {/*
+        Mobile: sticky full-viewport shell — copy top, marquee bottom, blob in the flex gap.
+        Scroll distance below (data-blob-mobile-visual) drives blob motion while this panel stays pinned.
+      */}
       <div
         data-blob-mobile-text
         className={[
-          "relative z-10 flex min-h-[calc(100svh-var(--site-header-height))] w-full shrink-0 flex-col justify-between bg-transparent lg:hidden",
-          section2MobilePad,
-        ].join(" ")}
-      >
-        <HeroCopy className="max-w-none shrink-0" />
-        <PartnersLogos variant="flow" />
-      </div>
-
-      {/* Desktop: full section height — copy top, marquee bottom */}
-      <div
-        className={[
-          "relative mx-auto hidden min-h-0 w-full max-w-[1728px] flex-1 flex-col justify-between lg:flex",
+          "relative z-10 flex w-full flex-col justify-between bg-transparent",
+          "max-lg:sticky max-lg:top-0 max-lg:h-svh max-lg:shrink-0",
           "px-6 md:px-10",
+          section2MobilePad,
+          "lg:mx-auto lg:min-h-0 lg:max-w-[1728px] lg:flex-1",
           section2DesktopPad,
         ].join(" ")}
       >
         <HeroCopy className="shrink-0" />
-        <PartnersLogos variant="flow" />
+        <PartnersLogos variant="flow" className="shrink-0" />
       </div>
 
-      {/* Mobile: scroll stage for blob reveal (sticky canvas shows through here) */}
+      {/* Mobile: in-flow scroll runway for blob reveal (content scrolls; panel above stays sticky) */}
       <div
         data-blob-mobile-visual
-        className="relative min-h-[min(100svh,720px)] w-full shrink-0 lg:hidden"
+        className="relative h-[min(100svh,720px)] w-full shrink-0 lg:hidden"
         aria-hidden
       />
     </section>

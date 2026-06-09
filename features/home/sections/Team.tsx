@@ -1,4 +1,4 @@
-import { SectionIntro } from "@/components/layout/SectionIntro";
+import { SectionIntro, SectionIntroCopy } from "@/components/layout/SectionIntro";
 import { SectionShell } from "@/components/layout/SectionShell";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { TeamMemberCard } from "@/features/home/components/TeamMemberCard";
@@ -13,10 +13,12 @@ export function Team() {
             <h2 className="text-section-title bg-clip-text pb-[0.05em] font-normal text-transparent text-gradient-heading">
               The Turtle Team
             </h2>
-            <p>
-              Founder-led with experienced operators across every critical
-              function
-            </p>
+            <SectionIntroCopy>
+              <p>
+                Founder-led with experienced operators across every critical
+                function
+              </p>
+            </SectionIntroCopy>
           </SectionIntro>
         </RevealOnScroll>
 

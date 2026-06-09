@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 
 const CARD_FLEX_MS = 520;
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
-/** Tracks horizontal center of the active pipeline card, clamped so the illustration stays in bounds. */
+function visibleVisual(main: HTMLElement) {
+  const visuals = main.querySelectorAll<HTMLElement>(".pipeline-visual");
+  return [...visuals].find((node) => getComputedStyle(node).display !== "none");
+}
+
+/** Tracks horizontal center of the active card; clamps so edge brackets stay in frame. */
 export function usePipelineCardAnchor(
   cardsRef: RefObject<HTMLElement | null>,
   selectedIndex: number,
@@ -25,7 +31,7 @@ export function usePipelineCardAnchor(
     const cardRect = card.getBoundingClientRect();
     const cardCenterX = cardRect.left + cardRect.width / 2 - mainRect.left;
 
-    const visual = main.querySelector<HTMLElement>(".pipeline-visual");
+    const visual = visibleVisual(main);
     if (visual) {
       const half = visual.getBoundingClientRect().width / 2;
       const minX = half;
@@ -45,9 +51,8 @@ export function usePipelineCardAnchor(
 
     const ro = new ResizeObserver(measure);
     ro.observe(cardsEl);
-    const visual = cardsEl
-      .closest(".pipeline-stage-main")
-      ?.querySelector<HTMLElement>(".pipeline-visual");
+    const main = cardsEl.closest(".pipeline-stage-main");
+    const visual = main ? visibleVisual(main) : null;
     if (visual) ro.observe(visual);
 
     const cardNodes = cardsEl.querySelectorAll<HTMLElement>("[data-pipeline-card]");
@@ -55,18 +60,27 @@ export function usePipelineCardAnchor(
       node.addEventListener("transitionend", measure);
     });
 
+    const desktopQuery = window.matchMedia(DESKTOP_QUERY);
+    const onScroll = () => {
+      if (desktopQuery.matches) measure();
+    };
+
+    cardsEl.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", measure);
 
     let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      measure();
-      if (now - start < CARD_FLEX_MS) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    if (desktopQuery.matches) {
+      const start = performance.now();
+      const tick = (now: number) => {
+        measure();
+        if (now - start < CARD_FLEX_MS) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }
 
     return () => {
       ro.disconnect();
+      cardsEl.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", measure);
       cancelAnimationFrame(raf);
       cardNodes.forEach((node) => {

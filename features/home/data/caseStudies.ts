@@ -50,6 +50,8 @@ export type CaseStudyThirdCard =
   | {
       kind: "quote";
       text: string;
+      /** Shorter copy shown below `lg` when the full quote does not fit. */
+      mobileText?: string;
       authorName: string;
       authorRole: string;
       /** When omitted, the quote card shows attribution only (no avatar). */
@@ -101,6 +103,8 @@ export const caseStudies: CaseStudy[] = [
     thirdCard: {
       kind: "quote",
       text: "Turtle has been a strong partner for Avalanche DeFi, helping attract and retain high-quality liquidity on the chain. Their vaults specialized in risk-screened yield opportunities for LPs while increasing participation across key Avalanche protocols, contributing to growth in asset flows and protocol adoption across the ecosystem.",
+      mobileText:
+        "Turtle has been a strong partner for Avalanche DeFi, helping attract and retain high-quality liquidity on the chain.",
       authorName: "Matt Schmenk",
       authorRole: "Business Development & Growth",
     },
@@ -181,7 +185,12 @@ export const caseStudies: CaseStudy[] = [
       ],
     },
     thirdCard: {
-      kind: "empty",
+      kind: "quote",
+      text: "Working with Turtle Club was a great experience from start to finish. Their team was professional throughout, with clear communication, seamless onboarding, and consistently timely responses. For Decibel, Turtle Club has been a trusted partner in building credibility with LPs, and an efficient platform for bootstrapping liquidity. We'd recommend them to any team in the same position.",
+      mobileText:
+        "Working with Turtle Club was a great experience from start to finish. For Decibel, Turtle Club has been a trusted partner in building credibility with LPs, and an efficient platform for bootstrapping liquidity.",
+      authorName: "Sophia Fang",
+      authorRole: "BD Lead at Decibel",
     },
   },
 ];
