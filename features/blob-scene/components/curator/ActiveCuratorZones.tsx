@@ -10,6 +10,7 @@ import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import {
   useBlobCuratorOverlayEnabled,
   useBlobLayoutMirrored,
+  useBlobMobileZoneCarouselEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
   type CuratorZoneAssignment,
@@ -22,6 +23,7 @@ import {
 } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { tickHubAnchorRotationLag } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
+import { mobileZoneLayoutSignature } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 
 const HUB_LOGO_OUTSET_MUL = 1.5;
 
@@ -40,6 +42,7 @@ export function ActiveCuratorZones() {
   } = useBlobScene();
 
   const layoutMirrored = useBlobLayoutMirrored();
+  const mobileCarouselEnabled = useBlobMobileZoneCarouselEnabled();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
   const [zones, setZones] = useState<CuratorZoneAssignment[]>([]);
   const lagZoneNameRef = useRef<string | null>(null);
@@ -50,22 +53,37 @@ export function ActiveCuratorZones() {
 
   useEffect(() => {
     if (!activeZone || !layoutZone) return;
+
+    if (mobileCarouselEnabled) {
+      if (
+        mobileZoneLayoutSignature(activeZone) ===
+        mobileZoneLayoutSignature(layoutZone)
+      ) {
+        return;
+      }
+      setActiveZone({ ...layoutZone, edges: [] });
+      return;
+    }
+
     if (zonesLayoutEqual(activeZone, layoutZone)) return;
-    setActiveZone({ ...layoutZone });
-  }, [activeZone, layoutZone, setActiveZone]);
+    const merged = { ...layoutZone, edges: activeZone.edges };
+    if (zonesLayoutEqual(activeZone, merged)) return;
+    setActiveZone(merged);
+  }, [activeZone, layoutZone, mobileCarouselEnabled, setActiveZone]);
 
   const hubZoneDeg = activeZone
     ? zoneClockDegForLayout(activeZone.curator.name, layoutMirrored)
     : 90;
 
   const orbitTargets =
-    activeZone
+    !mobileCarouselEnabled && activeZone
       ? orbitTargetsForZone(activeZone, new Set(activeZone.partners))
       : [];
 
-  const activeLineGroups = activeZone
-    ? [{ color: activeZone.curator.color, edges: activeZone.edges }]
-    : [];
+  const activeLineGroups =
+    !mobileCarouselEnabled && activeZone
+      ? [{ color: activeZone.curator.color, edges: activeZone.edges }]
+      : [];
 
   const hubPickOptions = {
     frontMinDot: params.frontMinDot,
@@ -86,7 +104,9 @@ export function ActiveCuratorZones() {
       hubAnchorRotationLagRef.current.synced = false;
     }
 
-    const lagEnabled = Boolean(curatorOverlayEnabled && activeZone);
+    const lagEnabled = Boolean(
+      curatorOverlayEnabled && activeZone && !mobileCarouselEnabled,
+    );
     tickHubAnchorRotationLag(
       hubAnchorRotationLagRef.current,
       blobGroupRef.current?.rotation.y ?? 0,
@@ -110,32 +130,38 @@ export function ActiveCuratorZones() {
           blobAnimTimeRef={blobAnimTimeRef}
         />
       ) : null}
-      {curatorOverlayEnabled && activeZone && orbitTargets.length > 0 && (
-        <PartnerOrbitRings
-          key={`orbit-${activeZone.curator.name}-${orbitTargets.map((t) => t.vertexIndex).join(",")}`}
-          targets={orbitTargets}
-          color={activeZone.curator.color}
-          vertices={vertices}
-          params={params}
-          pointRadius={pointRadius}
-          blobAnimTimeRef={blobAnimTimeRef}
-        />
-      )}
-      {curatorOverlayEnabled && activeLineGroups.length > 0 && activeZone ? (
-        <group renderOrder={RENDER_PLEXUS_LINES}>
-          <CuratorPlexusLines
-            key={`plexus-${activeZone.curator.name}-${activeZone.hub}-${activeZone.edges.map(([a, b]) => `${a}-${b}`).join(",")}`}
-            groups={activeLineGroups}
+      {curatorOverlayEnabled &&
+        !mobileCarouselEnabled &&
+        activeZone &&
+        orbitTargets.length > 0 && (
+          <PartnerOrbitRings
+            key={`orbit-${activeZone.curator.name}-${orbitTargets.map((t) => t.vertexIndex).join(",")}`}
+            targets={orbitTargets}
+            color={activeZone.curator.color}
             vertices={vertices}
             params={params}
-            hubIndex={activeZone.hub}
-            hubZoneDeg={hubZoneDeg}
-            hubPickOptions={hubPickOptions}
-            getTowardCamera={layoutTowardCamera}
+            pointRadius={pointRadius}
             blobAnimTimeRef={blobAnimTimeRef}
           />
-        </group>
-      ) : null}
+        )}
+      {curatorOverlayEnabled &&
+        !mobileCarouselEnabled &&
+        activeLineGroups.length > 0 &&
+        activeZone ? (
+          <group renderOrder={RENDER_PLEXUS_LINES}>
+            <CuratorPlexusLines
+              key={`plexus-${activeZone.curator.name}-${activeZone.hub}-${activeZone.edges.map(([a, b]) => `${a}-${b}`).join(",")}`}
+              groups={activeLineGroups}
+              vertices={vertices}
+              params={params}
+              hubIndex={activeZone.hub}
+              hubZoneDeg={hubZoneDeg}
+              hubPickOptions={hubPickOptions}
+              getTowardCamera={layoutTowardCamera}
+              blobAnimTimeRef={blobAnimTimeRef}
+            />
+          </group>
+        ) : null}
     </>
   );
 }

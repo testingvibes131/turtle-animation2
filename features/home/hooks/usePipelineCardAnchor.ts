@@ -21,7 +21,7 @@ export function usePipelineCardAnchor(
     const cardsEl = cardsRef.current;
     if (!cardsEl) return;
 
-    const main = cardsEl.closest(".pipeline-stage-main");
+    const main = cardsEl.closest<HTMLElement>(".pipeline-stage-main");
     const card = cardsEl.querySelectorAll<HTMLElement>("[data-pipeline-card]")[
       selectedIndex
     ];
@@ -51,7 +51,7 @@ export function usePipelineCardAnchor(
 
     const ro = new ResizeObserver(measure);
     ro.observe(cardsEl);
-    const main = cardsEl.closest(".pipeline-stage-main");
+    const main = cardsEl.closest<HTMLElement>(".pipeline-stage-main");
     const visual = main ? visibleVisual(main) : null;
     if (visual) ro.observe(visual);
 

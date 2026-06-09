@@ -7,11 +7,12 @@ import type { BlobSceneContextValue } from "@/features/blob-scene/context/BlobSc
 import {
   useBlobInteractionEnabled,
   useBlobLayoutMirrored,
+  useBlobMobileZoneCarouselEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { buildActiveZoneWithEdges } from "@/features/blob-scene/lib/curators/activateZone";
 import { zonesLayoutEqual } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { blobVisualExtent } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import {
-  buildZoneHubEdgesRandom,
   findZoneForMemberVertex,
   pickZoneAtCapRay,
   type CuratorZoneAssignment,
@@ -61,20 +62,24 @@ export function useBlobInteraction({
 }: UseBlobInteractionArgs) {
   const { camera, gl } = useThree();
   const interactionEnabled = useBlobInteractionEnabled();
+  const mobileCarouselEnabled = useBlobMobileZoneCarouselEnabled();
   const layoutMirrored = useBlobLayoutMirrored();
   const interactionEnabledRef = useRef(interactionEnabled);
   interactionEnabledRef.current = interactionEnabled;
+  const mobileCarouselEnabledRef = useRef(mobileCarouselEnabled);
+  mobileCarouselEnabledRef.current = mobileCarouselEnabled;
   const layoutMirroredRef = useRef(layoutMirrored);
   layoutMirroredRef.current = layoutMirrored;
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
 
   useEffect(() => {
-    if (interactionEnabled) return;
+    if (interactionEnabled || mobileCarouselEnabled) return;
     setActiveZone(null);
     frozenAnimTimeRef.current = null;
     frozenLayoutAxisRef.current = null;
   }, [
     interactionEnabled,
+    mobileCarouselEnabled,
     frozenAnimTimeRef,
     frozenLayoutAxisRef,
     setActiveZone,
@@ -165,30 +170,16 @@ export function useBlobInteraction({
 
         if (prev?.curator.name === zone.curator.name) {
           if (zonesLayoutEqual(prev, snap)) return prev;
-          return { ...snap };
+          return { ...snap, edges: prev.edges };
         }
 
-        const toward = getTowardCamera();
-        const targetCount = Math.max(
-          1,
-          Math.round(
-            snap.curator.opportunities * (params.hubConnectionMul ?? 1),
-          ),
+        return buildActiveZoneWithEdges(
+          snap,
+          zonesSnapshotRef.current,
+          vertices,
+          params,
+          getTowardCamera,
         );
-        const edges = buildZoneHubEdgesRandom(
-          vertices.positions,
-          snap.hub,
-          snap.partners,
-          snap.members,
-          toward,
-          targetCount,
-          {
-            frontMinDot: params.frontMinDot,
-            maxAngleFromHubDeg: params.clusterMaxAngleDeg,
-            blobCenterLean: params.blobCenterLean,
-          },
-        );
-        return { ...snap, edges };
       });
     };
 

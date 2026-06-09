@@ -7,7 +7,9 @@ import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import {
   useBlobCuratorOverlayEnabled,
   useBlobLayoutMirrored,
+  useBlobMobileZoneCarouselEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { zoneHighlightBlendMul } from "@/features/blob-scene/hooks/zoneHighlightBlend";
 import { CURATORS } from "@/features/blob-scene/lib/curators/catalog";
 import {
   assignCapMembersVisual,
@@ -30,7 +32,10 @@ import { updateMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/renderi
 import { noiseSlopeOpacityFromDisplacement } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { RENDER_PARTNER_SPHERE } from "@/features/blob-scene/lib/rendering/renderOrder";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
-import { SECTION1_AMBIENT_FADE_EPS } from "@/features/blob-scene/lib/geometry/blobCapWave";
+import {
+  BLOB_CAP_WAVE_MAX_OPACITY,
+  SECTION1_AMBIENT_FADE_EPS,
+} from "@/features/blob-scene/lib/geometry/blobCapWave";
 import { computeZoneMarkerLayout } from "@/features/blob-scene/lib/geometry/zoneMarkerTransform";
 import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
@@ -64,8 +69,10 @@ export function ZoneMemberInstances({
     waveZoneRef,
     waveStrengthRef,
     section1AmbientFadeRef,
+    zoneHighlightBlendRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const mobileCarouselEnabled = useBlobMobileZoneCarouselEnabled();
   const layoutMirrored = useBlobLayoutMirrored();
   const curatorOverlayEnabledRef = useRef(curatorOverlayEnabled);
   curatorOverlayEnabledRef.current = curatorOverlayEnabled;
@@ -207,8 +214,11 @@ export function ZoneMemberInstances({
     const section1AmbientActive =
       section1AmbientFade > SECTION1_AMBIENT_FADE_EPS;
     const activeName = activeZone?.curator.name ?? null;
+    const mobileCapHighlight =
+      mobileCarouselEnabled && activeName != null;
+    const capAmbientActive = section1AmbientActive || mobileCapHighlight;
 
-    if (section1AmbientActive) {
+    if (capAmbientActive) {
       zoneUsedRef.current = used;
     } else if (activeZoneRef.current) {
       const hovered = activeZoneRef.current;
@@ -228,27 +238,37 @@ export function ZoneMemberInstances({
       zoneUsedRef.current = new Set();
     }
 
+    const highlightBlend = zoneHighlightBlendMul(
+      mobileCarouselEnabled,
+      zoneHighlightBlendRef,
+    );
+
     const waveZone = section1AmbientActive ? waveZoneRef.current : null;
-    const waveName =
-      waveZone && waveZone.curator.name !== activeName
+    const waveName = section1AmbientActive
+      ? waveZone && waveZone.curator.name !== activeName
         ? waveZone.curator.name
+        : null
+      : mobileCapHighlight
+        ? activeName
         : null;
     const waveStrength = waveName
-      ? waveStrengthRef.current * section1AmbientFade
+      ? section1AmbientActive
+        ? waveStrengthRef.current * section1AmbientFade
+        : highlightBlend * BLOB_CAP_WAVE_MAX_OPACITY
       : 0;
 
     const activeCurator = activeName
       ? CURATORS.find((c) => c.name === activeName)
       : undefined;
-    if (activeCurator) {
+    if (activeCurator && !mobileCarouselEnabled) {
       zoneInnerDimMaterial.color.setHex(activeCurator.color);
-      zoneInnerDimMaterial.opacity = ZONE_INNER_TINT_OPACITY;
+      zoneInnerDimMaterial.opacity = ZONE_INNER_TINT_OPACITY * highlightBlend;
     }
     for (const c of CURATORS) {
       const mat = highlightMaterials.get(c.name);
       if (!mat) continue;
-      if (activeName === c.name) {
-        mat.opacity = 1;
+      if (activeName === c.name && !mobileCarouselEnabled) {
+        mat.opacity = highlightBlend;
       } else if (waveName === c.name) {
         mat.opacity = waveStrength;
       } else {
@@ -264,7 +284,9 @@ export function ZoneMemberInstances({
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
     const extent = params.radius + maxDisp;
     const camDist = state.camera.position.length();
-    const overlayActive = Boolean(activeZoneRef.current);
+    const overlayActive = Boolean(
+      activeZoneRef.current && !mobileCarouselEnabled,
+    );
     updateMarkerDepthFadeUniforms(
       depthFadeUniforms,
       state.camera,
@@ -274,7 +296,9 @@ export function ZoneMemberInstances({
         closeNear: 0,
         closeFar: 0,
       },
-      overlayActive ? 1 : params.depthFadeMinOpacity,
+      overlayActive
+        ? highlightBlend
+        : params.depthFadeMinOpacity,
     );
 
     const capGrayMesh = capGrayMeshRef.current;
@@ -365,9 +389,10 @@ export function ZoneMemberInstances({
       const needsInnerDim = Boolean(activeName && zoneInnerDimMesh);
 
       const partners = new Set(zone.partners);
-      const isHoverSelected = activeName === zone.curator.name;
+      const isHoverSelected =
+        activeName === zone.curator.name && !mobileCarouselEnabled;
       const isWaveSelected =
-        section1AmbientActive && waveName === zone.curator.name;
+        capAmbientActive && waveName === zone.curator.name;
 
       const hovered = activeZoneRef.current;
       const connected =
@@ -406,11 +431,14 @@ export function ZoneMemberInstances({
       fullMesh.instanceMatrix.needsUpdate = true;
     }
 
-    if (section1AmbientActive && visualBuckets) {
+    if (capAmbientActive && visualBuckets) {
+      const capGrayMul = section1AmbientActive ? section1AmbientFade : 1;
+
       for (const zone of nextZones) {
         if (!capGrayMesh) continue;
         const visualMembers = visualBuckets.get(zone.curator.name) ?? [];
-        const isHoverSelected = activeName === zone.curator.name;
+        const isHoverSelected =
+          activeName === zone.curator.name && !mobileCarouselEnabled;
         const isWaveSelected = waveName === zone.curator.name;
         const needsInnerDim = Boolean(
           activeName && zoneInnerDimMesh && isHoverSelected,
@@ -430,7 +458,7 @@ export function ZoneMemberInstances({
           if (isHoverSelected && connected.has(vi)) continue;
           if (isWaveSelected && vi !== zone.hub) continue;
           if (isHoverSelected && needsInnerDim && activeCurator) {
-            const op = noiseOpacity(vi) * section1AmbientFade;
+            const op = noiseOpacity(vi) * capGrayMul;
             write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, op);
             graySlot++;
             write(zoneInnerDimMesh!, innerDimSlot, vi, ZONE_MEMBER_SCALE, op);
@@ -441,7 +469,7 @@ export function ZoneMemberInstances({
               graySlot,
               vi,
               ZONE_MEMBER_SCALE,
-              noiseOpacity(vi) * section1AmbientFade,
+              noiseOpacity(vi) * capGrayMul,
             );
             graySlot++;
           }

@@ -13,6 +13,12 @@ export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 /** Section 1: shift blob down by this fraction of half the viewport height. */
 export const BLOB_SECTION1_Y_LOWER_FRAC = 0.5;
 
+/** Portrait section 2: sit in the lower viewport (fraction of half-height). */
+export const BLOB_SECTION2_Y_LOWER_FRAC = 0.48;
+
+/** Portrait section 2: scale relative to section 1. */
+export const BLOB_SECTION2_SCALE_PORTRAIT = 0.78;
+
 export function blobVisualExtent(
   params: Pick<PerlinBlobParams, "radius" | "noiseScale" | "displacementDivisor">,
 ): number {
@@ -95,7 +101,9 @@ export function computeBlobOffsetYForScroll(
   const { halfViewHeight } = viewHalfExtents(camera, viewportAspect);
   const t = clampScrollProgress(scrollProgress);
   const section1Y = -halfViewHeight * BLOB_SECTION1_Y_LOWER_FRAC;
-  return section1Y * (1 - t);
+  const section2Y =
+    viewportAspect < 1 ? -halfViewHeight * BLOB_SECTION2_Y_LOWER_FRAC : 0;
+  return section1Y + (section2Y - section1Y) * t;
 }
 
 /** Full Y-axis turn while scrolling hero → section 2. */
@@ -127,6 +135,10 @@ export function computeBlobScrollMotion(
   extent: number,
   scrollProgress: number,
 ): BlobScrollMotion {
+  const t = clampScrollProgress(scrollProgress);
+  const section2Scale =
+    viewportAspect < 1 ? BLOB_SECTION2_SCALE_PORTRAIT : 1;
+
   return {
     offsetX: computeBlobOffsetXForScroll(
       camera,
@@ -139,7 +151,7 @@ export function computeBlobScrollMotion(
       viewportAspect,
       scrollProgress,
     ),
-    scale: 1,
+    scale: 1 + (section2Scale - 1) * t,
     rotationY: computeBlobRotationYForScroll(scrollProgress),
   };
 }

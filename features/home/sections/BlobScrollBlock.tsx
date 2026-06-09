@@ -27,6 +27,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [inSection1, setInSection1] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
+  const [mobileZoneCarouselEnabled, setMobileZoneCarouselEnabled] =
+    useState(false);
   const coloredToGrayMixRef = useRef(GRAY_DOT_MIX);
   const scrollWobbleStrengthRef = useRef(0);
   const prevScrolledRef = useRef(0);
@@ -61,9 +63,9 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
       setInSection1(blobInSection1(metrics));
-      setInteractionEnabled(
-        !isMobile && blobInteractionEnabledFromScroll(metrics),
-      );
+      const inSection2 = blobInteractionEnabledFromScroll(metrics);
+      setInteractionEnabled(!isMobile && inSection2);
+      setMobileZoneCarouselEnabled(isMobile && inSection2);
     };
 
     const updateScroll = () => {
@@ -101,6 +103,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
             progress={scrollProgress}
             inSection1={inSection1}
             interactionEnabled={interactionEnabled}
+            mobileZoneCarouselEnabled={mobileZoneCarouselEnabled}
             blobSetup={blobRuntimeSetup()}
             coloredToGrayMix={GRAY_DOT_MIX}
             coloredToGrayMixRef={coloredToGrayMixRef}

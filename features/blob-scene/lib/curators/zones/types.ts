@@ -102,7 +102,7 @@ export type ZonePickOptions = {
   layoutMirrored?: boolean;
   /** Hub arc distance from zone center in “sphere spacings” (0 = balanced hub). */
   hubOffsetSpheres?: number;
-  /** Push logo + plexus hub outward along the anchor (sphere spacings; 0 = on surface). */
+  /** Logo + plexus hub offset along anchor (sphere spacings; +outward, −inward). */
   hubLogoOutsetSpheres?: number;
 };
 

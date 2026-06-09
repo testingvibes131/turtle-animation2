@@ -20,6 +20,8 @@ type BlobScrollState = {
   /** Hero / section 1 scroll stage (ambient lightning). */
   inSection1: boolean;
   interactionEnabled: boolean;
+  /** Mobile section 2: time-based zone carousel (no hover). */
+  mobileZoneCarouselEnabled: boolean;
   blobSetup: BlobSetupId;
   /** Always 1 — gray dots throughout. */
   coloredToGrayMix: number;
@@ -44,6 +46,7 @@ const defaultState: BlobScrollState = {
   progress: 1,
   inSection1: false,
   interactionEnabled: true,
+  mobileZoneCarouselEnabled: false,
   blobSetup: "connected-lines",
   coloredToGrayMix: 1,
   layoutMirrored: false,
@@ -58,6 +61,7 @@ export function BlobScrollProgressProvider({
   progress,
   inSection1,
   interactionEnabled,
+  mobileZoneCarouselEnabled,
   blobSetup,
   coloredToGrayMix,
   coloredToGrayMixRef,
@@ -69,6 +73,7 @@ export function BlobScrollProgressProvider({
   progress: number;
   inSection1: boolean;
   interactionEnabled: boolean;
+  mobileZoneCarouselEnabled: boolean;
   blobSetup: BlobSetupId;
   coloredToGrayMix: number;
   coloredToGrayMixRef: MutableRefObject<number>;
@@ -83,6 +88,7 @@ export function BlobScrollProgressProvider({
         progress,
         inSection1,
         interactionEnabled,
+        mobileZoneCarouselEnabled,
         blobSetup,
         coloredToGrayMix,
         coloredToGrayMixRef,
@@ -109,10 +115,23 @@ export function useBlobInteractionEnabled() {
   return useContext(BlobScrollProgressContext).interactionEnabled;
 }
 
-/** Zone layout for cap wave (section 1) and hover picking (section 2). */
+export function useBlobMobileZoneCarouselEnabled() {
+  return useContext(BlobScrollProgressContext).mobileZoneCarouselEnabled;
+}
+
+/** Freeze blob animation while a zone is highlighted (hover or mobile carousel). */
+export function useBlobZoneHighlightActive() {
+  const { interactionEnabled, mobileZoneCarouselEnabled } = useContext(
+    BlobScrollProgressContext,
+  );
+  return interactionEnabled || mobileZoneCarouselEnabled;
+}
+
+/** Zone layout for cap wave (section 1), hover (desktop section 2), and mobile carousel. */
 export function useBlobZonesLayoutEnabled() {
-  const { inSection1, interactionEnabled } = useContext(BlobScrollProgressContext);
-  return inSection1 || interactionEnabled;
+  const { inSection1, interactionEnabled, mobileZoneCarouselEnabled } =
+    useContext(BlobScrollProgressContext);
+  return inSection1 || interactionEnabled || mobileZoneCarouselEnabled;
 }
 
 /** Section 1 only — automatic cap color sweep (not hover). */

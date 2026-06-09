@@ -15,13 +15,17 @@ import {
   useBlobAnimationFreeze,
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
-import { useBlobInteractionEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobZoneHighlightActive,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { useMobileZoneCarousel } from "@/features/blob-scene/hooks/useMobileZoneCarousel";
 import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
+import { mobileZoneLayoutSignature } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 import { createHubAnchorRotationLagState } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 
 type BlobSceneContentProps = {
@@ -51,6 +55,7 @@ export function BlobSceneContent({
   const waveZoneRef = useRef<BlobSceneContextValue["waveZoneRef"]["current"]>(null);
   const waveStrengthRef = useRef(0);
   const section1AmbientFadeRef = useRef(1);
+  const zoneHighlightBlendRef = useRef(1);
 
   const { vertices, vertexIndices, pointRadius } = useBlobGeometry(params);
 
@@ -63,7 +68,10 @@ export function BlobSceneContent({
 
   useLayoutEffect(() => {
     if (activeZone) {
-      const sig = zoneLayoutSignature(activeZone);
+      const sig =
+        activeZone.edges.length === 0
+          ? mobileZoneLayoutSignature(activeZone)
+          : zoneLayoutSignature(activeZone);
       if (frozenLayoutZoneRef.current !== sig) {
         frozenLayoutAxisRef.current = getTowardCamera().clone();
         frozenLayoutZoneRef.current = sig;
@@ -101,6 +109,7 @@ export function BlobSceneContent({
       waveZoneRef,
       waveStrengthRef,
       section1AmbientFadeRef,
+      zoneHighlightBlendRef,
       getTowardCamera,
       getHubLayoutAxis,
       hubAnchorRotationLagRef,
@@ -137,14 +146,20 @@ export function BlobSceneContent({
     frozenLayoutAxisRef,
   });
 
-  const interactionEnabled = useBlobInteractionEnabled();
+  useMobileZoneCarousel({
+    zonesSnapshotRef,
+    setActiveZone,
+    zoneHighlightBlendRef,
+  });
+
+  const zoneHighlightActive = useBlobZoneHighlightActive();
 
   const { tickAnimationTime } = useBlobAnimationFreeze(
     activeZone,
     blobAnimTimeRef,
     frozenAnimTimeRef,
     params,
-    interactionEnabled,
+    zoneHighlightActive,
   );
 
   return (

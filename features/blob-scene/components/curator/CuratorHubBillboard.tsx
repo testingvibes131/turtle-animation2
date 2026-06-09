@@ -5,7 +5,11 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
-import { useBlobCuratorOverlayEnabled } from "@/features/blob-scene/context/BlobScrollProgressContext";
+import {
+  useBlobCuratorOverlayEnabled,
+  useBlobMobileZoneCarouselEnabled,
+} from "@/features/blob-scene/context/BlobScrollProgressContext";
+import { mobileHubLogoLocalPosition } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { curatorLogoPath, CURATOR_LOGO_PATHS } from "@/features/blob-scene/lib/curators/logo";
 import {
@@ -65,6 +69,7 @@ export function CuratorHubBillboard({
     hubAnchorRotationLagRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const mobileCarouselEnabled = useBlobMobileZoneCarouselEnabled();
   const texture = useTexture(curatorLogoPath(curatorName));
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -94,28 +99,34 @@ export function CuratorHubBillboard({
     if (!frameCache) return;
 
     readCachedVertexPosition(frameCache, hubIndex, _wobbledHub);
-    displacedHubAnchorPosition(
-      vertices,
-      hubIndex,
-      getTowardCamera(),
-      hubZoneDeg,
-      { ...hubPickOptions, hubPickBlob: blobParams },
-      blobParams,
-      _hubPos,
-      _wobbledHub,
-    );
 
-    const lagState = hubAnchorRotationLagRef.current;
-    const lagEnabled = curatorOverlayEnabled;
-    if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
-      applyHubAnchorRotationLag(
-        _hubPos,
-        root.position,
-        blobGroupRef.current?.rotation.y ?? 0,
-        lagState.laggedRotationY,
-      );
-    } else {
+    if (mobileCarouselEnabled) {
+      mobileHubLogoLocalPosition(_wobbledHub, getTowardCamera(), _hubPos);
       root.position.copy(_hubPos);
+    } else {
+      displacedHubAnchorPosition(
+        vertices,
+        hubIndex,
+        getTowardCamera(),
+        hubZoneDeg,
+        { ...hubPickOptions, hubPickBlob: blobParams },
+        blobParams,
+        _hubPos,
+        _wobbledHub,
+      );
+
+      const lagState = hubAnchorRotationLagRef.current;
+      const lagEnabled = curatorOverlayEnabled;
+      if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
+        applyHubAnchorRotationLag(
+          _hubPos,
+          root.position,
+          blobGroupRef.current?.rotation.y ?? 0,
+          lagState.laggedRotationY,
+        );
+      } else {
+        root.position.copy(_hubPos);
+      }
     }
     root.rotation.set(0, 0, 0);
 

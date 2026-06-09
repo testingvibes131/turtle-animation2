@@ -22,7 +22,7 @@ export function GreedyParanoidSection() {
     >
       {/*
         Mobile: sticky full-viewport shell — copy top, marquee bottom, blob in the flex gap.
-        Scroll distance below (data-blob-mobile-visual) drives blob motion while this panel stays pinned.
+        Scroll runway below keeps section 2 pinned while the page advances.
       */}
       <div
         data-blob-mobile-text

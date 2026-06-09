@@ -43,6 +43,8 @@ export type BlobSceneContextValue = {
   waveStrengthRef: MutableRefObject<number>;
   /** 1 in section 1; eases to 0 after handoff (cap gray + wave). */
   section1AmbientFadeRef: MutableRefObject<number>;
+  /** Mobile carousel: 0→1 ease while a zone highlight fades in. */
+  zoneHighlightBlendRef: MutableRefObject<number>;
   getTowardCamera: () => THREE.Vector3;
   /** Camera-facing layout axis; frozen for the active hover zone. */
   getHubLayoutAxis: () => THREE.Vector3;
