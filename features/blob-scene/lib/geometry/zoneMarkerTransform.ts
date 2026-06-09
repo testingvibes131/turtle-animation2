@@ -1,10 +1,9 @@
 import * as THREE from "three";
 import { depthSizeMultiplier } from "@/features/blob-scene/lib/geometry/sphereDepthSize";
 import {
-  displacedVertexPosition,
-  type IcosahedronVertexData,
-  type PerlinBlobParams,
-} from "@/features/blob-scene/lib/geometry/perlinBlob";
+  readCachedVertexPosition,
+  type BlobVertexFrameCache,
+} from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
 
 export type ZoneMarkerLayout = {
   localPosition: THREE.Vector3;
@@ -20,9 +19,8 @@ const _layout = {
 
 /** Same placement + depth scale as zone instanced member spheres. */
 export function computeZoneMarkerLayout(
-  vertices: IcosahedronVertexData,
+  frameCache: BlobVertexFrameCache,
   vertexIndex: number,
-  blobParams: PerlinBlobParams,
   pointRadius: number,
   scaleMul: number,
   camera: THREE.Camera,
@@ -34,7 +32,7 @@ export function computeZoneMarkerLayout(
   depthSizeMaxMul: number,
   out: ZoneMarkerLayout = _layout,
 ): ZoneMarkerLayout {
-  displacedVertexPosition(vertices, vertexIndex, blobParams, out.localPosition);
+  readCachedVertexPosition(frameCache, vertexIndex, out.localPosition);
   out.worldPosition.copy(out.localPosition);
   parent?.localToWorld(out.worldPosition);
 

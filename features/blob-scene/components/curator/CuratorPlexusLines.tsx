@@ -23,11 +23,8 @@ import {
   hubAnchorRotationLagActive,
 } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
-import {
-  displacedVertexPosition,
-  type IcosahedronVertexData,
-  type PerlinBlobParams,
-} from "@/features/blob-scene/lib/geometry/perlinBlob";
+import { readCachedVertexPosition } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
+import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 export type ColoredPlexusGroup = {
   color: number;
@@ -40,6 +37,7 @@ const LINE_GAP_SIZE = 0.01;
 const _posA = new THREE.Vector3();
 const _posB = new THREE.Vector3();
 const _hubTarget = new THREE.Vector3();
+const _wobbledHub = new THREE.Vector3();
 
 type PlexusBundle = {
   lines: LineSegments2;
@@ -74,6 +72,7 @@ function PlexusLineBatch({
   const size = useThree((s) => s.size);
   const {
     blobGroupRef,
+    blobFrameCacheRef,
     getBlobParamsAtTime,
     hubAnchorRotationLagRef,
   } = useBlobScene();
@@ -150,14 +149,17 @@ function PlexusLineBatch({
       return;
     }
 
-    const blobParams: PerlinBlobParams = getBlobParamsAtTime(
+    const blobParams = getBlobParamsAtTime(
       blobAnimTimeRef?.current ??
         state.clock.elapsedTime * params.timeSpeed,
     );
+    const frameCache = blobFrameCacheRef.current;
+    if (!frameCache) return;
 
     let p = 0;
     for (const [a, bIdx] of edges) {
       if (a === hubIndex) {
+        readCachedVertexPosition(frameCache, hubIndex, _wobbledHub);
         displacedHubAnchorPosition(
           vertices,
           hubIndex,
@@ -166,6 +168,7 @@ function PlexusLineBatch({
           { ...hubPickOptions, hubPickBlob: blobParams },
           blobParams,
           _hubTarget,
+          _wobbledHub,
         );
         const lagState = hubAnchorRotationLagRef.current;
         const lagEnabled = curatorOverlayEnabled;
@@ -180,9 +183,9 @@ function PlexusLineBatch({
           _posA.copy(_hubTarget);
         }
       } else {
-        displacedVertexPosition(vertices, a, blobParams, _posA);
+        readCachedVertexPosition(frameCache, a, _posA);
       }
-      displacedVertexPosition(vertices, bIdx, blobParams, _posB);
+      readCachedVertexPosition(frameCache, bIdx, _posB);
       arr[p++] = _posA.x;
       arr[p++] = _posA.y;
       arr[p++] = _posA.z;

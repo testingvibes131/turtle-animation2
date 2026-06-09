@@ -44,8 +44,7 @@ export function BlobPointCloud({
     vertices,
     params,
     pointRadius,
-    liveIndices,
-    deadIndices,
+    vertexIndices,
     depthFadeUniforms,
     blobAnimTimeRef,
     zoneUsedRef,
@@ -56,24 +55,13 @@ export function BlobPointCloud({
   } = useBlobScene();
   const rotationEnabled = useBlobInteractionEnabled();
 
-  const liveGeo = useMemo(() => createSphereGeo(), []);
-  const deadGeo = useMemo(() => createSphereGeo(), []);
+  const pointGeo = useMemo(() => createSphereGeo(), []);
   const debugGeo = useMemo(() => createSphereGeo(), []);
 
-  const liveMeshRef = useRef<THREE.InstancedMesh>(null);
-  const deadMeshRef = useRef<THREE.InstancedMesh>(null);
+  const pointMeshRef = useRef<THREE.InstancedMesh>(null);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
 
-  const liveMaterial = useMemo(() => {
-    const mat = new THREE.MeshBasicMaterial({
-      color: POINT_COLOR,
-      toneMapped: false,
-    });
-    attachBlobPointFade(mat, depthFadeUniforms);
-    return mat;
-  }, [depthFadeUniforms]);
-
-  const deadMaterial = useMemo(() => {
+  const pointMaterial = useMemo(() => {
     const mat = new THREE.MeshBasicMaterial({
       color: POINT_COLOR,
       toneMapped: false,
@@ -93,13 +81,10 @@ export function BlobPointCloud({
     [],
   );
 
-  useEffect(() => () => liveMaterial.dispose(), [liveMaterial]);
-  useEffect(() => () => deadMaterial.dispose(), [deadMaterial]);
+  useEffect(() => () => pointMaterial.dispose(), [pointMaterial]);
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
 
   useEffect(() => {
-    const deadMesh = deadMeshRef.current;
-    if (deadMesh) deadMesh.raycast = () => {};
     const debugMesh = debugPickableMeshRef.current;
     if (debugMesh) debugMesh.raycast = () => {};
   }, []);
@@ -126,8 +111,7 @@ export function BlobPointCloud({
     const sizeNear = camDist - extent * params.depthSizeNearOffset;
     const sizeFar = camDist + extent * params.depthSizeFarOffset;
 
-    const liveMesh = liveMeshRef.current;
-    const deadMesh = deadMeshRef.current;
+    const pointMesh = pointMeshRef.current;
     const zoneUsed = zoneUsedRef.current;
 
     let scales = scalesRef.current;
@@ -182,28 +166,16 @@ export function BlobPointCloud({
       );
     };
 
-    if (liveMesh) {
-      ensureInstanceOpacityBuffer(liveMesh, liveIndices.length);
-      for (let li = 0; li < liveIndices.length; li++) {
-        const i = liveIndices[li]!;
-        writeInstance(liveMesh, i, li, BLOB_POINT_SCALE_MUL, zoneUsed.has(i));
-        writeOpacity(liveMesh, i, li);
+    if (pointMesh) {
+      ensureInstanceOpacityBuffer(pointMesh, vertexIndices.length);
+      for (let vi = 0; vi < vertexIndices.length; vi++) {
+        const i = vertexIndices[vi]!;
+        writeInstance(pointMesh, i, vi, BLOB_POINT_SCALE_MUL, zoneUsed.has(i));
+        writeOpacity(pointMesh, i, vi);
       }
-      liveMesh.count = liveIndices.length;
-      liveMesh.instanceMatrix.needsUpdate = true;
-      markInstanceOpacityDirty(liveMesh);
-    }
-
-    if (deadMesh) {
-      ensureInstanceOpacityBuffer(deadMesh, deadIndices.length);
-      for (let di = 0; di < deadIndices.length; di++) {
-        const i = deadIndices[di]!;
-        writeInstance(deadMesh, i, di, BLOB_POINT_SCALE_MUL, zoneUsed.has(i));
-        writeOpacity(deadMesh, i, di);
-      }
-      deadMesh.count = deadIndices.length;
-      deadMesh.instanceMatrix.needsUpdate = true;
-      markInstanceOpacityDirty(deadMesh);
+      pointMesh.count = vertexIndices.length;
+      pointMesh.instanceMatrix.needsUpdate = true;
+      markInstanceOpacityDirty(pointMesh);
     }
 
     const toward = getTowardCamera();
@@ -211,8 +183,8 @@ export function BlobPointCloud({
     if (debugMesh) {
       let pi = 0;
       if (params.debugHoverZone) {
-        for (let li = 0; li < liveIndices.length; li++) {
-          const i = liveIndices[li]!;
+        for (let vi = 0; vi < vertexIndices.length; vi++) {
+          const i = vertexIndices[vi]!;
           if (
             !vertexFacesCamera(
               vertices.positions,
@@ -253,20 +225,14 @@ export function BlobPointCloud({
   return (
     <>
       <instancedMesh
-        ref={liveMeshRef}
-        args={[liveGeo, liveMaterial, liveIndices.length]}
-        frustumCulled={false}
-        renderOrder={RENDER_SPHERE}
-      />
-      <instancedMesh
-        ref={deadMeshRef}
-        args={[deadGeo, deadMaterial, deadIndices.length]}
+        ref={pointMeshRef}
+        args={[pointGeo, pointMaterial, vertexIndices.length]}
         frustumCulled={false}
         renderOrder={RENDER_SPHERE}
       />
       <instancedMesh
         ref={debugPickableMeshRef}
-        args={[debugGeo, debugPickableMaterial, liveIndices.length]}
+        args={[debugGeo, debugPickableMaterial, vertexIndices.length]}
         frustumCulled={false}
         renderOrder={RENDER_DEBUG_PICKABLE}
       />

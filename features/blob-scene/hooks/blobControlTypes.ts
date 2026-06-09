@@ -25,7 +25,6 @@ export type BlobVisualParams = PerlinBlobParams & {
 export type BlobTransitionTuning = {
   visualStartFrac: number;
   visualEndFrac: number;
-  interactionStartFrac: number;
   distortPeakMul: number;
 };
 

@@ -39,7 +39,11 @@ function PartnerOrbitRing({
   pointRadius,
   blobAnimTimeRef,
 }: PartnerOrbitRingProps) {
-  const { connectedMarkerLayoutsRef, getBlobParamsAtTime } = useBlobScene();
+  const {
+    blobFrameCacheRef,
+    connectedMarkerLayoutsRef,
+    getBlobParamsAtTime,
+  } = useBlobScene();
   const rootRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -77,6 +81,9 @@ function PartnerOrbitRing({
       worldPosition = published.worldPosition;
       sphereScale = published.sphereScale;
     } else {
+      const frameCache = blobFrameCacheRef.current;
+      if (!frameCache) return;
+
       const blobParams: PerlinBlobParams = getBlobParamsAtTime(
         blobAnimTimeRef?.current ??
           state.clock.elapsedTime * params.timeSpeed,
@@ -86,9 +93,8 @@ function PartnerOrbitRing({
         Math.max(blobParams.displacementDivisor, 0.001);
       const extent = blobParams.radius + maxDisp;
       const layout = computeZoneMarkerLayout(
-        vertices,
+        frameCache,
         target.vertexIndex,
-        blobParams,
         pointRadius,
         target.scaleMul,
         state.camera,

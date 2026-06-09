@@ -13,6 +13,12 @@ export const BLOB_CAP_WAVE_SPEED_DEG = 11;
 /** Extra sweep speed at full scroll wobble. */
 export const BLOB_CAP_WAVE_SCROLL_SPEED_MUL = 14;
 
+/** Exponential fade for section 1 ambient (cap gray + wave) into section 2. */
+export const SECTION1_AMBIENT_FADE_RATE = 5.5;
+
+/** Below this, section 1 ambient visuals are fully off. */
+export const SECTION1_AMBIENT_FADE_EPS = 0.02;
+
 export function capAngularDistance(a: number, b: number): number {
   const d = Math.abs(a - b) % 360;
   return d > 180 ? 360 - d : d;

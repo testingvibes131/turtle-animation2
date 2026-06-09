@@ -25,9 +25,7 @@ export type BlobSceneContextValue = {
   /** Perlin params with optional transition distortion applied. */
   getBlobParamsAtTime: (time: number) => PerlinBlobParams;
   pointRadius: number;
-  liveVertices: ReadonlySet<number>;
-  liveIndices: number[];
-  deadIndices: number[];
+  vertexIndices: number[];
   depthFadeUniforms: MarkerDepthFadeUniforms;
   blobGroupRef: RefObject<THREE.Group | null>;
   blobAnimTimeRef: MutableRefObject<number>;
@@ -43,6 +41,8 @@ export type BlobSceneContextValue = {
   /** Section 1 cap sweep — updated each frame, spheres only. */
   waveZoneRef: MutableRefObject<CuratorZoneAssignment | null>;
   waveStrengthRef: MutableRefObject<number>;
+  /** 1 in section 1; eases to 0 after handoff (cap gray + wave). */
+  section1AmbientFadeRef: MutableRefObject<number>;
   getTowardCamera: () => THREE.Vector3;
   /** Camera-facing layout axis; frozen for the active hover zone. */
   getHubLayoutAxis: () => THREE.Vector3;

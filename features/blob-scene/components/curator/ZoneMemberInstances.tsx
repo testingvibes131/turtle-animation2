@@ -27,9 +27,10 @@ import {
   setInstanceOpacityAt,
 } from "@/features/blob-scene/lib/rendering/blobPointFade";
 import { updateMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
-import { noiseSlopeOpacityMul } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
+import { noiseSlopeOpacityFromDisplacement } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { RENDER_PARTNER_SPHERE } from "@/features/blob-scene/lib/rendering/renderOrder";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
+import { SECTION1_AMBIENT_FADE_EPS } from "@/features/blob-scene/lib/geometry/blobCapWave";
 import { computeZoneMarkerLayout } from "@/features/blob-scene/lib/geometry/zoneMarkerTransform";
 import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
@@ -51,7 +52,7 @@ export function ZoneMemberInstances({
     vertices,
     params,
     pointRadius,
-    liveVertices,
+    blobFrameCacheRef,
     getTowardCamera,
     getHubLayoutAxis,
     zoneUsedRef,
@@ -62,6 +63,7 @@ export function ZoneMemberInstances({
     getBlobParamsAtTime,
     waveZoneRef,
     waveStrengthRef,
+    section1AmbientFadeRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
   const layoutMirrored = useBlobLayoutMirrored();
@@ -162,6 +164,9 @@ export function ZoneMemberInstances({
       slotCacheRef.current.clear();
     }
 
+    const frameCache = blobFrameCacheRef.current;
+    if (!frameCache) return;
+
     const toward = activeZoneRef.current
       ? getHubLayoutAxis()
       : getTowardCamera();
@@ -172,7 +177,6 @@ export function ZoneMemberInstances({
       toward,
       {
         frontMinDot: params.frontMinDot,
-        liveVertices,
         maxAngleFromHubDeg: params.clusterMaxAngleDeg,
         blobCenterLean: params.blobCenterLean,
         hubConnectionMul: params.hubConnectionMul,
@@ -189,7 +193,6 @@ export function ZoneMemberInstances({
     for (const z of nextZones) {
       for (const m of z.members) used.add(m);
     }
-    zoneUsedRef.current = used;
     zonesSnapshotRef.current = nextZones;
 
     const sig = nextZones
@@ -200,13 +203,39 @@ export function ZoneMemberInstances({
       onZonesChange(nextZones);
     }
 
+    const section1AmbientFade = section1AmbientFadeRef.current;
+    const section1AmbientActive =
+      section1AmbientFade > SECTION1_AMBIENT_FADE_EPS;
     const activeName = activeZone?.curator.name ?? null;
-    const waveZone = waveZoneRef.current;
+
+    if (section1AmbientActive) {
+      zoneUsedRef.current = used;
+    } else if (activeZoneRef.current) {
+      const hovered = activeZoneRef.current;
+      const layoutZone =
+        nextZones.find((z) => z.curator.name === hovered.curator.name) ??
+        hovered;
+      const connected = connectedMemberSet(hovered);
+      const displayHub =
+        hovered.hub != null && hovered.hub >= 0 ? hovered.hub : layoutZone.hub;
+      const hide = new Set<number>();
+      for (const vi of layoutZone.members) {
+        if (vi === displayHub) continue;
+        if (connected.has(vi)) hide.add(vi);
+      }
+      zoneUsedRef.current = hide;
+    } else {
+      zoneUsedRef.current = new Set();
+    }
+
+    const waveZone = section1AmbientActive ? waveZoneRef.current : null;
     const waveName =
       waveZone && waveZone.curator.name !== activeName
         ? waveZone.curator.name
         : null;
-    const waveStrength = waveName ? waveStrengthRef.current : 0;
+    const waveStrength = waveName
+      ? waveStrengthRef.current * section1AmbientFade
+      : 0;
 
     const activeCurator = activeName
       ? CURATORS.find((c) => c.name === activeName)
@@ -267,9 +296,8 @@ export function ZoneMemberInstances({
     }
 
     const noiseOpacity = (vertexIndex: number) =>
-      noiseSlopeOpacityMul(
-        vertices,
-        vertexIndex,
+      noiseSlopeOpacityFromDisplacement(
+        frameCache.displacement[vertexIndex]!,
         blobParams,
         params.noiseSlopeMinOpacity,
         params.noiseSlopeMaxOpacity,
@@ -284,9 +312,8 @@ export function ZoneMemberInstances({
       publishForOrbitRing = false,
     ) => {
       const layout = computeZoneMarkerLayout(
-        vertices,
+        frameCache,
         vertexIndex,
-        blobParams,
         pointRadius,
         scaleMul,
         state.camera,
@@ -339,7 +366,8 @@ export function ZoneMemberInstances({
 
       const partners = new Set(zone.partners);
       const isHoverSelected = activeName === zone.curator.name;
-      const isWaveSelected = waveName === zone.curator.name;
+      const isWaveSelected =
+        section1AmbientActive && waveName === zone.curator.name;
 
       const hovered = activeZoneRef.current;
       const connected =
@@ -378,7 +406,7 @@ export function ZoneMemberInstances({
       fullMesh.instanceMatrix.needsUpdate = true;
     }
 
-    if (visualBuckets) {
+    if (section1AmbientActive && visualBuckets) {
       for (const zone of nextZones) {
         if (!capGrayMesh) continue;
         const visualMembers = visualBuckets.get(zone.curator.name) ?? [];
@@ -402,7 +430,7 @@ export function ZoneMemberInstances({
           if (isHoverSelected && connected.has(vi)) continue;
           if (isWaveSelected && vi !== zone.hub) continue;
           if (isHoverSelected && needsInnerDim && activeCurator) {
-            const op = noiseOpacity(vi);
+            const op = noiseOpacity(vi) * section1AmbientFade;
             write(capGrayMesh, graySlot, vi, ZONE_MEMBER_SCALE, op);
             graySlot++;
             write(zoneInnerDimMesh!, innerDimSlot, vi, ZONE_MEMBER_SCALE, op);
@@ -413,7 +441,7 @@ export function ZoneMemberInstances({
               graySlot,
               vi,
               ZONE_MEMBER_SCALE,
-              noiseOpacity(vi),
+              noiseOpacity(vi) * section1AmbientFade,
             );
             graySlot++;
           }

@@ -671,8 +671,13 @@ export function displacedHubAnchorPosition(
   options: HubAnchorOptions,
   blobParams: PerlinBlobParams,
   target: THREE.Vector3,
+  wobbledHubPosition?: THREE.Vector3,
 ): void {
-  displacedVertexPosition(mesh, hubIndex, blobParams, target);
+  if (wobbledHubPosition) {
+    target.copy(wobbledHubPosition);
+  } else {
+    displacedVertexPosition(mesh, hubIndex, blobParams, target);
+  }
   computeHubAnchorDirection(layoutAxis, zoneDeg, options, _hubDir);
   const len = target.length();
   target.copy(_hubDir).multiplyScalar(len);

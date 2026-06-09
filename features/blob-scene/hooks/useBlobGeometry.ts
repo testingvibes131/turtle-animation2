@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
-import { buildLiveVertexSet } from "@/features/blob-scene/lib/geometry/liveVertices";
 import {
   createIcosahedronVertices,
   estimateVertexSpacing,
@@ -12,20 +11,10 @@ export function useBlobGeometry(params: BlobVisualParams) {
     [params.radius, params.detail],
   );
 
-  const liveVertices = useMemo(
-    () => buildLiveVertexSet(vertices.count),
+  const vertexIndices = useMemo(
+    () => Array.from({ length: vertices.count }, (_, i) => i),
     [vertices.count],
   );
-
-  const { liveIndices, deadIndices } = useMemo(() => {
-    const live: number[] = [];
-    const dead: number[] = [];
-    for (let i = 0; i < vertices.count; i++) {
-      if (liveVertices.has(i)) live.push(i);
-      else dead.push(i);
-    }
-    return { liveIndices: live, deadIndices: dead };
-  }, [vertices.count, liveVertices]);
 
   const pointRadius = useMemo(
     () =>
@@ -34,5 +23,5 @@ export function useBlobGeometry(params: BlobVisualParams) {
     [params.radius, vertices.count, params.pointSizeRatio],
   );
 
-  return { vertices, liveVertices, liveIndices, deadIndices, pointRadius };
+  return { vertices, vertexIndices, pointRadius };
 }

@@ -50,9 +50,9 @@ export function BlobSceneContent({
   const [activeZone, setActiveZone] = useState<BlobSceneContextValue["activeZone"]>(null);
   const waveZoneRef = useRef<BlobSceneContextValue["waveZoneRef"]["current"]>(null);
   const waveStrengthRef = useRef(0);
+  const section1AmbientFadeRef = useRef(1);
 
-  const { vertices, liveVertices, liveIndices, deadIndices, pointRadius } =
-    useBlobGeometry(params);
+  const { vertices, vertexIndices, pointRadius } = useBlobGeometry(params);
 
   const depthFadeUniforms = useMemo(
     () => createMarkerDepthFadeUniforms(),
@@ -88,9 +88,7 @@ export function BlobSceneContent({
       vertices,
       params,
       pointRadius,
-      liveVertices,
-      liveIndices,
-      deadIndices,
+      vertexIndices,
       depthFadeUniforms,
       blobGroupRef,
       blobAnimTimeRef,
@@ -102,6 +100,7 @@ export function BlobSceneContent({
       setActiveZone,
       waveZoneRef,
       waveStrengthRef,
+      section1AmbientFadeRef,
       getTowardCamera,
       getHubLayoutAxis,
       hubAnchorRotationLagRef,
@@ -111,15 +110,13 @@ export function BlobSceneContent({
     [
       activeZone,
       blobFrameCacheRef,
-      deadIndices,
       depthFadeUniforms,
       getBlobParamsAtTime,
       getHubLayoutAxis,
       getTowardCamera,
       hubAnchorRotationLagRef,
-      liveIndices,
-      liveVertices,
       params,
+      vertexIndices,
       pointRadius,
       vertices,
     ],
@@ -129,9 +126,9 @@ export function BlobSceneContent({
     vertices,
     params,
     pointRadius,
-    liveVertices,
     blobGroupRef,
     blobAnimTimeRef,
+    blobFrameCacheRef,
     zonesSnapshotRef,
     scalesRef,
     setActiveZone,

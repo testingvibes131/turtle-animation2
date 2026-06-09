@@ -2,7 +2,6 @@
 
 import { SECTION_2_PARAMS } from "@/features/blob-scene/lib/blobVisualPresets";
 import {
-  BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   BLOB_VISUAL_TRANSITION_END_FRAC,
   BLOB_VISUAL_TRANSITION_START_FRAC,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
@@ -26,7 +25,6 @@ const BLOB_PARAMS: BlobVisualParams = {
 const BLOB_TRANSITION: BlobTransitionTuning = {
   visualStartFrac: BLOB_VISUAL_TRANSITION_START_FRAC,
   visualEndFrac: BLOB_VISUAL_TRANSITION_END_FRAC,
-  interactionStartFrac: BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   distortPeakMul: 1,
 };
 

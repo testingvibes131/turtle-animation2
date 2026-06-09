@@ -20,10 +20,8 @@ import {
   pickZoneMemberNearRay,
   SPHERE_PICK_MIN_RADIUS_MUL,
 } from "@/features/blob-scene/lib/geometry/pickSphereVertex";
-import {
-  displacedVertexPosition,
-  type PerlinBlobParams,
-} from "@/features/blob-scene/lib/geometry/perlinBlob";
+import { readCachedVertexPosition } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
+import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 const _pointer = new THREE.Vector2();
 const _pickRay = new THREE.Ray();
@@ -35,9 +33,9 @@ type UseBlobInteractionArgs = Pick<
   | "vertices"
   | "params"
   | "pointRadius"
-  | "liveVertices"
   | "blobGroupRef"
   | "blobAnimTimeRef"
+  | "blobFrameCacheRef"
   | "zonesSnapshotRef"
   | "scalesRef"
   | "setActiveZone"
@@ -51,9 +49,9 @@ export function useBlobInteraction({
   vertices,
   params,
   pointRadius,
-  liveVertices,
   blobGroupRef,
   blobAnimTimeRef,
+  blobFrameCacheRef,
   zonesSnapshotRef,
   scalesRef,
   setActiveZone,
@@ -123,7 +121,16 @@ export function useBlobInteraction({
       const scales = scalesRef.current;
 
       const getCenter = (index: number, target: THREE.Vector3) => {
-        displacedVertexPosition(vertices, index, blobParams, target);
+        const frameCache = blobFrameCacheRef.current;
+        if (frameCache) {
+          readCachedVertexPosition(frameCache, index, target);
+        } else {
+          target.set(
+            vertices.positions[index * 3]!,
+            vertices.positions[index * 3 + 1]!,
+            vertices.positions[index * 3 + 2]!,
+          );
+        }
         if (group) group.localToWorld(target);
       };
 
@@ -178,7 +185,6 @@ export function useBlobInteraction({
           {
             frontMinDot: params.frontMinDot,
             maxAngleFromHubDeg: params.clusterMaxAngleDeg,
-            liveVertices,
             blobCenterLean: params.blobCenterLean,
           },
         );
@@ -201,13 +207,13 @@ export function useBlobInteraction({
     };
   }, [
     blobAnimTimeRef,
+    blobFrameCacheRef,
     blobGroupRef,
     camera,
     frozenAnimTimeRef,
     frozenLayoutAxisRef,
     getTowardCamera,
     gl.domElement,
-    liveVertices,
     params,
     pointRadius,
     raycaster,

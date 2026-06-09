@@ -62,8 +62,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       );
       setInSection1(blobInSection1(metrics));
       setInteractionEnabled(
-        !isMobile &&
-          blobInteractionEnabledFromScroll(metrics, transition, section2),
+        !isMobile && blobInteractionEnabledFromScroll(metrics),
       );
     };
 
@@ -84,7 +83,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       window.removeEventListener("resize", updateScroll);
       mobileQuery.removeEventListener("change", updateScroll);
     };
-  }, [transition]);
+  }, []);
 
   return (
     <div ref={blockRef} className="relative">

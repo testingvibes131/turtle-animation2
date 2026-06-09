@@ -43,8 +43,8 @@ export function pickVertexNearRay(
 }
 
 /**
- * Nearest vertex along the ray. `isRayCandidate` includes dead verts in front
- * (they block). `isHoverTarget` must pass on the winner (live + zone, etc.).
+ * Nearest vertex along the ray. `isRayCandidate` gates which verts block the ray;
+ * `isHoverTarget` must pass on the winner (zone membership, etc.).
  */
 export function pickHoverVertexNearRay(
   ray: THREE.Ray,

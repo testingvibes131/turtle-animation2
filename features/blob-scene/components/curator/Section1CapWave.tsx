@@ -12,11 +12,18 @@ import {
   BLOB_CAP_WAVE_SCROLL_SPEED_MUL,
   BLOB_CAP_WAVE_SPEED_DEG,
   pickCapWaveZone,
+  SECTION1_AMBIENT_FADE_EPS,
+  SECTION1_AMBIENT_FADE_RATE,
 } from "@/features/blob-scene/lib/geometry/blobCapWave";
 
 /** Section 1: a band of color sweeps around the blob cap (spheres only). */
 export function Section1CapWave() {
-  const { waveZoneRef, waveStrengthRef, zonesSnapshotRef } = useBlobScene();
+  const {
+    waveZoneRef,
+    waveStrengthRef,
+    section1AmbientFadeRef,
+    zonesSnapshotRef,
+  } = useBlobScene();
   const inSection1 = useBlobInSection1();
   const layoutMirrored = useBlobLayoutMirrored();
   const scrollWobbleStrengthRef = useBlobScrollWobbleStrengthRef();
@@ -29,14 +36,26 @@ export function Section1CapWave() {
   const displayedStrengthRef = useRef(0);
 
   useFrame((_, delta) => {
-    const fade = 1 - Math.exp(-delta * 5.5);
+    const fade = 1 - Math.exp(-delta * SECTION1_AMBIENT_FADE_RATE);
 
     if (!inSection1Ref.current) {
-      waveZoneRef.current = null;
-      displayedStrengthRef.current = 0;
-      waveStrengthRef.current = 0;
+      section1AmbientFadeRef.current +=
+        (0 - section1AmbientFadeRef.current) * fade;
+      displayedStrengthRef.current +=
+        (0 - displayedStrengthRef.current) * fade;
+      waveStrengthRef.current = displayedStrengthRef.current;
+
+      if (section1AmbientFadeRef.current <= SECTION1_AMBIENT_FADE_EPS) {
+        section1AmbientFadeRef.current = 0;
+        waveZoneRef.current = null;
+        displayedStrengthRef.current = 0;
+        waveStrengthRef.current = 0;
+      }
       return;
     }
+
+    section1AmbientFadeRef.current +=
+      (1 - section1AmbientFadeRef.current) * fade;
 
     const wobble = scrollWobbleStrengthRef.current;
     const speed =
@@ -55,7 +74,7 @@ export function Section1CapWave() {
       (targetStrength - displayedStrengthRef.current) * fade;
     waveStrengthRef.current = displayedStrengthRef.current;
 
-    if (hit && displayedStrengthRef.current > 0.02) {
+    if (hit && displayedStrengthRef.current > SECTION1_AMBIENT_FADE_EPS) {
       waveZoneRef.current = hit.zone;
     } else {
       waveZoneRef.current = null;

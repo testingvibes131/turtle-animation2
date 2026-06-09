@@ -1,21 +1,15 @@
 import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 
-/** Hover + scroll metrics for the hero → section 2 blob block. */
-
 /** Scroll-progress remap for blob motion (hero → section 2). */
 export const BLOB_INTERACTION_SECTION1_START_FRAC = 0;
-
-/**
- * Hover when the viewport bottom crosses this fraction down section 2 (from its top).
- * 2/3 = bottom of screen reaches the two-thirds line of section 2.
- */
-export const BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC = 2 / 3;
 
 /** Visual transition begins at first scroll (fraction of hero). */
 export const BLOB_VISUAL_TRANSITION_START_FRAC = 0;
 
 /** Visual transition completes here (after interaction, for a long blend). */
 export const BLOB_VISUAL_TRANSITION_END_FRAC = 0.78;
+
+const HANDOFF_EPS_PX = 1;
 
 export type BlobScrollMetrics = {
   scrolled: number;
@@ -26,66 +20,39 @@ export type BlobScrollMetrics = {
 export type BlobScrollTuning = {
   visualStartFrac?: number;
   visualEndFrac?: number;
-  /** Fraction down section 2 where viewport bottom must reach (0.67 = two-thirds). */
-  interactionStartFrac?: number;
+  distortPeakMul?: number;
 };
 
-function siteHeaderBottomPx(): number {
-  if (typeof document === "undefined") return 76;
-  const header = document.querySelector<HTMLElement>(".site-header");
-  return header?.getBoundingClientRect().bottom ?? 76;
-}
-
-function viewportHeightPx(): number {
-  if (typeof window === "undefined") return 800;
-  return window.innerHeight;
-}
-
-/** Hover on once viewport bottom has reached `sectionFrac` down section 2. */
-export function blobInteractionEnabledFromSection2Viewport(
-  section2: HTMLElement,
-  sectionFrac = BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
-): boolean {
-  const headerBottom = siteHeaderBottomPx();
-  const viewportBottom = viewportHeightPx();
-  const { top, bottom, height } = section2.getBoundingClientRect();
-
-  if (height <= 0 || bottom <= headerBottom) return false;
-
-  const triggerY = top + height * sectionFrac;
-  return viewportBottom >= triggerY;
-}
-
-/** Scroll-offset fallback when the section node is unavailable. */
-export function blobInteractionEnabledFromScrollMetrics(
-  metrics: BlobScrollMetrics,
-  tuning: BlobScrollTuning = {},
-): boolean {
-  const { scrolled, heroScroll, section2Scroll } = metrics;
-  const sectionFrac =
-    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC;
-  const section2End = heroScroll + section2Scroll;
-  const threshold =
-    heroScroll + section2Scroll * sectionFrac - viewportHeightPx();
-  return scrolled >= threshold - 1 && scrolled < section2End - 1;
+/**
+ * Shared hero → section 2 boundary.
+ * Section 1 cap wave ends here; section 2 hover begins here (desktop).
+ */
+export function blobPastHeroHandoff({
+  scrolled,
+  heroScroll,
+}: BlobScrollMetrics): boolean {
+  return scrolled >= heroScroll - HANDOFF_EPS_PX;
 }
 
 /** True while the hero (section 1) is still the active scroll stage. */
-export function blobInSection1({ scrolled, heroScroll }: BlobScrollMetrics): boolean {
-  return scrolled < heroScroll - 1;
+export function blobInSection1(metrics: BlobScrollMetrics): boolean {
+  return !blobPastHeroHandoff(metrics);
 }
 
+/** True in section 2 while the blob block is still on screen. */
+export function blobInSection2BlobBlock(metrics: BlobScrollMetrics): boolean {
+  const { scrolled, heroScroll, section2Scroll } = metrics;
+  const section2End = heroScroll + section2Scroll;
+  return (
+    blobPastHeroHandoff(metrics) && scrolled < section2End - HANDOFF_EPS_PX
+  );
+}
+
+/** Desktop hover — same handoff as section 1 ambient, until section 2 scroll ends. */
 export function blobInteractionEnabledFromScroll(
   metrics: BlobScrollMetrics,
-  tuning: BlobScrollTuning = {},
-  section2?: HTMLElement | null,
 ): boolean {
-  const sectionFrac =
-    tuning.interactionStartFrac ?? BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC;
-  if (section2) {
-    return blobInteractionEnabledFromSection2Viewport(section2, sectionFrac);
-  }
-  return blobInteractionEnabledFromScrollMetrics(metrics, tuning);
+  return blobInSection2BlobBlock(metrics);
 }
 
 /** Runtime canvas mode — always connected lines (gray dots). */

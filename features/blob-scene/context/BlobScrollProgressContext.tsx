@@ -11,7 +11,6 @@ import type { BlobTransitionTuning } from "@/features/blob-scene/hooks/useBlobCo
 import type { BlobSetupId } from "@/features/blob-scene/lib/blobVisualPresets";
 import { BLOB_TRANSITION_DISTORT_PEAK_MUL } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
 import {
-  BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   BLOB_VISUAL_TRANSITION_END_FRAC,
   BLOB_VISUAL_TRANSITION_START_FRAC,
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
@@ -35,7 +34,6 @@ type BlobScrollState = {
 const defaultTransitionTuning: BlobTransitionTuning = {
   visualStartFrac: BLOB_VISUAL_TRANSITION_START_FRAC,
   visualEndFrac: BLOB_VISUAL_TRANSITION_END_FRAC,
-  interactionStartFrac: BLOB_INTERACTION_SECTION2_VIEWPORT_BOTTOM_FRAC,
   distortPeakMul: BLOB_TRANSITION_DISTORT_PEAK_MUL,
 };
 
@@ -111,10 +109,15 @@ export function useBlobInteractionEnabled() {
   return useContext(BlobScrollProgressContext).interactionEnabled;
 }
 
-/** Zone layout + ambient lightning (section 1 or section 2 hover stage). */
+/** Zone layout for cap wave (section 1) and hover picking (section 2). */
 export function useBlobZonesLayoutEnabled() {
   const { inSection1, interactionEnabled } = useContext(BlobScrollProgressContext);
   return inSection1 || interactionEnabled;
+}
+
+/** Section 1 only — automatic cap color sweep (not hover). */
+export function useBlobSection1AmbientEnabled() {
+  return useContext(BlobScrollProgressContext).inSection1;
 }
 
 export function useBlobLayoutMirrored() {
@@ -133,6 +136,7 @@ export function useBlobColoredToGrayMixRef() {
   return useContext(BlobScrollProgressContext).coloredToGrayMixRef;
 }
 
+/** Zone assignment runs in section 1 + interactive section 2; hover chrome is separate. */
 export function useBlobCuratorOverlayEnabled() {
   return useBlobZonesLayoutEnabled();
 }
