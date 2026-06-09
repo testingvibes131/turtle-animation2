@@ -2,7 +2,7 @@ import type { BlobVisualParams } from "@/features/blob-scene/hooks/blobControlTy
 
 /** Shared blob / motion / depth tuning (section-agnostic). */
 const BASE = {
-  radius: 0.7,
+  radius: 0.77,
   detail: 24,
   noiseScale: 4.25,
   displacementDivisor: 38,

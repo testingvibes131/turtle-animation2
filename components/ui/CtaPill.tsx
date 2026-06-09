@@ -16,14 +16,14 @@ const sizeClasses: Record<
   { link: string; label: string; icon: string }
 > = {
   default: {
-    link: "py-[5px] pl-[15px] pr-1.5",
+    link: "py-[5px] pl-[15px] pr-1.5 lg:pr-2",
     label: "text-sm leading-none",
-    icon: "size-[30px]",
+    icon: "size-[30px] lg:size-[32px]",
   },
   lg: {
-    link: "py-[5px] pl-5 pr-[5px]",
+    link: "py-[5px] pl-5 pr-[5px] lg:pr-[7px]",
     label: "text-xl leading-[1.4]",
-    icon: "size-10",
+    icon: "size-10 lg:size-[42px]",
   },
 };
 
