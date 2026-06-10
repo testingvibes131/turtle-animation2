@@ -8,7 +8,16 @@ export function HeroCopy({ className = "" }: { className?: string }) {
   return (
     <SectionIntro
       width="none"
-      className={["w-full lg:max-w-[700px]", className].filter(Boolean).join(" ")}
+      /* Cap = viewport minus the blob's footprint (blob width tracks viewport
+         HEIGHT via camera FOV; 84svh lets copy tuck into the sparse fringe)
+         minus gutter/breathing — wraps before the dots on small windows,
+         700px cap on large ones. */
+      className={[
+        "w-full lg:max-w-[clamp(20rem,calc(100vw_-_84svh_-_124px),700px)]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-labelledby="home-hero-heading"
     >
       <h2
