@@ -17,10 +17,10 @@ export function TeamMemberCard({ member }: Props) {
         <Image
           src={member.photo}
           alt=""
-          width={129}
-          height={128}
+          width={384}
+          height={384}
           className="team-card__avatar"
-          sizes="(max-width: 1279px) 129px, 129px"
+          sizes="384px"
         />
       </div>
     </article>

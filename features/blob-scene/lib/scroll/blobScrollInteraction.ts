@@ -9,6 +9,10 @@ export const BLOB_VISUAL_TRANSITION_START_FRAC = 0;
 /** Visual transition completes here (after interaction, for a long blend). */
 export const BLOB_VISUAL_TRANSITION_END_FRAC = 0.78;
 
+/** Per-frame ease rate for scroll-driven blob motion + dispersion. Higher tracks
+ *  scroll more tightly (accurate); lower is smoother. Smooths re-render jitter. */
+export const BLOB_SCROLL_EASE_RATE = 12;
+
 const HANDOFF_EPS_PX = 1;
 
 export type BlobScrollMetrics = {
@@ -48,11 +52,21 @@ export function blobInSection2BlobBlock(metrics: BlobScrollMetrics): boolean {
   );
 }
 
-/** Desktop hover — same handoff as section 1 ambient, until section 2 scroll ends. */
+/** Fraction of hero scroll at which desktop hover turns on — slightly before the
+ *  hero→section-2 handoff, so users can start exploring as the blob settles. */
+export const BLOB_HOVER_EARLY_START_FRAC = 0.85;
+
+/** Desktop hover — enabled from late hero (BLOB_HOVER_EARLY_START_FRAC) until the
+ *  section 2 scroll (including the hold runway) ends. */
 export function blobInteractionEnabledFromScroll(
   metrics: BlobScrollMetrics,
 ): boolean {
-  return blobInSection2BlobBlock(metrics);
+  const { scrolled, heroScroll, section2Scroll } = metrics;
+  const section2End = heroScroll + section2Scroll;
+  return (
+    scrolled >= heroScroll * BLOB_HOVER_EARLY_START_FRAC &&
+    scrolled < section2End - HANDOFF_EPS_PX
+  );
 }
 
 /** Runtime canvas mode — always connected lines (gray dots). */

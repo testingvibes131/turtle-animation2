@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { MobileNavOverlay } from "@/components/site-header/MobileNavOverlay";
+import { ThemeToggle } from "@/components/site-header/ThemeToggle";
 import { useHeaderVisibility } from "@/components/site-header/useHeaderVisibility";
 
 const navLinks = [
@@ -16,13 +17,13 @@ const navLinks = [
 
 /** Figma CentralMenu shell (1374:44550 / mobile Enter App 1381:44601) */
 const headerMenuShellBase =
-  "overflow-hidden rounded-[20px] border-[0.6px] border-solid border-[rgba(249,249,249,0.06)] bg-[rgba(249,249,249,0.02)]";
+  "overflow-hidden rounded-[20px] border-[0.6px] border-solid border-stroke-subtle bg-subtle";
 
 const headerMenuShell = `inline-flex items-center ${headerMenuShellBase}`;
 
 /** Figma mobile hamburger (1282:81331) */
 const mobileMenuButtonShell =
-  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[rgba(249,249,249,0.1)] bg-[rgba(249,249,249,0.02)] text-green-400 transition-colors hover:bg-[#73F36C]/10";
+  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-stroke-default bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
 
 const navLinkClass = (active: boolean) =>
   [
@@ -134,7 +135,7 @@ export function SiteHeader() {
             alt="Turtle Club"
             width={78}
             height={19}
-            className="block h-[18.534px] w-[77.643px]"
+            className="brand-wordmark block h-[18.534px] w-[77.643px]"
             priority
           />
         </Link>
@@ -150,7 +151,7 @@ export function SiteHeader() {
             alt="Turtle Club"
             width={74}
             height={18}
-            className="block h-[17.6px] w-[74px]"
+            className="brand-wordmark block h-[17.6px] w-[74px]"
           />
         </Link>
 
@@ -179,6 +180,7 @@ export function SiteHeader() {
 
         {/* Right actions — Figma 1381:44609: Enter App + hamburger (mobile) */}
         <div className="relative z-10 flex shrink-0 items-center gap-2.5 lg:gap-2">
+          <ThemeToggle />
           <Link
             href="https://app.turtle.xyz/earn"
             target="_blank"

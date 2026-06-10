@@ -1,48 +1,19 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 type Props = {
   text: string;
   mobileText?: string;
 };
 
-function measureLineClamp(container: HTMLElement, textEl: HTMLElement): number | undefined {
-  const maxHeight = container.clientHeight;
-  if (maxHeight <= 0) return 1;
-
-  textEl.style.webkitLineClamp = "9999";
-
-  if (textEl.scrollHeight <= maxHeight) {
-    return undefined;
-  }
-
-  let lo = 1;
-  let hi = 200;
-  let best = 1;
-
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    textEl.style.webkitLineClamp = String(mid);
-
-    if (textEl.scrollHeight <= maxHeight) {
-      best = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-
-  return best;
-}
-
-/** Quote copy fills the top lobe and ellipsizes at the union waist. */
+/**
+ * Quote copy fills the top lobe of the case-study card and clamps to a fixed
+ * number of lines with an ellipsis. A fixed CSS clamp (no JS measuring) — the
+ * old measure wrote -webkit-line-clamp inline and intermittently stuck at 1 line.
+ */
 export function CaseStudyQuoteText({ text, mobileText }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
   const [isMobile, setIsMobile] = useState(false);
-
   const displayText = isMobile && mobileText ? mobileText : text;
 
   useLayoutEffect(() => {
@@ -53,37 +24,15 @@ export function CaseStudyQuoteText({ text, mobileText }: Props) {
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const textEl = textRef.current;
-    if (!container || !textEl) return;
-
-    const update = () => {
-      setLineClamp(measureLineClamp(container, textEl));
-    };
-
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(container);
-    void document.fonts?.ready.then(update);
-
-    return () => ro.disconnect();
-  }, [displayText]);
-
   return (
     <div
-      ref={containerRef}
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
       style={{
         padding:
-          "clamp(18px, 1.6vw, 22px) clamp(18px, 1.6vw, 22px) clamp(8px, 0.7vw, 12px) clamp(18px, 1.6vw, 22px)",
+          "clamp(12px, 1.25vw, 14px) clamp(18px, 1.6vw, 22px) clamp(8px, 0.7vw, 12px) clamp(12px, 1.25vw, 14px)",
       }}
     >
-      <p
-        ref={textRef}
-        className="overflow-hidden max-lg:text-sm leading-[1.35] text-stone-50 [display:-webkit-box] [-webkit-box-orient:vertical] lg:text-base"
-        style={lineClamp !== undefined ? { WebkitLineClamp: lineClamp } : undefined}
-      >
+      <p className="overflow-hidden leading-[1.35] text-ink-primary [display:-webkit-box] [-webkit-box-orient:vertical] max-lg:[-webkit-line-clamp:9] max-lg:text-[11px] lg:[-webkit-line-clamp:8] lg:text-base">
         &ldquo;{displayText}&rdquo;
       </p>
     </div>

@@ -26,7 +26,7 @@ export function UnionCardShell({
   return (
     <Tag
       className={[
-        "relative w-full drop-shadow-[0_4px_20px_rgba(0,0,0,0.25)]",
+        "relative w-full drop-shadow-[0_4px_20px_var(--card-shadow)]",
         className,
       ]
         .filter(Boolean)
@@ -47,7 +47,7 @@ export function UnionCardShell({
         <path
           d={path}
           fill="none"
-          className="stroke-white/10"
+          className="stroke-[var(--stroke-default)]"
           strokeWidth={1}
           vectorEffect="non-scaling-stroke"
         />

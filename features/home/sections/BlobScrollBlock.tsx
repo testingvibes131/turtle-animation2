@@ -25,6 +25,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const { params, transition } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [motionProgress, setMotionProgress] = useState(0);
   const [inSection1, setInSection1] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
   const [mobileZoneCarouselEnabled, setMobileZoneCarouselEnabled] =
@@ -62,10 +63,27 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       setScrollProgress(
         computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
-      setInSection1(blobInSection1(metrics));
+      // Blob motion: most of the travel over the hero (0 -> 0.88), then the final
+      // creep over section 2's sticky hold (0.88 -> 1), so the blob glides to its
+      // resting spot and lands as the section scrolls on (no wall at handoff).
+      const heroMotionT = Math.min(
+        1,
+        Math.max(0, scrolled / Math.max(heroScroll, 1)),
+      );
+      const holdMotionT = Math.min(
+        1,
+        Math.max(0, (scrolled - heroScroll) / Math.max(section2Scroll, 1)),
+      );
+      setMotionProgress(
+        heroMotionT < 1 ? heroMotionT * 0.88 : 0.88 + 0.12 * holdMotionT,
+      );
+      const inSec1 = blobInSection1(metrics);
+      setInSection1(inSec1);
       const inSection2 = blobInteractionEnabledFromScroll(metrics);
       setInteractionEnabled(!isMobile && inSection2);
-      setMobileZoneCarouselEnabled(isMobile && inSection2);
+      // Mobile carousel: only once the blob is fully past the hero (finishing spin
+      // done), not during the 85%+ approach — stops a partner flashing mid-spin.
+      setMobileZoneCarouselEnabled(isMobile && inSection2 && !inSec1);
     };
 
     const updateScroll = () => {
@@ -101,6 +119,7 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         >
           <BlobScrollProgressProvider
             progress={scrollProgress}
+            motionProgress={motionProgress}
             inSection1={inSection1}
             interactionEnabled={interactionEnabled}
             mobileZoneCarouselEnabled={mobileZoneCarouselEnabled}
@@ -115,7 +134,10 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
           </BlobScrollProgressProvider>
         </div>
       </div>
-      <div className="pointer-events-none relative z-10 -mt-[100svh]">
+      {/* No z-10 here: text stays above the blob via DOM paint order, which
+          frees the partner strip below to drop onto its own negative layer
+          (behind the blob) without a stacking-context trap. */}
+      <div className="pointer-events-none relative -mt-[100svh]">
         {children}
       </div>
     </div>

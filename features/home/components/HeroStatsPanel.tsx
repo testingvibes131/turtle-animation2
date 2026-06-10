@@ -4,12 +4,12 @@ import { Fragment } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 
 const stakeWidgetShell =
-  "overflow-hidden backdrop-blur-[7px] border border-[rgba(249,249,249,0.06)] bg-gradient-to-b from-[#141514] to-[#1b1c1b]";
+  "overflow-hidden backdrop-blur-[7px] border border-stroke-subtle bg-gradient-to-b from-surface-0 to-surface-1";
 
 const widgetWidth = "w-[200px] max-w-full lg:w-[280px]";
 
 function StatDivider() {
-  return <div className="h-px w-full shrink-0 bg-[rgba(249,249,249,0.06)]" aria-hidden="true" />;
+  return <div className="h-px w-full shrink-0 bg-stroke-subtle" aria-hidden="true" />;
 }
 
 type StatRowProps = {
@@ -26,7 +26,7 @@ function StatRow({ label, value }: StatRowProps) {
   );
 }
 
-const BENCHMARK_DOT_COUNT = 13;
+const BENCHMARK_DOT_COUNT = 12;
 
 function BenchmarkDotBar({
   activeCount,
@@ -37,18 +37,22 @@ function BenchmarkDotBar({
 }) {
   return (
     <div
-      className="flex min-w-0 flex-1 items-center justify-between overflow-hidden lg:w-[143px] lg:flex-none"
+      className="flex min-w-0 flex-1 items-center justify-between lg:w-[118px] lg:flex-none"
       aria-hidden="true"
     >
-      {Array.from({ length: BENCHMARK_DOT_COUNT }, (_, i) => (
-        <span
-          key={i}
-          className={[
-            "size-[3px] shrink-0 rounded-full",
-            i < activeCount ? activeClass : "bg-ink-faint",
-          ].join(" ")}
-        />
-      ))}
+      {Array.from({ length: BENCHMARK_DOT_COUNT }, (_, i) => {
+        const active = i < activeCount;
+        return (
+          <span
+            key={i}
+            className={[
+              "size-[3px] shrink-0 rounded-full",
+              active ? `${activeClass} benchmark-dot-pulse` : "bg-ink-faint",
+            ].join(" ")}
+            style={active ? { animationDelay: `${i * 0.12}s` } : undefined}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -69,7 +73,7 @@ function BenchmarkRateRow({
   valueClass,
 }: BenchmarkRateRowProps) {
   return (
-    <div className="flex w-full items-center gap-[5px]">
+    <div className="flex w-full items-center justify-between gap-[5px]">
       <span className="w-10 shrink-0 text-[14px] font-medium leading-[1.2] text-ink-subtle">
         {asset}
       </span>
@@ -96,21 +100,21 @@ const benchmarkRates = [
   {
     asset: "ETH",
     activeDots: 6,
-    dotClass: "bg-[#0685ff]",
+    dotClass: "bg-[#0685ff] [box-shadow:0_0_4px_#0685ff66]",
     value: "2.15%",
     valueClass: "text-[#0685ff]",
   },
   {
     asset: "USDC",
     activeDots: 9,
-    dotClass: "bg-[#6dd7f4]",
+    dotClass: "bg-[#6dd7f4] [box-shadow:0_0_4px_#6dd7f466]",
     value: "3.51%",
     valueClass: "text-[#51daff]",
   },
   {
     asset: "BTC",
     activeDots: 4,
-    dotClass: "bg-[#f7931a]",
+    dotClass: "bg-[#f7931a] [box-shadow:0_0_4px_#f7931a66]",
     value: "1.45%",
     valueClass: "text-[#f7931a]",
   },
@@ -131,7 +135,7 @@ function CoordinatedCapitalCard() {
           <p className="text-[10px] font-medium leading-[1.2] text-ink-subtle lg:text-[14px]">
             Turtle Capital Coordinated
           </p>
-          <p className="text-[36px] font-normal leading-[1.2] tracking-[-0.285px] text-ink-primary lg:text-[50px] lg:tracking-[-0.4px] lg:whitespace-nowrap">
+          <p className="text-[35px] font-normal leading-[1.2] tracking-[-0.285px] text-ink-primary lg:text-[50px] lg:tracking-[-0.4px] lg:whitespace-nowrap">
             $4.2bn
           </p>
         </div>
@@ -155,9 +159,9 @@ function DefiTvlCard() {
         <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">Total Defi TVL</p>
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-[26px] font-normal leading-none text-ink-primary">$134.2bn</p>
-          <span className="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border border-ink-faint bg-[rgba(249,249,249,0.02)] px-2 py-1 text-[10px] font-normal leading-[1.2]">
+          <span className="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border border-ink-faint bg-subtle px-2 py-1 text-[10px] font-normal leading-[1.2]">
             <span className="text-[rgba(255,6,8,0.8)]">-0.15%</span>
-            <span className="tracking-[-0.16px] text-white/50">24hr</span>
+            <span className="tracking-[-0.16px] text-ink-subtle">24hr</span>
           </span>
         </div>
       </div>
@@ -183,7 +187,7 @@ function BenchmarkRatesCard() {
 export function HeroStatsPanel() {
   return (
     <aside
-      className="relative isolate z-10 mt-8 flex w-full flex-col pb-4 lg:mt-0 lg:pb-10 lg:pointer-events-none lg:items-end"
+      className="relative isolate z-10 mt-[clamp(64px,16svh,140px)] flex w-full flex-col pb-4 lg:mt-0 lg:pb-[clamp(24px,4vh,48px)] lg:pointer-events-none lg:items-end"
       aria-label="Platform statistics"
     >
       {/* Mobile: stacked column. Desktop: big card left, TVL + benchmark stacked right. */}
@@ -191,7 +195,9 @@ export function HeroStatsPanel() {
         <RevealOnScroll>
           <CoordinatedCapitalCard />
         </RevealOnScroll>
-        <div className="flex flex-col items-end gap-[14px]">
+        {/* Mobile: only the Capital Coordinated card shows (cleaner); the TVL +
+            Benchmark cards return at lg. */}
+        <div className="hidden flex-col items-end gap-[14px] lg:flex">
           <RevealOnScroll delayMs={120}>
             <DefiTvlCard />
           </RevealOnScroll>

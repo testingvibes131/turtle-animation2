@@ -27,11 +27,11 @@ export function SiteFooter() {
       >
         <div className="flex w-full justify-end">
           <nav
-            className="flex flex-wrap justify-end gap-x-[clamp(20px,3vw,40px)] gap-y-[clamp(24px,3vw,32px)]"
+            className="grid w-full grid-cols-3 gap-x-[clamp(10px,2vw,40px)] gap-y-8 lg:flex lg:w-auto lg:flex-wrap lg:justify-end lg:gap-y-[clamp(24px,3vw,32px)]"
             aria-label="Footer"
           >
             {footerNav.map((col) => (
-              <div key={col.title} className="footer-nav-col" style={{ minWidth: 140 }}>
+              <div key={col.title} className="footer-nav-col lg:min-w-[140px]">
                 <h3>{col.title}</h3>
                 {col.links.map((link) => (
                   <Link key={link} href="#">

@@ -17,6 +17,8 @@ import {
 
 type BlobScrollState = {
   progress: number;
+  /** Blob-motion progress; reaches 1 only at the end of the section-2 sticky hold. */
+  motionProgress: number;
   /** Hero / section 1 scroll stage (ambient lightning). */
   inSection1: boolean;
   interactionEnabled: boolean;
@@ -44,6 +46,7 @@ const defaultScrollWobbleStrengthRef = { current: 0 };
 
 const defaultState: BlobScrollState = {
   progress: 1,
+  motionProgress: 1,
   inSection1: false,
   interactionEnabled: true,
   mobileZoneCarouselEnabled: false,
@@ -59,6 +62,7 @@ const BlobScrollProgressContext = createContext<BlobScrollState>(defaultState);
 
 export function BlobScrollProgressProvider({
   progress,
+  motionProgress,
   inSection1,
   interactionEnabled,
   mobileZoneCarouselEnabled,
@@ -71,6 +75,7 @@ export function BlobScrollProgressProvider({
   children,
 }: {
   progress: number;
+  motionProgress: number;
   inSection1: boolean;
   interactionEnabled: boolean;
   mobileZoneCarouselEnabled: boolean;
@@ -86,6 +91,7 @@ export function BlobScrollProgressProvider({
     <BlobScrollProgressContext.Provider
       value={{
         progress,
+        motionProgress,
         inSection1,
         interactionEnabled,
         mobileZoneCarouselEnabled,
@@ -105,6 +111,11 @@ export function BlobScrollProgressProvider({
 /** 0 = hero (left), 1 = section 2 (right). */
 export function useBlobScrollProgress() {
   return useContext(BlobScrollProgressContext).progress;
+}
+
+/** Blob-motion progress; reaches 1 only at the end of the section-2 sticky hold. */
+export function useBlobMotionProgress() {
+  return useContext(BlobScrollProgressContext).motionProgress;
 }
 
 export function useBlobInSection1() {

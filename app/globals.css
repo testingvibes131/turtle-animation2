@@ -1,28 +1,122 @@
 @import "tailwindcss";
 
 :root {
-  --background: #141514;
-  --foreground: #f9f9f9;
+  /* ===== Turtle color tokens — DARK (default) =====
+     Light values live under [data-theme="light"] below; bind these vars (or the
+     Tailwind utilities derived from them in @theme) and components theme for free. */
+  --surface-0: #141514; /* bg/page */
+  --surface-1: #191a19; /* bg/surface */
+  --surface-hover: #222422; /* bg/surface-hover */
+  --surface-subtle: rgba(249, 249, 249, 0.02); /* bg/subtle */
+  --surface-subtle-3: rgba(249, 249, 249, 0.05); /* bg/subtle-3 */
+  --fill: rgba(249, 249, 249, 0.1); /* bg/fill */
+  --fill-hover: rgba(249, 249, 249, 0.15); /* bg/fill-hover */
+  --accent-faint: rgba(115, 243, 108, 0.04); /* selection hover */
+  --accent-subtle: rgba(115, 243, 108, 0.1); /* selection selected */
+  --ink-primary: #f9f9f9; /* text/primary */
+  --ink-secondary: rgba(255, 255, 255, 0.55); /* text/secondary */
+  --ink-muted: rgba(249, 249, 249, 0.5); /* text/muted */
+  --ink-label: #c0c0c0; /* text/label */
+  --ink-disabled: rgba(249, 249, 249, 0.3); /* text/disabled */
+  --ink-inverse: #141514; /* text/inverse */
+  --ink-faint: rgba(249, 249, 249, 0.1); /* legacy alias of fill */
+  --stroke-subtle: rgba(249, 249, 249, 0.06); /* border/subtle */
+  --stroke-default: rgba(249, 249, 249, 0.1); /* border/default */
+  --stroke-strong: rgba(249, 249, 249, 0.15); /* border/strong */
+  --stroke-control: rgba(249, 249, 249, 0.25); /* border/control */
+  --stroke-accent: rgba(115, 243, 108, 0.1); /* border/accent */
+  --brand-primary: #73f36c; /* accent/green */
+  --brand-deep: #73f36c; /* accent/green-deep */
+  --brand-soft: #aaf1d5; /* accent/aqua */
+  --blob-point: #2c2d2b; /* hero point-cloud resting grey (NOT a partner colour) */
+  --blob-shimmer: #dfe6ee; /* rippling shimmer over the cloud (white-in-dark → ink-in-light) */
+  --accent-blue: #627eea;
+  --status-error: #ff0608;
+  --status-warning: #f7931a;
+  --status-success: #23c880;
+  /* Heading gradient: bright -> grey. Per the spec, white-in-dark flips to
+     ink-in-white; the grey tail is shared. */
+  --grad-heading-from: #f9f9f9;
+  --grad-heading-to: #8d928c;
+  --card-shadow: rgba(0, 0, 0, 0.25);
+
+  --background: var(--surface-0);
+  --foreground: var(--ink-primary);
   /* SiteHeader: pt-5 + pb-4 + nav row */
   --site-header-height: 4.75rem;
   --z-mobile-nav: 2147483647;
   /* Section intro: title → copy / copy → CTA */
-  --section-intro-gap: clamp(16px, 1.8vw, 24px);
+  --section-intro-gap: clamp(10px, 1.2vw, 16px);
   /* Stacked paragraphs inside copy */
-  --section-intro-copy-gap: clamp(12px, 1.1vw, 16px);
+  --section-intro-copy-gap: clamp(8px, 0.8vw, 12px);
+}
+
+[data-theme="light"] {
+  /* ===== Turtle color tokens — LIGHT ===== */
+  --surface-0: #fafafa;
+  --surface-1: #fefefe;
+  --surface-hover: #eff1ef;
+  --surface-subtle: #f7f7f7;
+  --surface-subtle-3: rgba(20, 21, 20, 0.06);
+  --fill: rgba(20, 21, 20, 0.04);
+  --fill-hover: rgba(20, 21, 20, 0.13);
+  --accent-faint: rgba(20, 21, 20, 0.04);
+  --accent-subtle: rgba(20, 21, 20, 0.07);
+  --ink-primary: #141514;
+  --ink-secondary: rgba(20, 21, 20, 0.7);
+  --ink-muted: rgba(20, 21, 20, 0.55);
+  --ink-label: #595959;
+  --ink-disabled: rgba(20, 21, 20, 0.35);
+  --ink-inverse: #f9f9f9;
+  --ink-faint: rgba(20, 21, 20, 0.04);
+  --stroke-subtle: rgba(20, 21, 20, 0.08);
+  --stroke-default: rgba(20, 21, 20, 0.12);
+  --stroke-strong: rgba(20, 21, 20, 0.16);
+  --stroke-control: rgba(20, 21, 20, 0.25);
+  --stroke-accent: rgba(0, 198, 29, 0.45);
+  --brand-primary: #00c61d;
+  --brand-deep: #008a15;
+  --brand-soft: #0f766e;
+  --blob-point: #aeb2ae;
+  --blob-shimmer: #141514;
+  --accent-blue: #627eea;
+  --grad-heading-from: #141514;
+  --grad-heading-to: #8d928c;
+  --card-shadow: rgba(0, 0, 0, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface-0: #141514;
-  --color-surface-1: #191a19;
-  --color-ink-primary: #f9f9f9;
-  --color-ink-subtle: rgba(249, 249, 249, 0.5);
-  --color-ink-faint: rgba(249, 249, 249, 0.1);
-  --color-brand-primary: #73f36c;
-  --color-brand-soft: #aaf1d5;
-  --color-green-400: #73f36c;
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-hover: var(--surface-hover);
+  --color-subtle: var(--surface-subtle);
+  --color-subtle-3: var(--surface-subtle-3);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
+  --color-accent-faint: var(--accent-faint);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-subtle: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-label: var(--ink-label);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-stroke-subtle: var(--stroke-subtle);
+  --color-stroke-default: var(--stroke-default);
+  --color-stroke-strong: var(--stroke-strong);
+  --color-stroke-control: var(--stroke-control);
+  --color-stroke-accent: var(--stroke-accent);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-soft: var(--brand-soft);
+  --color-green-400: var(--brand-primary);
+  --color-accent-blue: var(--accent-blue);
+  --color-status-error: var(--status-error);
+  --color-status-warning: var(--status-warning);
+  --color-status-success: var(--status-success);
   --font-sans: var(--font-dm-sans);
 
   --text-h1: 58px;
@@ -63,11 +157,19 @@ body {
 }
 
 .text-gradient-heading {
-  background-image: linear-gradient(180deg, #f9f9f9 0%, #8d928c 100%);
+  background-image: linear-gradient(
+    90deg,
+    var(--grad-heading-from) 0%,
+    var(--grad-heading-to) 73.5%
+  );
 }
 
 .text-gradient-heading-h {
-  background-image: linear-gradient(90deg, #f9f9f9 0%, #8d928c 73.5%);
+  background-image: linear-gradient(
+    90deg,
+    var(--grad-heading-from) 0%,
+    var(--grad-heading-to) 73.5%
+  );
 }
 
 .text-hero-title {
@@ -82,9 +184,29 @@ body {
 }
 
 .text-section-title {
-  font-size: clamp(1.5rem, 2.8vw, 2.5rem);
+  font-size: clamp(1.35rem, 2.3vw, 2.1rem);
   line-height: 1.2;
   letter-spacing: -0.8px;
+}
+
+/* Benchmark Rates dots — subtle breathing "life"; staggered per dot (see
+ * HeroStatsPanel) so it reads as a gentle shimmer flowing across the row. */
+@keyframes benchmark-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.benchmark-dot-pulse {
+  animation: benchmark-dot-pulse 2.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .benchmark-dot-pulse {
+    animation: none;
+  }
 }
 
 .section-intro {
@@ -143,7 +265,7 @@ body {
 
 .dashed-rule {
   height: 1px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed var(--stroke-default);
 }
 
 @keyframes logo-marquee-scroll {
@@ -246,6 +368,11 @@ body {
 /* Safari: object-fit needs an explicit % position (keywords skew per intrinsic width). */
 .pipeline-visual__slide img {
   object-fit: contain;
+  /* Keep every slide on its own painted/decoded layer so Chrome never shows a
+     blank or stale frame (the "flash") when a slide becomes active mid-crossfade. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: opacity;
 }
 
 .pipeline-stage-main .pipeline-cards {
@@ -382,38 +509,43 @@ body {
 }
 
 .pipeline-card[data-state="default"] {
-  background: #141514;
+  background: var(--surface-0);
   border-style: solid;
 }
 
 .pipeline-card[data-state="default"] .pipeline-card-title {
-  color: #868786;
+  color: var(--ink-muted);
 }
 
-.pipeline-card[data-state="default"] .pipeline-card-body {
+/* Collapsible body: grid-rows 0fr->1fr animates to the exact content height,
+ * so open/close glide smoothly with no max-height dead-zone snap. */
+.pipeline-card-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
-  max-height: 0;
-  margin-top: 0;
+  transition: grid-template-rows 0.45s ease, opacity 0.3s ease;
+}
+.pipeline-card-body-wrap > .pipeline-card-body {
+  min-height: 0;
   overflow: hidden;
-  transition: opacity 0.3s ease, max-height 0.4s ease;
 }
 
 .pipeline-card[data-state="selected"] {
-  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
+  background: linear-gradient(180deg, var(--surface-0) 0%, var(--surface-1) 100%);
   border-style: solid;
 }
 
 .pipeline-card[data-state="selected"] .pipeline-card-title {
-  background: linear-gradient(109.5deg, #f9f9f9 5%, #8d928c 115%);
+  background: linear-gradient(109.5deg, var(--grad-heading-from) 5%, var(--grad-heading-to) 115%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.pipeline-card[data-state="selected"] .pipeline-card-body {
+.pipeline-card[data-state="selected"] .pipeline-card-body-wrap {
+  grid-template-rows: 1fr;
   opacity: 1;
-  max-height: 200px;
-  transition: opacity 0.5s ease 0.15s, max-height 0.4s ease;
+  transition: grid-template-rows 0.45s ease, opacity 0.5s ease 0.15s;
 }
 
 .pipeline-dot {
@@ -426,17 +558,17 @@ body {
 }
 
 .pipeline-card[data-state="default"] .pipeline-dot {
-  color: #71717a;
+  color: var(--ink-muted);
 }
 
 .pipeline-card[data-state="selected"] .pipeline-dot {
-  color: #73f36c;
+  color: var(--brand-primary);
 }
 
 @media (max-width: 1023px) {
-  .pipeline-card[data-state="default"] .pipeline-card-body {
+  .pipeline-card[data-state="default"] .pipeline-card-body-wrap {
     opacity: 1;
-    max-height: 200px;
+    grid-template-rows: 1fr;
   }
 }
 
@@ -516,10 +648,14 @@ body {
   }
 }
 
-/* 2K+ / tall desktop — grow image height with viewport to close title gap */
+/* 2K+ / tall desktop — keep the monitor ~the same size (don't grow it) and lift
+   the composition off the bottom so the whole section centers on big monitors. */
 @media (min-width: 2000px) and (min-height: 1100px) {
   .pipeline-stage-main {
-    --pipeline-visual-max-h: min(80dvh, calc(100dvh - 13.5rem));
+    --pipeline-visual-max-h: min(64dvh, 740px);
+  }
+  .pipeline-stage-inner {
+    padding-bottom: clamp(40px, 6vh, 140px);
   }
 }
 
@@ -527,7 +663,7 @@ body {
 .case-pill {
   border: 0;
   border-radius: 9999px;
-  background-color: #191a19;
+  background-color: var(--surface-1);
   font-family: inherit;
   color: inherit;
   transition: background-color 0.3s ease;
@@ -535,7 +671,7 @@ body {
 
 .case-pill:hover,
 .case-pill[data-state="selected"] {
-  background-color: #1f211f;
+  background-color: var(--surface-hover);
 }
 
 .case-pill .case-pill-arrow {
@@ -543,13 +679,13 @@ body {
 }
 
 .case-pill .case-pill-arrow svg path {
-  stroke: rgba(249, 249, 249, 0.5);
+  stroke: var(--ink-muted);
   transition: stroke 0.3s ease;
 }
 
 .case-pill:hover .case-pill-arrow svg path,
 .case-pill[data-state="selected"] .case-pill-arrow svg path {
-  stroke: #73f36c;
+  stroke: var(--brand-primary);
 }
 
 .case-cards .bar-grow {
@@ -701,8 +837,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
-  border: 1px solid #2a2a2a;
+  background: linear-gradient(180deg, var(--surface-0) 0%, var(--surface-1) 100%);
+  border: 1px solid var(--stroke-default);
   border-radius: 10px;
   width: var(--partner-card-width);
   height: var(--partner-card-height);
@@ -715,6 +851,34 @@ body {
   height: 100%;
   object-fit: contain;
   opacity: 0.9;
+}
+
+/* Monochrome white logos (protocol marquee + investor cards) invert to read on
+   light surfaces. Colourful raster logos/avatars are intentionally left as-is. */
+[data-theme="light"] .logo-marquee .logo,
+[data-theme="light"] .partner-logo {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Imperative all-green/white canvases (the command-center radar) flip wholesale
+   in light mode — bg → light, white glow → ink, green → deep green — applying
+   the gradient rule the cheap way instead of re-tinting every draw call. */
+[data-theme="light"] .theme-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Paired hand-authored assets (e.g. the DeFi CTA orb): each theme shows its own
+   file. Used where a filter invert would wreck a gradient's luminosity. */
+[data-theme="light"] .theme-asset-dark {
+  display: none;
+}
+:root:not([data-theme="light"]) .theme-asset-light {
+  display: none;
+}
+
+/* Brand wordmark/logo: neon green (#73f36c) → deeper light-mode green (~#00c61d). */
+[data-theme="light"] .brand-wordmark {
+  filter: saturate(1.85) brightness(0.6);
 }
 
 
@@ -770,8 +934,8 @@ body {
   aspect-ratio: var(--team-card-ratio);
   padding: var(--team-card-pad) 0 0 var(--team-card-pad);
   border-radius: var(--team-card-radius);
-  border: 1.027px solid rgba(249, 249, 249, 0.1);
-  background: linear-gradient(180deg, #141514 0%, #1b1c1b 100%);
+  border: 1.027px solid var(--stroke-default);
+  background: linear-gradient(180deg, var(--surface-0) 0%, var(--surface-1) 100%);
   overflow: hidden;
 }
 
@@ -789,14 +953,14 @@ body {
   font-size: clamp(16px, 1.04vw, 20px);
   font-weight: 400;
   line-height: 1.4;
-  color: #f9f9f9;
+  color: var(--ink-primary);
 }
 
 .team-card__role {
   font-size: clamp(11px, 0.625vw, 12px);
   font-weight: 500;
   line-height: 1.2;
-  color: rgba(249, 249, 249, 0.5);
+  color: var(--ink-muted);
   overflow-wrap: break-word;
 }
 
@@ -851,7 +1015,7 @@ body {
 
   .team-card__name {
     font-size: 20px;
-    color: #eff8ed;
+    color: var(--ink-primary);
   }
 
   .team-card__role {
@@ -881,7 +1045,7 @@ body {
   font-size: clamp(16px, 1.04vw, 20px);
   font-weight: 400;
   line-height: 1.4;
-  color: #f9f9f9;
+  color: var(--ink-primary);
   text-align: center;
 }
 
@@ -914,16 +1078,18 @@ body {
   gap: clamp(12px, 1.4vw, 20px);
   padding-left: clamp(24px, 5vw, 100px);
   padding-right: clamp(24px, 5vw, 100px);
+  /* Room above/below so the card + shadow aren't clipped by overflow-y: hidden. */
+  padding-block: clamp(20px, 2.6vw, 34px);
 }
 
 .update-card {
   scroll-snap-align: start;
   flex-shrink: 0;
   width: clamp(280px, 32vw, 400px);
-  background: #141514;
-  border: 1px solid rgba(249, 249, 249, 0.05);
+  background: var(--surface-0);
+  border: 1px solid var(--stroke-subtle);
   border-radius: clamp(20px, 2.4vw, 32px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 20px var(--card-shadow);
   backdrop-filter: blur(19px);
   -webkit-backdrop-filter: blur(19px);
   overflow: hidden;
@@ -962,14 +1128,14 @@ body {
 }
 
 .update-card__title {
-  color: #f9f9f9;
+  color: var(--ink-primary);
   font-size: clamp(18px, 1.7vw, 22px);
   line-height: 1.3;
   font-weight: 400;
 }
 
 .update-card__desc {
-  color: rgba(239, 248, 237, 0.5);
+  color: var(--ink-muted);
   font-size: clamp(14px, 1.15vw, 16px);
   line-height: 1.4;
   font-weight: 400;
@@ -981,15 +1147,15 @@ body {
   gap: 14px;
   height: clamp(40px, 3.4vw, 44px);
   padding: 0 clamp(14px, 1.4vw, 20px);
-  background: rgba(249, 249, 249, 0.1);
+  background: var(--fill);
   border-radius: 9999px;
-  color: #f9f9f9;
+  color: var(--ink-primary);
   font-size: clamp(14px, 1.15vw, 16px);
   transition: background 0.15s ease;
 }
 
 .update-card__cta:hover {
-  background: rgba(115, 243, 108, 0.15);
+  background: var(--accent-subtle);
 }
 
 .update-card__cta svg {
@@ -998,14 +1164,14 @@ body {
 
 /* ---------- footer ---------- */
 .site-footer {
-  background: #141514;
+  background: var(--surface-0);
   position: relative;
 }
 
 .footer-divider {
   width: 100%;
   height: 1px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  border-top: 1px dashed var(--stroke-default);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1103,7 +1269,7 @@ body {
 }
 
 .footer-nav-col h3 {
-  color: #f9f9f9;
+  color: var(--ink-primary);
   font-size: clamp(12px, 1vw, 14px);
   line-height: 1.4;
   font-weight: 400;
@@ -1112,7 +1278,7 @@ body {
 
 .footer-nav-col a {
   display: block;
-  color: rgba(249, 249, 249, 0.5);
+  color: var(--ink-muted);
   font-size: clamp(11px, 0.9vw, 13px);
   line-height: 1.4;
   margin-bottom: clamp(8px, 1vw, 14px);
@@ -1120,7 +1286,7 @@ body {
 }
 
 .footer-nav-col a:hover {
-  color: rgba(249, 249, 249, 0.9);
+  color: var(--ink-primary);
 }
 
 .footer-wordmark-wrap {
@@ -1135,7 +1301,7 @@ body {
 }
 
 .footer-legal {
-  color: rgba(249, 249, 249, 0.5);
+  color: var(--ink-muted);
   font-size: clamp(11px, 0.95vw, 12px);
   font-weight: 500;
   line-height: 1.2;
@@ -1147,11 +1313,11 @@ body {
 }
 
 .footer-legal a:hover {
-  color: rgba(249, 249, 249, 0.9);
+  color: var(--ink-primary);
 }
 
 .footer-copyright {
-  color: rgba(249, 249, 249, 0.4);
+  color: var(--ink-disabled);
   font-size: clamp(11px, 0.95vw, 12px);
   font-weight: 500;
   line-height: 1.2;
@@ -1190,4 +1356,15 @@ body {
     black calc(100% - 40px),
     transparent 100%
   );
+}
+
+/* Mobile (< lg): shrink readable type ~1px vs desktop; ≤12px labels unchanged. */
+@media (max-width: 1023px) {
+  .text-section-title { font-size: clamp(1.28rem, 2.3vw, 2.1rem); }
+  .section-intro__copy p { font-size: clamp(0.875rem, 1.2vw, 1.125rem); }
+  .team-card__name { font-size: clamp(15px, 1.04vw, 20px); }
+  .team-grid__cta-link { font-size: clamp(15px, 1.04vw, 20px); }
+  .update-card__title { font-size: clamp(17px, 1.7vw, 22px); }
+  .update-card__desc { font-size: clamp(13px, 1.15vw, 16px); }
+  .update-card__cta { font-size: clamp(13px, 1.15vw, 16px); }
 }

@@ -4,8 +4,10 @@ import { zoneClockDegForLayout } from "@/features/blob-scene/lib/curators/zones"
 /** Half-width of the lit band on the cap (degrees) — narrow = brief, spaced hits. */
 export const BLOB_CAP_WAVE_HALF_WIDTH_DEG = 26;
 
-/** Peak opacity multiplier for the sweep (material + instance). */
-export const BLOB_CAP_WAVE_MAX_OPACITY = 0.3;
+/** Peak opacity multiplier for the sweep (material + instance).
+ *  Kept low so the per-curator colors read as a subtle ambient glow that
+ *  shifts as the wave rotates, rather than hard saturated patches. */
+export const BLOB_CAP_WAVE_MAX_OPACITY = 0.12;
 
 /** Base sweep speed (degrees per second) — lower = longer gaps between zones. */
 export const BLOB_CAP_WAVE_SPEED_DEG = 11;

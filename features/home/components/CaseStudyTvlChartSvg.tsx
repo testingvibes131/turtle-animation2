@@ -23,7 +23,7 @@ export function CaseStudyTvlChartSvg({
   return (
     <div
       className={[
-        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] outline outline-1 -outline-offset-1 outline-stone-50/10",
+        "relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[clamp(10px,1vw,14px)] outline outline-1 -outline-offset-1 outline-[var(--stroke-subtle)]",
         visualCanvasBgClass,
         "max-md:min-h-[clamp(100px,24vw,160px)] lg:min-h-[clamp(140px,16vw,260px)]",
         className,
@@ -39,8 +39,16 @@ export function CaseStudyTvlChartSvg({
       >
         <defs>
           <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#73F36C" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#73F36C" stopOpacity={0} />
+            <stop
+              offset="0%"
+              style={{ stopColor: "var(--brand-primary)" }}
+              stopOpacity={0.35}
+            />
+            <stop
+              offset="100%"
+              style={{ stopColor: "var(--brand-primary)" }}
+              stopOpacity={0}
+            />
           </linearGradient>
         </defs>
         <path className="tvl-area" d={tvlAreaPath(line)} fill={`url(#${fillId})`} />

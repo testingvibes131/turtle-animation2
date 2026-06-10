@@ -17,7 +17,7 @@ function FeatureTitle({ title }: { title: string }) {
   const lastSpace = title.lastIndexOf(" ");
   if (lastSpace <= 0) {
     return (
-      <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h">
+      <h3 className="bg-clip-text text-[23px] font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h lg:text-2xl">
         {title}
       </h3>
     );
@@ -27,7 +27,7 @@ function FeatureTitle({ title }: { title: string }) {
   const tail = title.slice(lastSpace + 1);
 
   return (
-    <h3 className="bg-clip-text text-2xl font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h">
+    <h3 className="bg-clip-text text-[23px] font-normal leading-[1.3] tracking-[0.015em] text-transparent text-gradient-heading-h lg:text-2xl">
       {lead}{" "}
       <span className="font-extralight tracking-[0.01em]">{tail}</span>
     </h3>

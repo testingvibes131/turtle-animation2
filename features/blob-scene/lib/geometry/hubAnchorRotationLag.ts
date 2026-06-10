@@ -14,7 +14,8 @@ export function createHubAnchorRotationLagState(): HubAnchorRotationLagState {
 
 /**
  * Section 2: hub logo + plexus origin follow this fraction of blob Y spin.
- * 0.55 ≈ 45% slower than the blob surface.
+ * <1 makes the logo trail the spin like an orbiting satellite. The plexus lines
+ * use this same lagged anchor (see CuratorPlexusLines), so they orbit together.
  */
 export const SECTION_2_HUB_ROTATION_FOLLOW = 0.3;
 

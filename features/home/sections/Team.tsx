@@ -8,7 +8,7 @@ export function Team() {
   return (
     <SectionShell>
       <div className="grid min-w-0 grid-cols-1 items-start gap-[clamp(40px,5vw,64px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:items-center lg:gap-x-[clamp(32px,4vw,60px)]">
-        <RevealOnScroll className="text-left lg:sticky lg:top-[clamp(80px,10vh,120px)]">
+        <RevealOnScroll className="text-left">
           <SectionIntro className="items-start">
             <h2 className="text-section-title bg-clip-text pb-[0.05em] font-normal text-transparent text-gradient-heading">
               The Turtle Team

@@ -22,6 +22,24 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
 
   return (
     <>
+      {/* Mobile: warm every step image on first load so switching cards is instant
+          (not slow-on-scroll). Hidden + eager so they fetch + cache up front. */}
+      <div
+        aria-hidden
+        className="pointer-events-none h-0 w-0 overflow-hidden opacity-0 lg:hidden"
+      >
+        {steps.map((step) => (
+          <Image
+            key={`warm-${step.image}`}
+            src={step.image}
+            alt=""
+            width={420}
+            height={420}
+            loading="eager"
+            sizes="420px"
+          />
+        ))}
+      </div>
       {/* Mobile: single keyed image — stacked opacity layers are unreliable on iOS Safari. */}
       <div
         className="pipeline-visual pointer-events-none lg:hidden"
@@ -64,11 +82,16 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
                 src={step.image}
                 alt=""
                 fill
-                priority={index === 0}
+                loading="eager"
                 sizes="(max-width: 1535px) 51vw, 1024px"
                 className={[
-                  "object-contain transition-opacity duration-500 ease-out motion-reduce:transition-none",
-                  isActive ? "opacity-100" : "opacity-0",
+                  // Only the incoming slide fades in; the outgoing one cuts to 0
+                  // instantly (no transition). So at most one slide is ever
+                  // visible — no two-image overlap, hence no ghosting/double-monitor.
+                  "object-contain motion-reduce:transition-none",
+                  isActive
+                    ? "opacity-100 transition-opacity duration-[250ms] ease-out"
+                    : "opacity-0",
                 ].join(" ")}
                 style={{ objectPosition: slideObjectPosition(index, steps.length) }}
               />

@@ -10,7 +10,7 @@ export const VISUAL_CANVAS_GRADIENT_END = "#161716";
 
 /** Tailwind classes for non-canvas chart / feature frames. */
 export const visualCanvasBgClass =
-  "bg-[#161716] [background-image:linear-gradient(to_bottom_right,#2D2E2D_0%,#161716_100%)]";
+  "bg-[var(--surface-1)] [background-image:linear-gradient(to_bottom_right,var(--surface-hover)_0%,var(--surface-1)_100%)]";
 
 export function drawVisualCanvasBackground(
   ctx: CanvasRenderingContext2D,

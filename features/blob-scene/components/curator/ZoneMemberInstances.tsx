@@ -133,6 +133,24 @@ export function ZoneMemberInstances({
     };
   }, [capGrayMaterial, zoneInnerDimMaterial, highlightMaterials]);
 
+  // Theme-reactive resting grey for the zone member caps (matches the base
+  // cloud's --blob-point) so they don't read as black dots in light mode.
+  useEffect(() => {
+    const apply = () => {
+      const v = getComputedStyle(document.documentElement)
+        .getPropertyValue("--blob-point")
+        .trim();
+      if (v) capGrayMaterial.color.set(v);
+    };
+    apply();
+    const obs = new MutationObserver(apply);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => obs.disconnect();
+  }, [capGrayMaterial]);
+
   const setMeshRef = (key: string, mesh: THREE.InstancedMesh | null) => {
     if (mesh) meshRefs.current.set(key, mesh);
     else meshRefs.current.delete(key);
@@ -216,7 +234,11 @@ export function ZoneMemberInstances({
     const activeName = activeZone?.curator.name ?? null;
     const mobileCapHighlight =
       mobileCarouselEnabled && activeName != null;
-    const capAmbientActive = section1AmbientActive || mobileCapHighlight;
+    // The cap layer (gray cluster + colored cluster + inner tint) is reserved
+    // for the section-1 ambient intro only. An actively-selected partner — on
+    // mobile as on desktop — goes through the hover path below (connector lines
+    // + connected member dots + logo), so it never shades the base cloud.
+    const capAmbientActive = section1AmbientActive;
 
     if (capAmbientActive) {
       zoneUsedRef.current = used;
@@ -267,7 +289,7 @@ export function ZoneMemberInstances({
     for (const c of CURATORS) {
       const mat = highlightMaterials.get(c.name);
       if (!mat) continue;
-      if (activeName === c.name && !mobileCarouselEnabled) {
+      if (activeName === c.name) {
         mat.opacity = highlightBlend;
       } else if (waveName === c.name) {
         mat.opacity = waveStrength;
@@ -284,9 +306,7 @@ export function ZoneMemberInstances({
       (params.noiseScale * 1.2) / Math.max(params.displacementDivisor, 0.001);
     const extent = params.radius + maxDisp;
     const camDist = state.camera.position.length();
-    const overlayActive = Boolean(
-      activeZoneRef.current && !mobileCarouselEnabled,
-    );
+    const overlayActive = Boolean(activeZoneRef.current);
     updateMarkerDepthFadeUniforms(
       depthFadeUniforms,
       state.camera,
@@ -389,8 +409,7 @@ export function ZoneMemberInstances({
       const needsInnerDim = Boolean(activeName && zoneInnerDimMesh);
 
       const partners = new Set(zone.partners);
-      const isHoverSelected =
-        activeName === zone.curator.name && !mobileCarouselEnabled;
+      const isHoverSelected = activeName === zone.curator.name;
       const isWaveSelected =
         capAmbientActive && waveName === zone.curator.name;
 

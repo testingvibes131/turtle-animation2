@@ -11,13 +11,21 @@ export const BLOB_CAMERA_FOV = 50;
 export const BLOB_RIGHT_CROP_FRACTION = 0.05;
 
 /** Section 1: shift blob down by this fraction of half the viewport height. */
-export const BLOB_SECTION1_Y_LOWER_FRAC = 0.5;
+export const BLOB_SECTION1_Y_LOWER_FRAC = 0.8;
 
-/** Portrait section 2: sit in the lower viewport (fraction of half-height). */
-export const BLOB_SECTION2_Y_LOWER_FRAC = 0.48;
+/** Section 1 (landing): blob center X as a fraction of half-width, pushed left.
+ *  >0.5 tucks it into the bottom-left corner (may sit partly off the left edge). */
+export const BLOB_SECTION1_X_LEFT_FRAC = 0.6;
+
+/** Portrait section 2: sit just below center (fraction of half-height) so the
+ *  blob centers between the copy (top) and the partner logos (bottom). */
+export const BLOB_SECTION2_Y_LOWER_FRAC = 0.22;
+
+/** Landscape section 2: raise the blob this fraction of half-height above center. */
+export const BLOB_SECTION2_Y_RAISE_FRAC = 0.1;
 
 /** Portrait section 2: scale relative to section 1. */
-export const BLOB_SECTION2_SCALE_PORTRAIT = 0.78;
+export const BLOB_SECTION2_SCALE_PORTRAIT = 0.6;
 
 export function blobVisualExtent(
   params: Pick<PerlinBlobParams, "radius" | "noiseScale" | "displacementDivisor">,
@@ -89,7 +97,8 @@ export function computeBlobOffsetXForScroll(
   const section1X =
     viewportAspect < 1
       ? computeBlobOffsetXInHalf(camera, viewportAspect, extent, -1)
-      : -section2X;
+      : -viewHalfExtents(camera, viewportAspect).halfViewWidth *
+        BLOB_SECTION1_X_LEFT_FRAC;
   return section1X + (section2X - section1X) * t;
 }
 
@@ -102,7 +111,9 @@ export function computeBlobOffsetYForScroll(
   const t = clampScrollProgress(scrollProgress);
   const section1Y = -halfViewHeight * BLOB_SECTION1_Y_LOWER_FRAC;
   const section2Y =
-    viewportAspect < 1 ? -halfViewHeight * BLOB_SECTION2_Y_LOWER_FRAC : 0;
+    viewportAspect < 1
+      ? -halfViewHeight * BLOB_SECTION2_Y_LOWER_FRAC
+      : halfViewHeight * BLOB_SECTION2_Y_RAISE_FRAC;
   return section1Y + (section2Y - section1Y) * t;
 }
 

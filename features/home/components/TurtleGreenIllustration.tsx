@@ -13,6 +13,7 @@ const files = {
   dotBold: "Dot-Green-Bold.svg",
   dotSmall: "Dot-Green-Small.svg",
   inner: "Turtle-Green.svg",
+  innerLight: "Turtle-Green-Light.svg",
 } as const;
 
 function assetPath(name: string) {
@@ -59,12 +60,21 @@ export function TurtleGreenIllustration() {
       <OrbitalDot file={files.dotBold} left={110} top={-10} glowInset="inset-[-33.33%] left-[5%] right-[5%] top-[10%]" />
       <OrbitalDot file={files.dotSmall} left={-11} top={109} glowInset="inset-[-33.33%] left-[35%] right-[35%] top-[35%]" />
 
+      {/* Orb ships as two hand-authored SVGs (a CSS invert would flip the core
+          glow's luminosity); the theme picks which one shows. */}
       <div className="absolute left-1/2 top-1/2 aspect-square w-[56.667%] -translate-x-1/2 -translate-y-1/2">
         <Image
           src={assetPath(files.inner)}
           alt=""
           fill
-          className="object-contain"
+          className="theme-asset-dark object-contain"
+          sizes="136px"
+        />
+        <Image
+          src={assetPath(files.innerLight)}
+          alt=""
+          fill
+          className="theme-asset-light object-contain"
           sizes="136px"
         />
       </div>

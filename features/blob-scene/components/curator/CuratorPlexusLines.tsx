@@ -11,6 +11,7 @@ import {
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
 import {
   useBlobCuratorOverlayEnabled,
+  useBlobMobileZoneCarouselEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import type { CuratorEdge } from "@/features/blob-scene/lib/curators/hoverPlexus";
@@ -24,6 +25,7 @@ import {
 } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
 import { readCachedVertexPosition } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
+import { mobilePulledHubLocal } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
 
 export type ColoredPlexusGroup = {
@@ -37,6 +39,7 @@ const LINE_GAP_SIZE = 0.01;
 const _posA = new THREE.Vector3();
 const _posB = new THREE.Vector3();
 const _hubTarget = new THREE.Vector3();
+const _hubAnchor = new THREE.Vector3();
 const _wobbledHub = new THREE.Vector3();
 
 type PlexusBundle = {
@@ -77,6 +80,7 @@ function PlexusLineBatch({
     hubAnchorRotationLagRef,
   } = useBlobScene();
   const curatorOverlayEnabled = useBlobCuratorOverlayEnabled();
+  const mobileCarouselEnabled = useBlobMobileZoneCarouselEnabled();
   const linePositionsRef = useRef<Float32Array | null>(null);
   const bundleRef = useRef<PlexusBundle | null>(null);
 
@@ -156,36 +160,45 @@ function PlexusLineBatch({
     const frameCache = blobFrameCacheRef.current;
     if (!frameCache) return;
 
+    // Hub anchor (outset + the SAME rotation lag as the logo), computed once per
+    // frame. Every line end that touches the hub uses it, so the lines track
+    // continuously to the logo as it orbits — globe-fixed point on one end, the
+    // drifting logo on the other (like a tether from earth to a satellite).
+    readCachedVertexPosition(frameCache, hubIndex, _wobbledHub);
+    if (mobileCarouselEnabled) {
+      // Mobile: same camera-centred anchor as the logo, so the lines stay pinned
+      // to it (and the fan carries the per-partner difference).
+      mobilePulledHubLocal(_wobbledHub, getTowardCamera(), _hubAnchor);
+    } else {
+      displacedHubAnchorPosition(
+        vertices,
+        hubIndex,
+        getTowardCamera(),
+        hubZoneDeg,
+        { ...hubPickOptions, hubPickBlob: blobParams },
+        blobParams,
+        _hubTarget,
+        _wobbledHub,
+      );
+      const lagState = hubAnchorRotationLagRef.current;
+      if (hubAnchorRotationLagActive(lagState, curatorOverlayEnabled)) {
+        applyHubAnchorRotationLag(
+          _hubTarget,
+          _hubAnchor,
+          blobGroupRef.current?.rotation.y ?? 0,
+          lagState.laggedRotationY,
+        );
+      } else {
+        _hubAnchor.copy(_hubTarget);
+      }
+    }
+
     let p = 0;
     for (const [a, bIdx] of edges) {
-      if (a === hubIndex) {
-        readCachedVertexPosition(frameCache, hubIndex, _wobbledHub);
-        displacedHubAnchorPosition(
-          vertices,
-          hubIndex,
-          getTowardCamera(),
-          hubZoneDeg,
-          { ...hubPickOptions, hubPickBlob: blobParams },
-          blobParams,
-          _hubTarget,
-          _wobbledHub,
-        );
-        const lagState = hubAnchorRotationLagRef.current;
-        const lagEnabled = curatorOverlayEnabled;
-        if (hubAnchorRotationLagActive(lagState, lagEnabled)) {
-          applyHubAnchorRotationLag(
-            _hubTarget,
-            _posA,
-            blobGroupRef.current?.rotation.y ?? 0,
-            lagState.laggedRotationY,
-          );
-        } else {
-          _posA.copy(_hubTarget);
-        }
-      } else {
-        readCachedVertexPosition(frameCache, a, _posA);
-      }
-      readCachedVertexPosition(frameCache, bIdx, _posB);
+      if (a === hubIndex) _posA.copy(_hubAnchor);
+      else readCachedVertexPosition(frameCache, a, _posA);
+      if (bIdx === hubIndex) _posB.copy(_hubAnchor);
+      else readCachedVertexPosition(frameCache, bIdx, _posB);
       arr[p++] = _posA.x;
       arr[p++] = _posA.y;
       arr[p++] = _posA.z;

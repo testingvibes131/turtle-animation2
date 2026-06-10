@@ -17,12 +17,12 @@ const sizeClasses: Record<
 > = {
   default: {
     link: "py-[5px] pl-[15px] pr-1.5 lg:pr-2",
-    label: "text-sm leading-none",
+    label: "text-[13px] leading-none lg:text-sm",
     icon: "size-[30px] lg:size-[32px]",
   },
   lg: {
     link: "py-[5px] pl-5 pr-[5px] lg:pr-[7px]",
-    label: "text-xl leading-[1.4]",
+    label: "text-[19px] leading-[1.4] lg:text-xl",
     icon: "size-10 lg:size-[42px]",
   },
 };
@@ -39,7 +39,7 @@ export function CtaPill({
     <Link
       href={href}
       className={[
-        "group inline-flex items-center justify-between gap-[10px] overflow-hidden rounded-[30px] border-[0.6px] border-solid border-[rgba(249,249,249,0.06)] bg-[rgba(249,249,249,0.02)] transition-colors hover:bg-[rgba(249,249,249,0.08)]",
+        "group inline-flex items-center justify-between gap-[10px] overflow-hidden rounded-[30px] border-[0.6px] border-solid border-stroke-subtle bg-subtle transition-colors hover:bg-fill",
         styles.link,
         className,
       ].join(" ")}

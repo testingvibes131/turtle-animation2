@@ -227,21 +227,23 @@ export function useBlobAnimationFreeze(
   activeZoneRef.current = activeZone;
   const freezeTimeRef = useRef(freezeTime);
   freezeTimeRef.current = freezeTime;
+  const lastClockTimeRef = useRef<number | null>(null);
+  const frozenOffsetRef = useRef(0);
 
   return {
     activeZoneRef,
     tickAnimationTime: (clockTime: number) => {
       const zone = activeZoneRef.current;
       const shouldFreeze = zone != null && freezeTimeRef.current;
-      if (shouldFreeze) {
-        if (frozenAnimTimeRef.current === null) {
-          frozenAnimTimeRef.current = clockTime;
-        }
-        blobAnimTimeRef.current = frozenAnimTimeRef.current;
-      } else {
-        frozenAnimTimeRef.current = null;
-        blobAnimTimeRef.current = clockTime;
+      const last = lastClockTimeRef.current;
+      lastClockTimeRef.current = clockTime;
+      // Accumulate the time spent frozen as an offset so the morph resumes exactly
+      // where it paused on un-hover — no "catch-up" jump to real-clock time.
+      if (shouldFreeze && last !== null) {
+        frozenOffsetRef.current += clockTime - last;
       }
+      blobAnimTimeRef.current = clockTime - frozenOffsetRef.current;
+      frozenAnimTimeRef.current = shouldFreeze ? blobAnimTimeRef.current : null;
       return params.rotationSpeed !== 0;
     },
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   BlobSceneProvider,
@@ -22,6 +23,7 @@ import { useMobileZoneCarousel } from "@/features/blob-scene/hooks/useMobileZone
 import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
+import { BLOB_SCROLL_EASE_RATE } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { zoneLayoutSignature } from "@/features/blob-scene/lib/curators/zoneOverlay";
@@ -37,8 +39,13 @@ export function BlobSceneContent({
   params,
   scrollMotion,
 }: BlobSceneContentProps) {
-  const { offsetX, offsetY, scale, rotationY } = scrollMotion;
   const blobGroupRef = useRef<THREE.Group>(null);
+  // Scroll placement is eased per-frame (see useFrame below) toward the latest
+  // target, so the blob tracks scroll smoothly regardless of React re-render timing.
+  const outerGroupRef = useRef<THREE.Group>(null);
+  const scrollMotionRef = useRef(scrollMotion);
+  scrollMotionRef.current = scrollMotion;
+  const motionReadyRef = useRef(false);
   const zoneUsedRef = useRef<Set<number>>(new Set());
   const zonesSnapshotRef = useRef<BlobSceneContextValue["zonesSnapshotRef"]["current"]>([]);
   const blobAnimTimeRef = useRef(0);
@@ -150,6 +157,9 @@ export function BlobSceneContent({
     zonesSnapshotRef,
     setActiveZone,
     zoneHighlightBlendRef,
+    vertices,
+    params,
+    getTowardCamera,
   });
 
   const zoneHighlightActive = useBlobZoneHighlightActive();
@@ -162,15 +172,33 @@ export function BlobSceneContent({
     zoneHighlightActive,
   );
 
+  useFrame((_, delta) => {
+    const g = outerGroupRef.current;
+    if (!g) return;
+    const m = scrollMotionRef.current;
+    if (!motionReadyRef.current) {
+      g.position.set(m.offsetX, m.offsetY, 0);
+      g.scale.setScalar(m.scale);
+      g.rotation.y = m.rotationY;
+      motionReadyRef.current = true;
+      return;
+    }
+    // Ease toward the scroll-driven target every frame. The target (motionProgress)
+    // only creeps the final bit during the sticky hold, so the blob glides to its
+    // resting spot and "lands" right as the section scrolls on — no hard wall.
+    const k = 1 - Math.exp(-delta * BLOB_SCROLL_EASE_RATE);
+    g.position.x += (m.offsetX - g.position.x) * k;
+    g.position.y += (m.offsetY - g.position.y) * k;
+    const s = g.scale.x + (m.scale - g.scale.x) * k;
+    g.scale.set(s, s, s);
+    g.rotation.y += (m.rotationY - g.rotation.y) * k;
+  });
+
   return (
     <BlobSceneProvider value={contextValue}>
       <BlobFrameGeometryCache />
       <Section1CapWave />
-      <group
-        position={[offsetX, offsetY, 0]}
-        rotation={[0, rotationY, 0]}
-        scale={[scale, scale, scale]}
-      >
+      <group ref={outerGroupRef}>
         <group ref={blobGroupRef}>
           <BlobPointCloud
             blobGroupRef={blobGroupRef}

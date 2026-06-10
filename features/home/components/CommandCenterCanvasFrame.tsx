@@ -26,7 +26,7 @@ export function CommandCenterCanvasFrame({ frameClassName, onFrame }: Props) {
       <div ref={containerRef} className={commandCenterVisualFrameInnerClass}>
         <canvas
           ref={canvasRef}
-          className={commandCenterVisualFrameCanvasClass}
+          className={`${commandCenterVisualFrameCanvasClass} theme-invert`}
         />
       </div>
     </div>

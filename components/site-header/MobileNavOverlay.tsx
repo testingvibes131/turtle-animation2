@@ -5,10 +5,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-const headerMenuShell = "inline-flex items-center overflow-hidden rounded-[20px] border-[0.6px] border-solid border-[rgba(249,249,249,0.06)] bg-[rgba(249,249,249,0.02)]";
+const headerMenuShell = "inline-flex items-center overflow-hidden rounded-[20px] border-[0.6px] border-solid border-stroke-subtle bg-subtle";
 
 const mobileMenuButtonShell =
-  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[rgba(249,249,249,0.1)] bg-[rgba(249,249,249,0.02)] text-green-400 transition-colors hover:bg-[#73F36C]/10";
+  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-stroke-default bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
 
 type NavLink = { href: string; label: string };
 

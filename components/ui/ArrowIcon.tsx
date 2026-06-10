@@ -15,7 +15,7 @@ export function ArrowIcon({ className }: ArrowIconProps) {
     >
       <path
         d="M1 1L5 5L1 9"
-        stroke="#73F36C"
+        stroke="var(--brand-primary)"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"

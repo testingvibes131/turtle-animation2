@@ -6,7 +6,8 @@ const WHITE_GLOW_OPACITY_BOOST = 1.1;
 const GLOW_OUTER_SCALE = 1.35;
 const SMALL_DOT_RADIUS_THRESHOLD = 3.8;
 
-/** Muted whites — based on #f9f9f9, gentle not harsh. */
+/** Muted whites — based on #f9f9f9. Stays off-white in both themes: on light it
+ *  reads as a faint glow (invisible halo), never a dark/black ring. */
 const WHITE_CORE = { r: 248, g: 248, b: 246 };
 const WHITE_HOT = { r: 235, g: 235, b: 233 };
 const WHITE_ACCENT = { r: 220, g: 220, b: 218 };
@@ -44,12 +45,8 @@ export function drawWhiteGlowCircle(
   const outer = glowOuterRadius(sizedRadius) * outerScale;
   const glowAlpha = Math.min(1, alpha * opacityBoost);
   const core = tone ?? WHITE_CORE;
-  const hot = tone
-    ? { r: core.r, g: core.g, b: core.b }
-    : WHITE_HOT;
-  const accent = tone
-    ? { r: core.r, g: core.g, b: core.b }
-    : WHITE_ACCENT;
+  const hot = tone ? { r: core.r, g: core.g, b: core.b } : WHITE_HOT;
+  const accent = tone ? { r: core.r, g: core.g, b: core.b } : WHITE_ACCENT;
   const deep = tone ? { r: core.r, g: core.g, b: core.b } : WHITE_DEEP;
 
   ctx.save();

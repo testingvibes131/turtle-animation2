@@ -13,6 +13,7 @@ import { LatestUpdates } from "@/features/home/sections/LatestUpdates";
 import { Pipeline } from "@/features/home/sections/Pipeline";
 import { DeFiCta } from "@/features/home/sections/DeFiCta";
 import { Team } from "@/features/home/sections/Team";
+import { DeferredImagePreloader } from "@/features/home/components/DeferredImagePreloader";
 
 /**
  * Section-by-section dev focus. Set to a section key to render only that slice
@@ -108,6 +109,8 @@ export function LandingPage() {
         {show("latest-updates") ? <LatestUpdates /> : null}
       </main>
       {showFooter ? <SiteFooter /> : null}
+      {/* Background-warms below-fold images after load (hero + 3D first). */}
+      <DeferredImagePreloader />
     </>
   );
 }

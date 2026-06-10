@@ -70,6 +70,8 @@ export type CaseStudy = {
   id: string;
   logo: string;
   title: string;
+  /** Optional shorter title shown on mobile (e.g. drop a lead word to fit one line). */
+  mobileTitle?: string;
   tvl: CaseStudyTvl;
   boosted: CaseStudyBoosted;
   thirdCard: CaseStudyThirdCard;
@@ -79,7 +81,8 @@ export const caseStudies: CaseStudy[] = [
   {
     id: "avalanche",
     logo: "/case-studies/logo-avalanche.png",
-    title: "Deploying $84.5M in Concentrated Liquidity for Avalanche",
+    title: "Deploying $84.5M in Liquidity for Avalanche",
+    mobileTitle: "$84.5M in Liquidity for Avalanche",
     tvl: {
       target: 50,
       prefix: "$",
@@ -95,9 +98,9 @@ export const caseStudies: CaseStudy[] = [
       display: "$84.5M",
       label: "Boosted TVL",
       badges: [
-        { src: "/case-studies/apr-bitcoin.png", label: "9% APR", apy: 9, chartColor: "#f59e0b" },
-        { src: "/case-studies/apr-avalanche.png", label: "10% APR", apy: 10, chartColor: "#ef4444" },
-        { src: "/case-studies/apr-usdc.png", label: "18% APR", apy: 18, chartColor: "#3b82f6" },
+        { src: "/case-studies/asset-btc.png", label: "9% APR", apy: 9, chartColor: "#f59e0b" },
+        { src: "/case-studies/asset-avalanche.png", label: "10% APR", apy: 10, chartColor: "#ef4444" },
+        { src: "/case-studies/asset-usdc.png", label: "18% APR", apy: 18, chartColor: "#3b82f6" },
       ],
     },
     thirdCard: {
@@ -112,7 +115,7 @@ export const caseStudies: CaseStudy[] = [
   {
     id: "katana",
     logo: "/case-studies/logo-katana.png",
-    title: "Bootstrapping Katana Network to $45.5M",
+    title: "Bootstrapping Katana Network to $500M",
     tvl: {
       target: 500,
       prefix: "$",
@@ -130,10 +133,10 @@ export const caseStudies: CaseStudy[] = [
       display: "8-42.6% APY",
       label: "Across four primary vaults",
       badges: [
-        { src: "/case-studies/apr-katana-eth.png", label: "8% APY", apy: 8, chartColor: "#627eea" },
-        { src: "/case-studies/apr-katana-btc.png", label: "18% APY", apy: 18, chartColor: "#f59e0b" },
-        { src: "/case-studies/apr-katana-usdc.png", label: "42.6% APY", apy: 42.6, chartColor: "#3b82f6" },
-        { src: "/case-studies/apr-katana-usdt.png", label: "42.6% APY", apy: 42.6, chartColor: "#22c55e" },
+        { src: "/case-studies/asset-eth.png", label: "8% APY", apy: 8, chartColor: "#627eea" },
+        { src: "/case-studies/asset-btc.png", label: "18% APY", apy: 18, chartColor: "#f59e0b" },
+        { src: "/case-studies/asset-usdc.png", label: "42.6% APY", apy: 42.6, chartColor: "#3b82f6" },
+        { src: "/case-studies/asset-usdt.png", label: "42.6% APY", apy: 42.6, chartColor: "#22c55e" },
       ],
     },
     thirdCard: {
@@ -161,7 +164,7 @@ export const caseStudies: CaseStudy[] = [
   {
     id: "decibel",
     logo: "/case-studies/logo-decibel.png",
-    title: "Decibel Reaches $10M in first 24 Hours",
+    title: "Reaching $10M in 24 Hours for Decibel",
     tvl: {
       target: 10,
       prefix: "$",
@@ -179,9 +182,9 @@ export const caseStudies: CaseStudy[] = [
       display: "19-28.2% APY",
       label: "Across key assets",
       badges: [
-        { src: "/case-studies/apr-tac-eth.png", label: "19.0% APR", apy: 19, chartColor: "#627eea" },
-        { src: "/case-studies/apr-tac-btc.png", label: "21.0% APR", apy: 21, chartColor: "#f59e0b" },
-        { src: "/case-studies/apr-tac-money.png", label: "28.0% APR", apy: 28, chartColor: "#a855f7" },
+        { src: "/case-studies/asset-eth.png", label: "19.0% APR", apy: 19, chartColor: "#627eea" },
+        { src: "/case-studies/asset-btc.png", label: "21.0% APR", apy: 21, chartColor: "#f59e0b" },
+        { src: "/case-studies/asset-stables.png", label: "28.0% APR", apy: 28, chartColor: "#00FF8B" },
       ],
     },
     thirdCard: {

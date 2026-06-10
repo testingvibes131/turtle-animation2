@@ -23,7 +23,6 @@ import {
 } from "@/features/blob-scene/lib/curators/zoneOverlay";
 import { tickHubAnchorRotationLag } from "@/features/blob-scene/lib/geometry/hubAnchorRotationLag";
 import { RENDER_PLEXUS_LINES } from "@/features/blob-scene/lib/rendering/renderOrder";
-import { mobileZoneLayoutSignature } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 
 const HUB_LOGO_OUTSET_MUL = 1.5;
 
@@ -53,18 +52,10 @@ export function ActiveCuratorZones() {
 
   useEffect(() => {
     if (!activeZone || !layoutZone) return;
-
-    if (mobileCarouselEnabled) {
-      if (
-        mobileZoneLayoutSignature(activeZone) ===
-        mobileZoneLayoutSignature(layoutZone)
-      ) {
-        return;
-      }
-      setActiveZone({ ...layoutZone, edges: [] });
-      return;
-    }
-
+    // Mobile carousel owns its zone (incl. freshly built edges); skip the layout
+    // merge so the edges' hub can't drift out of sync with the logo — that drift
+    // is what read as the lines detaching after a while.
+    if (mobileCarouselEnabled) return;
     if (zonesLayoutEqual(activeZone, layoutZone)) return;
     const merged = { ...layoutZone, edges: activeZone.edges };
     if (zonesLayoutEqual(activeZone, merged)) return;
@@ -80,10 +71,9 @@ export function ActiveCuratorZones() {
       ? orbitTargetsForZone(activeZone, new Set(activeZone.partners))
       : [];
 
-  const activeLineGroups =
-    !mobileCarouselEnabled && activeZone
-      ? [{ color: activeZone.curator.color, edges: activeZone.edges }]
-      : [];
+  const activeLineGroups = activeZone
+    ? [{ color: activeZone.curator.color, edges: activeZone.edges }]
+    : [];
 
   const hubPickOptions = {
     frontMinDot: params.frontMinDot,
@@ -104,9 +94,7 @@ export function ActiveCuratorZones() {
       hubAnchorRotationLagRef.current.synced = false;
     }
 
-    const lagEnabled = Boolean(
-      curatorOverlayEnabled && activeZone && !mobileCarouselEnabled,
-    );
+    const lagEnabled = Boolean(curatorOverlayEnabled && activeZone);
     tickHubAnchorRotationLag(
       hubAnchorRotationLagRef.current,
       blobGroupRef.current?.rotation.y ?? 0,
@@ -145,7 +133,6 @@ export function ActiveCuratorZones() {
           />
         )}
       {curatorOverlayEnabled &&
-        !mobileCarouselEnabled &&
         activeLineGroups.length > 0 &&
         activeZone ? (
           <group renderOrder={RENDER_PLEXUS_LINES}>

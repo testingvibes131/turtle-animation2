@@ -22,9 +22,8 @@ export function HeroCopy({ className = "" }: { className?: string }) {
         <p>
           Earning serious yield without blowing up is a full-time job. The big
           funds have a desk for it: analysts vetting deals, traders negotiating
-          terms, risk teams watching the clock.
+          terms, risk teams watching the clock. Turtle gives you the same desk.
         </p>
-        <p>Turtle gives you the same desk</p>
         <p>
           Diligenced deals, preferential terms, continuous monitoring, pointed
           at your book.

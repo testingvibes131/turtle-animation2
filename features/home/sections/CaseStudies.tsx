@@ -159,6 +159,8 @@ export function CaseStudies() {
 
   return (
     <SectionShell>
+      {/* Below-fold images (logos, badges, blog) are warmed by
+          DeferredImagePreloader after load — hero + 3D get bandwidth first. */}
       <div className="flex flex-col gap-[clamp(40px,5vw,64px)]">
         <RevealOnScroll>
           <SectionIntro>
@@ -208,10 +210,13 @@ export function CaseStudies() {
                     }}
                   />
                   <span
-                    className="line-clamp-2 text-left text-stone-50"
+                    className="line-clamp-2 text-left text-ink-primary"
                     style={{ fontSize: "clamp(13px, 1.1vw, 16px)", lineHeight: 1.4 }}
                   >
-                    {study.title}
+                    <span className="lg:hidden">
+                      {study.mobileTitle ?? study.title}
+                    </span>
+                    <span className="hidden lg:inline">{study.title}</span>
                   </span>
                 </span>
                 <span
@@ -267,13 +272,13 @@ export function CaseStudies() {
                   data-target={String(activeStudy.tvl.target)}
                   data-prefix={activeStudy.tvl.prefix}
                   data-suffix={activeStudy.tvl.suffix}
-                  className="max-lg:text-xl max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-stone-50 lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
+                  className="max-lg:text-[19px] max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-ink-primary lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
                 >
                   {activeStudy.tvl.display}
                 </div>
                 <div
                   key={`${activeStudy.id}-label`}
-                  className="max-lg:text-[9px] leading-[1.4] text-white/50 lg:text-[clamp(13px,1.1vw,16px)]"
+                  className="max-lg:text-[9px] leading-[1.4] text-ink-subtle lg:text-[clamp(13px,1.1vw,16px)]"
                 >
                   {activeStudy.tvl.label}
                 </div>
@@ -333,7 +338,7 @@ export function CaseStudies() {
                       data-target={String(activeStudy.boosted.target)}
                       data-prefix={activeStudy.boosted.prefix}
                       data-suffix={activeStudy.boosted.suffix}
-                      className="max-lg:text-xl max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-stone-50 lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
+                      className="max-lg:text-[19px] max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-ink-primary lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
                     >
                       {activeStudy.boosted.display}
                     </div>
@@ -347,28 +352,36 @@ export function CaseStudies() {
                       data-min-decimals={String(activeStudy.boosted.minDecimals)}
                       data-max-decimals={String(activeStudy.boosted.maxDecimals)}
                       data-suffix={activeStudy.boosted.suffix}
-                      className="max-lg:text-xl max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-stone-50 lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
+                      className="max-lg:text-[19px] max-lg:tracking-[-0.4px] font-normal leading-[1.2] text-ink-primary lg:text-[clamp(28px,3.2vw,40px)] lg:tracking-[-0.4px]"
                     >
                       {activeStudy.boosted.display}
                     </div>
                   )}
                   <div
                     key={`${activeStudy.id}-boosted-label`}
-                    className="max-lg:text-[9px] leading-[1.4] text-white/50 lg:text-[clamp(13px,1.1vw,16px)]"
+                    className="max-lg:text-[9px] leading-[1.4] text-ink-subtle lg:text-[clamp(13px,1.1vw,16px)]"
                   >
                     {activeStudy.boosted.label}
                   </div>
                 </div>
                 {activeStudy.boosted.badges.length > 0 ? (
                   <div
-                    className="mt-auto flex w-full flex-wrap items-center justify-evenly"
+                    className="mt-auto flex w-full flex-nowrap items-center justify-between gap-x-[clamp(3px,1vw,12px)]"
                     style={{ paddingBottom: "clamp(2px, 0.25vw, 6px)" }}
                   >
                     {sortAprBadgesByApy(activeStudy.boosted.badges).map((apr) => (
                       <span
                         key={apr.src}
-                        className="max-lg:text-[6px] min-w-0 truncate font-medium leading-[1.2] text-stone-50 lg:text-[clamp(9px,0.75vw,11px)]"
+                        className="flex shrink-0 items-center gap-[2px] whitespace-nowrap font-medium leading-[1.2] text-ink-primary max-lg:text-[6px] lg:gap-1 lg:text-[clamp(8px,0.68vw,10px)]"
                       >
+                        <Image
+                          src={apr.src}
+                          alt=""
+                          width={18}
+                          height={18}
+                          loading="eager"
+                          className="shrink-0 rounded-full max-lg:size-[8px] lg:size-[clamp(11px,0.9vw,14px)]"
+                        />
                         {apr.label}
                       </span>
                     ))}

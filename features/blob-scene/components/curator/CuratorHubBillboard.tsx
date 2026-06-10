@@ -9,7 +9,6 @@ import {
   useBlobCuratorOverlayEnabled,
   useBlobMobileZoneCarouselEnabled,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
-import { mobileHubLogoLocalPosition } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 import type { BlobVisualParams } from "@/features/blob-scene/hooks/useBlobControls";
 import { curatorLogoPath, CURATOR_LOGO_PATHS } from "@/features/blob-scene/lib/curators/logo";
 import {
@@ -21,6 +20,7 @@ import {
   type HubAnchorOptions,
 } from "@/features/blob-scene/lib/curators/zones";
 import { readCachedVertexPosition } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
+import { mobilePulledHubLocal } from "@/features/blob-scene/lib/scroll/mobileHubLogo";
 import type { IcosahedronVertexData } from "@/features/blob-scene/lib/geometry/perlinBlob";
 import { billboardToCamera } from "@/features/blob-scene/lib/geometry/billboardToCamera";
 import { RENDER_HUB_LOGO } from "@/features/blob-scene/lib/rendering/renderOrder";
@@ -101,7 +101,10 @@ export function CuratorHubBillboard({
     readCachedVertexPosition(frameCache, hubIndex, _wobbledHub);
 
     if (mobileCarouselEnabled) {
-      mobileHubLogoLocalPosition(_wobbledHub, getTowardCamera(), _hubPos);
+      // Mobile: pull the logo to the camera-facing centre (clustered, holds the
+      // centre as the globe turns). The lines use the same anchor, so they stay
+      // attached to the logo while the fan carries the per-partner difference.
+      mobilePulledHubLocal(_wobbledHub, getTowardCamera(), _hubPos);
       root.position.copy(_hubPos);
     } else {
       displacedHubAnchorPosition(

@@ -28,7 +28,7 @@ export function CaseStudyThirdCard({ card }: Props) {
                 className={[
                   "flex items-center",
                   index < card.applications.length - 1
-                    ? "border-b border-dotted border-white/15"
+                    ? "border-b border-dotted border-[var(--stroke-strong)]"
                     : "",
                 ].join(" ")}
                 style={{
@@ -44,10 +44,10 @@ export function CaseStudyThirdCard({ card }: Props) {
                   className="size-7 shrink-0 rounded-full object-cover lg:size-10"
                 />
                 <div className="min-w-0 text-left leading-[1.35]">
-                  <p className="text-stone-50 max-lg:text-[10px] lg:text-[clamp(14px,1.15vw,17px)]">
+                  <p className="text-ink-primary max-lg:text-[10px] lg:text-[clamp(14px,1.15vw,17px)]">
                     {app.name}
                   </p>
-                  <p className="text-white/50 max-lg:text-[9px] lg:text-[clamp(12px,1vw,14px)]">
+                  <p className="text-ink-subtle max-lg:text-[9px] lg:text-[clamp(12px,1vw,14px)]">
                     {app.category}
                   </p>
                 </div>
@@ -64,7 +64,7 @@ export function CaseStudyThirdCard({ card }: Props) {
         >
           <div className="text-left leading-[1.4]">
             {card.footerLines.map((line) => (
-              <p key={line} className="text-stone-50 max-lg:text-sm lg:text-lg">
+              <p key={line} className="text-ink-primary max-lg:text-[13px] lg:text-lg">
                 {line}
               </p>
             ))}
@@ -87,7 +87,7 @@ export function CaseStudyThirdCard({ card }: Props) {
       >
         {card.avatarSrc ? (
           <div
-            className="inline-flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-stone-50/10"
+            className="inline-flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-[var(--stroke-subtle)]"
             style={{
               boxShadow:
                 "0 4.5px 56.6px rgba(0,0,0,0.4), inset 2.9px 2.9px 19.3px rgba(215,215,215,0.15), inset 2.9px 0.97px 9.67px rgba(255,255,255,0.25)",
@@ -103,8 +103,19 @@ export function CaseStudyThirdCard({ card }: Props) {
           </div>
         ) : null}
         <div className="min-w-0 text-left leading-[1.4]">
-          <p className="text-stone-50 max-lg:text-sm lg:text-lg">{card.authorName}</p>
-          <p className="text-white/50 max-lg:text-[10px] lg:text-xs">{card.authorRole}</p>
+          <p className="text-ink-primary max-lg:text-[13px] lg:text-lg">{card.authorName}</p>
+          <p className="text-ink-subtle max-lg:text-[10px] lg:text-xs">
+            {card.authorRole.includes(" & ") ? (
+              <>
+                {card.authorRole.slice(0, card.authorRole.indexOf(" & ") + 1)}
+                <span className="max-lg:block">
+                  {card.authorRole.slice(card.authorRole.indexOf(" & ") + 1)}
+                </span>
+              </>
+            ) : (
+              card.authorRole
+            )}
+          </p>
         </div>
       </div>
     </div>

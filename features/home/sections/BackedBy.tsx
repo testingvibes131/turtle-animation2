@@ -13,7 +13,7 @@ export function BackedBy() {
       <div className="px-6 md:px-10 lg:px-[100px]">
         <RevealOnScroll>
           <SectionIntro className="items-start">
-            <h2 className="bg-clip-text pb-[0.05em] text-left text-lg font-normal leading-[1.2] tracking-[-0.4px] text-transparent text-gradient-heading">
+            <h2 className="bg-clip-text pb-[0.05em] text-left text-[23px] font-normal leading-[1.2] tracking-[-0.4px] lg:text-2xl text-transparent text-gradient-heading">
               Backed by
             </h2>
           </SectionIntro>

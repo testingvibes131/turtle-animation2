@@ -5,7 +5,8 @@ const BASE = {
   radius: 0.77,
   detail: 24,
   noiseScale: 4.25,
-  displacementDivisor: 38,
+  // Lower divisor = larger displacement = more warped (less perfect-sphere) blob.
+  displacementDivisor: 30,
   perlinPeriod: 0.3,
   timeSpeed: 0.01,
   pointSizeRatio: 0.13,

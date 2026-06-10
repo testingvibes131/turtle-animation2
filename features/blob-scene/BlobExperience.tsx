@@ -43,7 +43,7 @@ export function BlobScene({ params }: { params: BlobVisualParams }) {
         far: 100,
       }}
       dpr={dpr}
-      gl={{ antialias: true, alpha: false }}
+      gl={{ antialias: true, alpha: true }}
     >
       <BlobSceneShell params={params} />
     </Canvas>

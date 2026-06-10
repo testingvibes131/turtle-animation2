@@ -13,7 +13,7 @@ type Props = {
 /** Bottom foot below the union waist. */
 export const commandCenterCardFooterClass = [
   "flex min-h-[clamp(104px,13vw,140px)] flex-col",
-  "px-[clamp(10px,1vw,14px)] pt-[clamp(16px,1.6vw,22px)] text-sm",
+  "px-[clamp(10px,1vw,14px)] pt-[clamp(16px,1.6vw,22px)] text-[13px] lg:text-sm",
 ].join(" ");
 
 /** Nudge copy down into the foot without changing shell padding. */

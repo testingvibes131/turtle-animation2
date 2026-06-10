@@ -46,7 +46,7 @@ export function Pipeline() {
     >
       <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
         <RevealOnScroll className="pipeline-stage-header shrink-0 max-lg:pt-0 lg:pt-14">
-          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-4xl font-normal leading-[1.2] tracking-[-0.8px] text-transparent text-gradient-heading lg:whitespace-nowrap">
+          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-[35px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-4xl text-transparent text-gradient-heading lg:whitespace-nowrap">
             The tools a fund runs on, now yours.
           </h2>
         </RevealOnScroll>
@@ -86,7 +86,7 @@ export function Pipeline() {
                 }
                 role={carouselMode ? undefined : "button"}
                 tabIndex={carouselMode ? undefined : 0}
-                className="pipeline-card group flex flex-col items-start justify-between gap-[clamp(10px,1vw,14px)] rounded-2xl border border-white/10 max-lg:cursor-default lg:cursor-pointer"
+                className="pipeline-card group flex flex-col items-start justify-between gap-[clamp(10px,1vw,14px)] rounded-2xl border border-[var(--stroke-default)] max-lg:cursor-default lg:cursor-pointer"
                 style={{
                   padding: "clamp(14px, 1.4vw, 20px)",
                   height: "clamp(160px, 14vw, 209px)",
@@ -113,19 +113,21 @@ export function Pipeline() {
                   className="flex w-full flex-col"
                   style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
                 >
-                  <h3 className="pipeline-card-title text-2xl font-normal leading-[1.3] tracking-[0.015em]">
+                  <h3 className="pipeline-card-title text-[23px] font-normal leading-[1.3] tracking-[0.015em] lg:text-2xl">
                     {step.title}
                   </h3>
-                  <p
-                    className="pipeline-card-body"
-                    style={{
-                      fontSize: "clamp(14px, 1.05vw, 16px)",
-                      lineHeight: 1.4,
-                      color: "rgba(239, 248, 237, 0.5)",
-                    }}
-                  >
-                    {step.body}
-                  </p>
+                  <div className="pipeline-card-body-wrap">
+                    <p
+                      className="pipeline-card-body"
+                      style={{
+                        fontSize: "clamp(14px, 1.05vw, 16px)",
+                        lineHeight: 1.4,
+                        color: "var(--ink-muted)",
+                      }}
+                    >
+                      {step.body}
+                    </p>
+                  </div>
                 </div>
               </article>
               );

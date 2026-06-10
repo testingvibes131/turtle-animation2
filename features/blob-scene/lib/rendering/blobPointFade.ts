@@ -78,6 +78,7 @@ export function markInstanceOpacityDirty(mesh: THREE.InstancedMesh): void {
 export function attachBlobPointFade(
   material: THREE.MeshBasicMaterial,
   uniforms: MarkerDepthFadeUniforms,
+  cacheKey: string = BLOB_POINT_FADE_KEY,
 ): void {
   const tagged = material as THREE.MeshBasicMaterial & {
     _blobPointFade?: boolean;
@@ -87,7 +88,7 @@ export function attachBlobPointFade(
 
   material.transparent = true;
   material.depthWrite = false;
-  material.customProgramCacheKey = () => BLOB_POINT_FADE_KEY;
+  material.customProgramCacheKey = () => cacheKey;
 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
