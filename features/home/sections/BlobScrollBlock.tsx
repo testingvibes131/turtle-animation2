@@ -14,6 +14,8 @@ import { scrollWobbleStrengthFromDelta } from "@/features/blob-scene/lib/geometr
 
 const MOBILE_BLOB_QUERY = "(max-width: 1023px)";
 const GRAY_DOT_MIX = 1;
+/** Partner highlights are desktop-hover only; mobile keeps the bare blob. */
+const MOBILE_ZONE_CAROUSEL = false;
 /** Hero (section 1) uses mirrored section-2 layout until scroll crosses center. */
 const LAYOUT_MIRROR_THRESHOLD = 0.5;
 
@@ -83,7 +85,9 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       setInteractionEnabled(!isMobile && inSection2);
       // Mobile carousel: only once the blob is fully past the hero (finishing spin
       // done), not during the 85%+ approach — stops a partner flashing mid-spin.
-      setMobileZoneCarouselEnabled(isMobile && inSection2 && !inSec1);
+      setMobileZoneCarouselEnabled(
+        MOBILE_ZONE_CAROUSEL && isMobile && inSection2 && !inSec1,
+      );
     };
 
     const updateScroll = () => {

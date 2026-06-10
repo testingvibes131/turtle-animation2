@@ -66,7 +66,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         theme === "light" ? "Switch to dark mode" : "Switch to light mode"
       }
       className={[
-        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--stroke-default)] bg-[var(--surface-subtle-3)] text-ink-primary transition-colors hover:bg-[var(--fill)]",
+        // Same shell recipe as the header's Enter App pill (headerMenuShellBase).
+        "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-[0.6px] border-solid border-stroke-subtle bg-subtle text-ink-primary transition-colors hover:bg-[var(--fill)]",
         className,
       ].join(" ")}
     >

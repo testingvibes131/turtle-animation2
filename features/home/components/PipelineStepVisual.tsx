@@ -55,7 +55,9 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
             priority
             sizes="420px"
             className="object-contain"
-            style={{ objectPosition: slideObjectPosition(activeIndex, steps.length) }}
+            /* Mobile fits by height with one centered slide; edge-bracket
+               pinning (slideObjectPosition) stays desktop-only. */
+            style={{ objectPosition: "50% 100%" }}
           />
         </div>
       </div>

@@ -22,10 +22,15 @@ export const BLOB_SECTION1_X_LEFT_FRAC = 0.6;
 export const BLOB_SECTION2_Y_LOWER_FRAC = 0.22;
 
 /** Landscape section 2: raise the blob this fraction of half-height above center. */
-export const BLOB_SECTION2_Y_RAISE_FRAC = 0.1;
+export const BLOB_SECTION2_Y_RAISE_FRAC = 0.18;
 
 /** Portrait section 2: scale relative to section 1. */
 export const BLOB_SECTION2_SCALE_PORTRAIT = 0.6;
+
+/** Landscape section 2: gap between the blob's right edge and the viewport
+ *  edge, as a fraction of blob diameter — flush-right on every aspect ratio
+ *  (the old half-centre target drifted inward on wide/short windows). */
+export const BLOB_SECTION2_RIGHT_INSET_FRAC = 0.02;
 
 export function blobVisualExtent(
   params: Pick<PerlinBlobParams, "radius" | "noiseScale" | "displacementDivisor">,
@@ -93,7 +98,9 @@ export function computeBlobOffsetXForScroll(
   const section2X =
     viewportAspect < 1
       ? 0
-      : computeBlobOffsetXInHalf(camera, viewportAspect, extent, 1);
+      : viewHalfExtents(camera, viewportAspect).halfViewWidth -
+        extent -
+        BLOB_SECTION2_RIGHT_INSET_FRAC * extent * 2;
   const section1X =
     viewportAspect < 1
       ? computeBlobOffsetXInHalf(camera, viewportAspect, extent, -1)

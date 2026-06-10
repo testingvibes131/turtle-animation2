@@ -42,12 +42,15 @@ export function PartnerMarqueeRow({
             className="partner-card"
             aria-hidden={partner.hidden}
           >
+            {/* Eager: lazy copies paint late as the track slides them in,
+                which reads as a glitch. Copies share cached srcs, so cheap. */}
             <Image
               src={partner.src}
               alt={partner.hidden ? "" : partner.alt}
               width={189}
               height={105}
               className="partner-logo"
+              loading="eager"
             />
           </div>
         ))}

@@ -187,7 +187,7 @@ function BenchmarkRatesCard() {
 export function HeroStatsPanel() {
   return (
     <aside
-      className="relative isolate z-10 mt-[clamp(64px,16svh,140px)] flex w-full flex-col pb-4 lg:mt-0 lg:pb-[clamp(24px,4vh,48px)] lg:pointer-events-none lg:items-end"
+      className="relative isolate z-10 mt-[clamp(80px,23svh,200px)] flex w-full flex-col pb-4 lg:mt-0 lg:pb-[clamp(24px,4vh,48px)] lg:pointer-events-none lg:items-end"
       aria-label="Platform statistics"
     >
       {/* Mobile: stacked column. Desktop: big card left, TVL + benchmark stacked right. */}

@@ -249,6 +249,10 @@ body {
   align-items: center;
   width: max-content;
   gap: 100px;
+  /* Trailing gap: flex `gap` puts nothing after the last item, leaving the
+     track half a gap short of two exact tiles — the -50% wrap then snaps by
+     gap/2 every loop. Padding the tail makes the loop seamless. */
+  padding-right: 100px;
   animation: logo-marquee-scroll 54s linear infinite;
   will-change: transform;
 }
@@ -408,7 +412,10 @@ body {
   /* Wide anchored visual + object-position pins edge brackets to first/last cards */
   .pipeline-stage-main {
     --pipeline-visual-width: min(calc(100vw - 48px), 420px);
-    --pipeline-visual-height: calc(var(--pipeline-visual-width) * 701 / 711);
+    /* Box must be wider-aspect than every step PNG (max 2880/2212) so contain
+       fits by HEIGHT — the taller first/last exports then scale their larger
+       monitor artwork down to match the middle cards, same as desktop. */
+    --pipeline-visual-height: calc(var(--pipeline-visual-width) * 0.76);
     --pipeline-visual-max-h: none;
     --pipeline-visual-scale: 1;
     --pipeline-visual-top: 0;
@@ -815,6 +822,9 @@ body {
   width: max-content;
   align-items: center;
   column-gap: var(--partner-card-gap-x);
+  /* Trailing gap so the -50% wrap lands exactly on a tile boundary (without
+     it the loop snaps by half a gap — see .logo-marquee__track). */
+  padding-right: var(--partner-card-gap-x);
   animation: partner-marquee-scroll linear infinite;
   will-change: transform;
 }
@@ -1051,10 +1061,16 @@ body {
 
 @media (max-width: 1279px) {
   .team-grid__cta {
-    grid-column: auto;
+    grid-column: 1 / -1;
     align-self: stretch;
     aspect-ratio: auto;
     min-height: 0;
+    justify-content: flex-end;
+  }
+
+  .team-grid__cta-link {
+    /* <1024 is set to 13px again in the mobile type-shrink block below. */
+    font-size: 13px;
   }
 }
 
@@ -1363,7 +1379,7 @@ body {
   .text-section-title { font-size: clamp(1.28rem, 2.3vw, 2.1rem); }
   .section-intro__copy p { font-size: clamp(0.875rem, 1.2vw, 1.125rem); }
   .team-card__name { font-size: clamp(15px, 1.04vw, 20px); }
-  .team-grid__cta-link { font-size: clamp(15px, 1.04vw, 20px); }
+  .team-grid__cta-link { font-size: 13px; }
   .update-card__title { font-size: clamp(17px, 1.7vw, 22px); }
   .update-card__desc { font-size: clamp(13px, 1.15vw, 16px); }
   .update-card__cta { font-size: clamp(13px, 1.15vw, 16px); }

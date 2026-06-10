@@ -16,11 +16,17 @@ export function HeroSection() {
               width="none"
               className="items-center gap-0 lg:items-start"
             >
-              <h1 className="w-full overflow-visible bg-clip-text pb-[0.08em] text-[35px] font-normal leading-tight tracking-[0.4px] text-transparent text-gradient-heading lg:text-6xl lg:leading-[1.1]">
+              {/* Desktop clamp caps at 60px (old text-6xl) at the same ~1460px
+                  width where the tagline clamp caps, so both scale together. */}
+              <h1 className="w-full overflow-visible bg-clip-text pb-[0.08em] text-[35px] font-normal leading-tight tracking-[0.4px] text-transparent text-gradient-heading lg:text-[clamp(2.4rem,4.11vw,3.75rem)] lg:leading-[1.1]">
                 <span className="block lg:inline">Onchain</span>{" "}
                 <span className="block lg:inline">Yield Management</span>
               </h1>
-              <p className="-mt-1 bg-clip-text text-[23px] font-normal leading-[1.4] text-transparent text-gradient-heading lg:mt-[clamp(2px,0.3vw,4px)] lg:text-2xl lg:leading-[1.3]">
+              {/* Desktop: section-title size. -4px trims the 60px H1's extra
+                  internal leading + pb to a ~39px glyph gap — eyeballed against
+                  the 25px section-intro rhythm, with extra air for the larger
+                  hero type. */}
+              <p className="-mt-1 bg-clip-text text-[23px] font-normal leading-[1.4] text-transparent text-gradient-heading lg:mt-[-4px] lg:text-[clamp(1.35rem,2.3vw,2.1rem)] lg:leading-[1.3]">
                 Aggregated, Diligenced, Personalized
               </p>
               <div className="pointer-events-auto mt-8 flex flex-wrap justify-center gap-2 lg:mt-7 lg:justify-start">

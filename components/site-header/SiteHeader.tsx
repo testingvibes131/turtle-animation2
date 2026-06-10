@@ -21,9 +21,10 @@ const headerMenuShellBase =
 
 const headerMenuShell = `inline-flex items-center ${headerMenuShellBase}`;
 
-/** Figma mobile hamburger (1282:81331) */
+/** Figma mobile hamburger (1282:81331) — same shell recipe as Enter App /
+    ThemeToggle, green lines via text color. */
 const mobileMenuButtonShell =
-  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-stroke-default bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
+  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-[0.6px] border-solid border-stroke-subtle bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
 
 const navLinkClass = (active: boolean) =>
   [
@@ -189,6 +190,7 @@ export function SiteHeader() {
               headerMenuShell,
               "px-5 py-3 text-[12px] font-normal leading-[1.2] transition-colors",
               "text-ink-primary lg:text-xs",
+              "lg:hover:bg-fill lg:hover:text-green-400",
             ].join(" ")}
           >
             Enter App

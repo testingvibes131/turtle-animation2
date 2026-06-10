@@ -366,7 +366,15 @@ export function CaseStudies() {
                 </div>
                 {activeStudy.boosted.badges.length > 0 ? (
                   <div
-                    className="mt-auto flex w-full flex-nowrap items-center justify-between gap-x-[clamp(3px,1vw,12px)]"
+                    className={[
+                      "mt-auto flex w-full flex-nowrap items-center justify-between gap-x-[clamp(3px,1vw,12px)] px-[10px] lg:px-[clamp(16px,1.65vw,25px)]",
+                      // 3 bars sit at the chart's quarter points; evenly puts the
+                      // chip centres (~22/50/78%) on top of them. The 4-badge
+                      // card already lines up under justify-between.
+                      activeStudy.boosted.badges.length === 3
+                        ? "lg:justify-evenly"
+                        : "",
+                    ].join(" ")}
                     style={{ paddingBottom: "clamp(2px, 0.25vw, 6px)" }}
                   >
                     {sortAprBadgesByApy(activeStudy.boosted.badges).map((apr) => (
@@ -382,7 +390,17 @@ export function CaseStudies() {
                           loading="eager"
                           className="shrink-0 rounded-full max-lg:size-[8px] lg:size-[clamp(11px,0.9vw,14px)]"
                         />
-                        {apr.label}
+                        {/* Mobile drops the APR/APY suffix — icon + percentage fit the narrow card. */}
+                        {/^(.*) (APR|APY)$/.test(apr.label) ? (
+                          <>
+                            {apr.label.replace(/ (APR|APY)$/, "")}
+                            <span className="max-lg:hidden">
+                              {apr.label.slice(-3)}
+                            </span>
+                          </>
+                        ) : (
+                          apr.label
+                        )}
                       </span>
                     ))}
                   </div>
