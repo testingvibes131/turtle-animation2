@@ -407,9 +407,17 @@ body {
 
 @media (min-width: 1024px) {
   .pipeline-visual {
-    /* Edge-card selections: the monitor travels with the card and hangs
-       over it, guarded only by a 24px screen margin. */
-    --pipeline-visual-clamp-margin: 24px;
+    /* Desktop: centre on the selected card, letting edge cards bleed up to
+       --pipeline-visual-bleed past the VIEWPORT edge (html overflow-x: clip
+       absorbs it). 0.44 = half the 0.88 render scale, converting the width
+       var to rendered half-width; the max() term cancels the centred
+       stage's offset on >1728px screens so the bleed is viewport-true. */
+    --pipeline-visual-bleed: 100px;
+    left: clamp(
+      calc(0.44 * var(--pipeline-visual-width) - max(0px, (100vw - 1728px) / 2) - var(--pipeline-visual-bleed)),
+      var(--pipeline-visual-x, 50%),
+      calc(100% - 0.44 * var(--pipeline-visual-width) + max(0px, (100vw - 1728px) / 2) + var(--pipeline-visual-bleed))
+    );
   }
 }
 
