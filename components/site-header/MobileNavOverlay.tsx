@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   MoonIcon,
@@ -78,8 +78,51 @@ export function MobileNavOverlay({
   onClose,
   menuIcon,
 }: MobileNavOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Modal focus management: move focus into the dialog on open (SiteHeader
+  // restores it to the hamburger on close)…
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  // …and keep Tab cycling inside it — the page behind is still in the DOM.
+  // Listens on document (like SiteHeader's Escape handler): a click on the
+  // overlay's whitespace drops focus to <body>, where a dialog-scoped
+  // handler would never see the Tab and focus would walk the hidden page.
+  useEffect(() => {
+    const trapTab = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled])",
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || !root.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", trapTab);
+    return () => document.removeEventListener("keydown", trapTab);
+  }, []);
+
   return createPortal(
     <div
+      ref={dialogRef}
       className="mobile-nav-overlay flex flex-col bg-surface-0 text-ink-primary lg:hidden"
       role="dialog"
       aria-modal="true"
@@ -116,6 +159,7 @@ export function MobileNavOverlay({
           </Link>
 
           <button
+            ref={closeButtonRef}
             type="button"
             className={mobileMenuButtonShell}
             aria-label="Close menu"

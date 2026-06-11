@@ -1,15 +1,23 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRef } from "react";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { updates } from "@/features/home/data/updates";
+import { useUpdatesScrollDrift } from "@/features/home/hooks/useUpdatesScrollDrift";
 
 export function LatestUpdates() {
   const cards = [...updates, ...updates];
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  useUpdatesScrollDrift(scrollerRef);
 
   return (
     <section
-      className="relative w-full"
+      // Same 1728px cap as BackedBy so the two headers share a left edge on
+      // wide screens.
+      className="relative mx-auto w-full max-w-[1728px]"
       style={{
         paddingTop: "clamp(48px, 6vw, 80px)",
         paddingBottom: "clamp(48px, 6vw, 80px)",
@@ -17,13 +25,13 @@ export function LatestUpdates() {
     >
       <div className="w-full px-6 md:px-10 lg:px-[100px]">
         <RevealOnScroll>
-          <h2 className="max-w-[22ch] bg-clip-text pb-[0.05em] text-[23px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-2xl text-transparent text-gradient-heading">
+          <h2 className="max-w-[22ch] bg-clip-text pb-[0.05em] text-[18px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-2xl text-transparent text-gradient-heading">
             Latest Updates
           </h2>
         </RevealOnScroll>
       </div>
 
-      <div className="updates-scroll mt-[clamp(24px,3vw,40px)] w-full">
+      <div ref={scrollerRef} className="updates-scroll mt-[clamp(12px,1.25vw,20px)] w-full">
         <div className="updates-scroll__track">
           {cards.map((article, index) => (
             <article

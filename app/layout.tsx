@@ -6,6 +6,20 @@ export const metadata: Metadata = {
   title: "Turtle — Onchain Yield Management",
   description:
     "Aggregated, diligenced, personalized onchain yield management.",
+  metadataBase: new URL("https://turtle.xyz"),
+  openGraph: {
+    title: "Turtle — Onchain Yield Management",
+    description:
+      "Aggregated, diligenced, personalized onchain yield management.",
+    type: "website",
+    siteName: "Turtle",
+  },
+  twitter: {
+    card: "summary",
+    title: "Turtle — Onchain Yield Management",
+    description:
+      "Aggregated, diligenced, personalized onchain yield management.",
+  },
 };
 
 export const viewport: Viewport = {

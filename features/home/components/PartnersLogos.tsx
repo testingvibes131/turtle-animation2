@@ -18,11 +18,14 @@ export function PartnersLogos({
   return (
     <section
       className={[
-        "pointer-events-none z-10 w-full",
+        // No base w-full: it would override the flow variant's breakout
+        // width (same-specificity width utilities), leaving the strip flush
+        // left but inset on the right.
+        "pointer-events-none z-10",
         variant === "flow" &&
           "relative -mx-6 w-[calc(100%+3rem)] md:-mx-10 md:w-[calc(100%+5rem)] lg:-mx-[100px] lg:w-[calc(100%+200px)]",
-        variant === "pinned" && "absolute inset-x-0 bottom-0",
-        variant === "overlay" && "absolute inset-x-0 bottom-0",
+        variant === "pinned" && "absolute inset-x-0 bottom-0 w-full",
+        variant === "overlay" && "absolute inset-x-0 bottom-0 w-full",
         className,
       ]
         .filter(Boolean)

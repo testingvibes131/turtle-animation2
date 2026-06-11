@@ -10,7 +10,8 @@ export function HeroSection() {
       className="relative z-10 flex w-full flex-col pointer-events-none lg:min-h-[calc(100dvh-var(--site-header-height))]"
     >
       <div className="mx-auto flex w-full max-w-[1728px] flex-col px-6 md:px-10 lg:flex-1 lg:px-[60px]">
-        <div className="w-full pt-[clamp(12px,3svh,60px)] lg:flex-1 lg:pt-[clamp(28px,4.5svh,88px)]">
+        {/* +2svh on both tiers: drops the hero copy a touch down the page. */}
+        <div className="w-full pt-[calc(clamp(12px,3svh,60px)+2svh)] lg:flex-1 lg:pt-[calc(clamp(28px,4.5svh,88px)+2svh)]">
           <RevealOnScroll className="w-full text-center lg:text-left">
             <SectionIntro
               width="none"

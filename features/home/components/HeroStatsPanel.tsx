@@ -160,7 +160,7 @@ function DefiTvlCard() {
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-[26px] font-normal leading-none text-ink-primary">$134.2bn</p>
           <span className="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border border-ink-faint bg-subtle px-2 py-1 text-[10px] font-normal leading-[1.2]">
-            <span className="text-[rgba(255,6,8,0.8)]">-0.15%</span>
+            <span className="text-(--status-error)/80">-0.15%</span>
             <span className="tracking-[-0.16px] text-ink-subtle">24hr</span>
           </span>
         </div>

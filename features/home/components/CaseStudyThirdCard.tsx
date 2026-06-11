@@ -86,13 +86,7 @@ export function CaseStudyThirdCard({ card }: Props) {
         }}
       >
         {card.avatarSrc ? (
-          <div
-            className="inline-flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-[var(--stroke-subtle)]"
-            style={{
-              boxShadow:
-                "0 4.5px 56.6px rgba(0,0,0,0.4), inset 2.9px 2.9px 19.3px rgba(215,215,215,0.15), inset 2.9px 0.97px 9.67px rgba(255,255,255,0.25)",
-            }}
-          >
+          <div className="case-avatar-gloss inline-flex size-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full outline outline-[0.42px] outline-offset-[-0.42px] outline-[var(--stroke-subtle)]">
             <Image
               src={card.avatarSrc}
               alt=""

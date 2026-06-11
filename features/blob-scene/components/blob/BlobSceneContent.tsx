@@ -17,12 +17,16 @@ import {
   useBlobInteraction,
 } from "@/features/blob-scene/hooks/useBlobInteraction";
 import {
+  useBlobMotionProgressRef,
   useBlobZoneHighlightActive,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import { useMobileZoneCarousel } from "@/features/blob-scene/hooks/useMobileZoneCarousel";
 import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
-import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
+import {
+  blobVisualExtent,
+  computeBlobScrollMotion,
+} from "@/features/blob-scene/lib/geometry/blobViewportOffset";
 import { BLOB_SCROLL_EASE_RATE } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
@@ -32,19 +36,16 @@ import { createHubAnchorRotationLagState } from "@/features/blob-scene/lib/geome
 
 type BlobSceneContentProps = {
   params: BlobVisualParams;
-  scrollMotion: BlobScrollMotion;
 };
 
-export function BlobSceneContent({
-  params,
-  scrollMotion,
-}: BlobSceneContentProps) {
+export function BlobSceneContent({ params }: BlobSceneContentProps) {
   const blobGroupRef = useRef<THREE.Group>(null);
-  // Scroll placement is eased per-frame (see useFrame below) toward the latest
-  // target, so the blob tracks scroll smoothly regardless of React re-render timing.
+  // Scroll placement is eased per-frame (see useFrame below) toward a target
+  // computed from the scroll-progress ref, so the blob tracks scroll smoothly
+  // without any React re-render in the loop.
   const outerGroupRef = useRef<THREE.Group>(null);
-  const scrollMotionRef = useRef(scrollMotion);
-  scrollMotionRef.current = scrollMotion;
+  const motionProgressRef = useBlobMotionProgressRef();
+  const layoutExtent = useMemo(() => blobVisualExtent(params), [params]);
   const motionReadyRef = useRef(false);
   const zoneUsedRef = useRef<Set<number>>(new Set());
   const zonesSnapshotRef = useRef<BlobSceneContextValue["zonesSnapshotRef"]["current"]>([]);
@@ -172,10 +173,15 @@ export function BlobSceneContent({
     zoneHighlightActive,
   );
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const g = outerGroupRef.current;
     if (!g) return;
-    const m = scrollMotionRef.current;
+    const m = computeBlobScrollMotion(
+      state.camera as THREE.PerspectiveCamera,
+      state.size.width / Math.max(state.size.height, 1),
+      layoutExtent,
+      motionProgressRef.current,
+    );
     if (!motionReadyRef.current) {
       g.position.set(m.offsetX, m.offsetY, 0);
       g.scale.setScalar(m.scale);

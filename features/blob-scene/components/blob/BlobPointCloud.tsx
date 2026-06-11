@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
+import { usePrefersReducedMotionRef } from "@/features/blob-scene/hooks/usePrefersReducedMotion";
 import {
   attachBlobPointFade,
   ensureInstanceOpacityBuffer,
@@ -96,6 +97,8 @@ export function BlobPointCloud({
 
   const pointMeshRef = useRef<THREE.InstancedMesh>(null);
   const debugPickableMeshRef = useRef<THREE.InstancedMesh>(null);
+  const reducedMotionRef = usePrefersReducedMotionRef();
+  const frozenElapsedRef = useRef<number | null>(null);
 
   const pointMaterial = useMemo(() => {
     const mat = new THREE.MeshBasicMaterial({
@@ -120,6 +123,10 @@ export function BlobPointCloud({
 
   useEffect(() => () => pointMaterial.dispose(), [pointMaterial]);
   useEffect(() => () => debugPickableMaterial.dispose(), [debugPickableMaterial]);
+  // The geometries are created imperatively (not JSX-declared), so R3F's
+  // auto-dispose doesn't cover them.
+  useEffect(() => () => pointGeo.dispose(), [pointGeo]);
+  useEffect(() => () => debugGeo.dispose(), [debugGeo]);
 
   // Theme-reactive resting colour for the point cloud — reads the --blob-point
   // token and re-applies on theme change. Partner washes keep their own colours.
@@ -148,8 +155,20 @@ export function BlobPointCloud({
 
   useFrame((state, delta) => {
     const group = blobGroupRef.current;
-    const clockTime = state.clock.elapsedTime * params.timeSpeed;
-    const shouldRotate = tickAnimationTime(clockTime);
+    // Reduced motion: hold the clock so the autonomous animations (Perlin
+    // morph, Y-spin, silver ripple) freeze in place — scroll-driven placement
+    // still applies. Freezing at the current value (not 0) keeps a mid-session
+    // preference toggle from snapping the blob to a different shape.
+    const reducedMotion = reducedMotionRef.current;
+    let elapsed = state.clock.elapsedTime;
+    if (reducedMotion) {
+      frozenElapsedRef.current ??= elapsed;
+      elapsed = frozenElapsedRef.current;
+    } else {
+      frozenElapsedRef.current = null;
+    }
+    const clockTime = elapsed * params.timeSpeed;
+    const shouldRotate = tickAnimationTime(clockTime) && !reducedMotion;
 
     // Orbit continuously (including dispersed/landing mode); the hover freeze
     // pauses the Perlin morph, not this Y-spin.
@@ -227,7 +246,7 @@ export function BlobPointCloud({
 
     if (pointMesh) {
       ensureInstanceOpacityBuffer(pointMesh, vertexIndices.length);
-      const gradientT = state.clock.elapsedTime * GRADIENT_DRIFT;
+      const gradientT = elapsed * GRADIENT_DRIFT;
       for (let vi = 0; vi < vertexIndices.length; vi++) {
         const i = vertexIndices[vi]!;
         writeInstance(pointMesh, i, vi, BLOB_POINT_SCALE_MUL, zoneUsed.has(i));

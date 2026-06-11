@@ -169,7 +169,7 @@ export const caseStudies: CaseStudy[] = [
       target: 10,
       prefix: "$",
       suffix: "M",
-      display: "$800M",
+      display: "$10M",
       label: "Deployed within 24hrs",
     },
     boosted: {

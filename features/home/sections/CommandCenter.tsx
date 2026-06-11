@@ -54,22 +54,23 @@ export function CommandCenter() {
               matters. All trustless, all self-custodial.
             </p>
           </SectionIntroCopy>
+          {/* self-start: hug the label (the intro column stretches children). */}
           <CtaPill
             href="#"
-            label="Manage your assets with Turtle"
-            className="w-full max-w-[280px] sm:w-[280px]"
+            label="Manage Assets with Turtle"
+            className="section-intro__cta self-start"
           />
         </SectionIntro>
       </RevealOnScroll>
 
-      <div className="grid w-full grid-cols-1 items-stretch gap-6 md:grid-cols-3 md:justify-items-center md:gap-[clamp(11px,1.2vw,20px)] lg:min-h-0 lg:flex-1 lg:items-center">
+      <div className="grid w-full grid-cols-1 items-stretch gap-6 md:grid-cols-3 md:justify-items-center md:gap-[clamp(22px,1.2vw,24px)] lg:min-h-0 lg:flex-1 lg:items-center">
         {commandCenterFeatures.map((feature, index) => (
           <RevealOnScroll
             key={feature.title}
             delayMs={index * 120}
             className="flex w-full max-md:mx-auto max-md:max-w-[min(100%,28rem)] md:justify-center"
           >
-            <CommandCenterCardShell className="w-full md:max-w-[min(396px,34vw)]">
+            <CommandCenterCardShell className="w-full md:max-w-[min(448px,34vw,46.8svh)]">
               <CommandCenterFeatureVisual
                 visual={feature.visual}
                 image={feature.image}

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { MobileNavOverlay } from "@/components/site-header/MobileNavOverlay";
 import { ThemeToggle } from "@/components/site-header/ThemeToggle";
 import { useHeaderVisibility } from "@/components/site-header/useHeaderVisibility";
@@ -82,6 +82,7 @@ export function SiteHeader() {
   useHeaderVisibility();
   const pathname = usePathname();
   const mobileNavId = useId();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
 
@@ -116,6 +117,10 @@ export function SiteHeader() {
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
+      // Dialog closed — hand focus back to its trigger (the overlay moved it
+      // to the close button on open). preventScroll: links that closed the
+      // menu may have just navigated/anchored; don't yank the page back up.
+      menuButtonRef.current?.focus({ preventScroll: true });
     };
   }, [menuOpen]);
 
@@ -198,6 +203,7 @@ export function SiteHeader() {
           </Link>
 
           <button
+            ref={menuButtonRef}
             type="button"
             className={`${mobileMenuButtonShell} lg:hidden`}
             aria-expanded={menuOpen}

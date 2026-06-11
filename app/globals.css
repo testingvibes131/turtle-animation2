@@ -9,7 +9,7 @@
   --surface-hover: #222422; /* bg/surface-hover */
   --surface-subtle: rgba(249, 249, 249, 0.02); /* bg/subtle */
   --surface-subtle-3: rgba(249, 249, 249, 0.05); /* bg/subtle-3 */
-  --fill: rgba(249, 249, 249, 0.1); /* bg/fill */
+  --fill: rgba(249, 249, 249, 0.05); /* bg/fill */
   --fill-hover: rgba(249, 249, 249, 0.15); /* bg/fill-hover */
   --accent-faint: rgba(115, 243, 108, 0.04); /* selection hover */
   --accent-subtle: rgba(115, 243, 108, 0.1); /* selection selected */
@@ -58,7 +58,7 @@
   --surface-hover: #eff1ef;
   --surface-subtle: #f7f7f7;
   --surface-subtle-3: rgba(20, 21, 20, 0.06);
-  --fill: rgba(20, 21, 20, 0.04);
+  --fill: rgba(20, 21, 20, 0.05);
   --fill-hover: rgba(20, 21, 20, 0.13);
   --accent-faint: rgba(20, 21, 20, 0.04);
   --accent-subtle: rgba(20, 21, 20, 0.07);
@@ -217,6 +217,13 @@ body {
   gap: var(--section-intro-copy-gap);
 }
 
+/* The CTA row hangs lower — more air above the buttons than the title → copy
+   rhythm gap (hero-inspired, scaled down for in-page sections). Adds to the
+   flex gap: total ≈ 24px mobile / 34px desktop vs the hero's ~32/45px drop. */
+.section-intro__cta {
+  margin-top: clamp(14px, 1.4vw, 18px);
+}
+
 .section-intro__copy p {
   font-size: clamp(0.9375rem, 1.2vw, 1.125rem);
   line-height: 1.4;
@@ -321,7 +328,9 @@ body {
   /* Mobile: modest lift above card tops */
   --pipeline-visual-overlap: clamp(88px, 11vh, 116px);
   --pipeline-visual-lift: clamp(40px, 6vh, 88px);
-  --pipeline-visual-width: clamp(638px, 105.6vw, 1188px);
+  /* Never wider than the viewport minus a 24px margin each side — the height
+     derives from this, so the monitor artwork scales down to fit the frame. */
+  --pipeline-visual-width: min(clamp(638px, 105.6vw, 1188px), calc(100vw - 48px));
   --pipeline-visual-max-h: clamp(411px, 58vh, 729px);
   --pipeline-visual-height: min(
     calc(var(--pipeline-visual-width) * 701 / 711),
@@ -413,8 +422,10 @@ body {
   .pipeline-stage-main {
     --pipeline-visual-width: min(calc(100vw - 48px), 420px);
     /* Box must be wider-aspect than every step PNG (max 2880/2212) so contain
-       fits by HEIGHT — the taller first/last exports then scale their larger
-       monitor artwork down to match the middle cards, same as desktop. */
+       fits by HEIGHT — every monitor renders the same height, sized so the
+       widest (front-on) frame exactly fills the width; the tilted exports
+       are narrower by geometry. Width-fitting instead would blow the tilted
+       ones up taller than the front-on frame. */
     --pipeline-visual-height: calc(var(--pipeline-visual-width) * 0.76);
     --pipeline-visual-max-h: none;
     --pipeline-visual-scale: 1;
@@ -454,10 +465,23 @@ body {
     touch-action: pan-x;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: 24px;
-    padding-inline: 24px;
+    /* Full-bleed like the partner marquee: scrolling cards clip at the
+       screen edges, while the resting/snap position keeps a 24px inset.
+       width must grow to cover the negative margins — width:100% alone
+       breaks out on the left but leaves a dead gutter on the right. */
     margin-inline: -24px;
+    width: calc(100% + 48px);
+    padding-inline: 24px;
+    scroll-padding-inline: 24px;
     scrollbar-width: none;
+  }
+
+  @media (min-width: 768px) {
+    .pipeline-cards {
+      /* px-10 section: pull all the way out to the screen edges. */
+      margin-inline: -40px;
+      width: calc(100% + 80px);
+    }
   }
 
   .pipeline-cards::-webkit-scrollbar {
@@ -892,6 +916,23 @@ body {
 }
 
 
+/* Case-study quote avatar gloss — dark values unchanged from the old inline
+   style; light mode swaps the white inset highlights (invisible on light)
+   for dark-tinted ones and softens the drop shadow. */
+.case-avatar-gloss {
+  box-shadow:
+    0 4.5px 56.6px rgba(0, 0, 0, 0.4),
+    inset 2.9px 2.9px 19.3px rgba(215, 215, 215, 0.15),
+    inset 2.9px 0.97px 9.67px rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="light"] .case-avatar-gloss {
+  box-shadow:
+    0 4.5px 28px rgba(0, 0, 0, 0.12),
+    inset 2.9px 2.9px 19.3px rgba(20, 21, 20, 0.06),
+    inset 2.9px 0.97px 9.67px rgba(20, 21, 20, 0.1);
+}
+
 /* ---------- team section (Figma 1358:27909 / Card-Member 1358:27910) ---------- */
 .team-grid {
   --team-card-ratio: 308.456 / 149.339;
@@ -1079,7 +1120,13 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  scroll-padding-left: clamp(24px, 5vw, 100px);
+  /* Full-viewport breakout: scrolled cards clip at the screen edge, not at
+     the 1728px section box. Mobile rests with a 24px inset; desktop (lg+,
+     below) rests on the section-container line — where the Backed by rows'
+     bleed starts — plus the drift hook's start inset. */
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  scroll-padding-left: 24px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -1088,14 +1135,35 @@ body {
   display: none;
 }
 
+/* Desktop: the scroll-linked drift (useUpdatesScrollDrift) owns the row;
+   mandatory snap would yank it to a card edge every time the drift pauses.
+   Mobile keeps snap for finger swipes. */
+@media (min-width: 1024px) {
+  .updates-scroll {
+    scroll-snap-type: none;
+  }
+}
+
 .updates-scroll__track {
   display: inline-flex;
   align-items: stretch;
   gap: clamp(12px, 1.4vw, 20px);
-  padding-left: clamp(24px, 5vw, 100px);
-  padding-right: clamp(24px, 5vw, 100px);
+  padding-inline: 24px;
   /* Room above/below so the card + shadow aren't clipped by overflow-y: hidden. */
   padding-block: clamp(20px, 2.6vw, 34px);
+}
+
+@media (min-width: 1024px) {
+  .updates-scroll {
+    scroll-padding-left: max(24px, calc((100vw - 1728px) / 2));
+  }
+  .updates-scroll__track {
+    /* 24px floor: below 1728px viewports the container line IS the screen
+       edge — without it, reduced-motion/no-JS desktops (where the drift
+       inset never applies) rest the first card flush against the glass. */
+    padding-inline: max(24px, calc((100vw - 1728px) / 2));
+    padding-left: calc(max(24px, (100vw - 1728px) / 2) + var(--updates-drift-inset, 0px));
+  }
 }
 
 .update-card {
@@ -1274,6 +1342,22 @@ body {
   }
 }
 
+/* Header theme toggle renders both icons; html[data-theme] (set pre-paint by
+   the no-flash script) picks one. display: contents keeps the SVG laying out
+   as a direct flex child of the button. */
+.theme-toggle-icon-dark {
+  display: contents;
+}
+.theme-toggle-icon-light {
+  display: none;
+}
+[data-theme="light"] .theme-toggle-icon-dark {
+  display: none;
+}
+[data-theme="light"] .theme-toggle-icon-light {
+  display: contents;
+}
+
 /* Hide/reveal applies on all inputs: desktop reveals via top-edge cursor,
    touch hides on scroll-down and pops back on scroll-up (useHeaderVisibility). */
 .site-header {
@@ -1282,6 +1366,18 @@ body {
 .site-header:not(.is-visible) {
   transform: translateY(calc(-100% - 4px));
   opacity: 0;
+}
+
+/* Reduced motion: header still hides/reveals and pipeline cards still
+   expand/move — just instantly, with no animation. !important beats the
+   pipeline card's inline transition style. */
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .pipeline-visual,
+  .pipeline-card,
+  .pipeline-card-body-wrap {
+    transition: none !important;
+  }
 }
 
 .footer-nav-col h3 {
@@ -1376,11 +1472,12 @@ body {
 
 /* Mobile (< lg): shrink readable type ~1px vs desktop; ≤12px labels unchanged. */
 @media (max-width: 1023px) {
-  .text-section-title { font-size: clamp(1.28rem, 2.3vw, 2.1rem); }
+  /* 23px floor — matches the hero tagline and the Backed by / Latest Updates
+     headers, so every section title shares one mobile size. */
+  .text-section-title { font-size: clamp(1.4375rem, 2.3vw, 2.1rem); }
   .section-intro__copy p { font-size: clamp(0.875rem, 1.2vw, 1.125rem); }
   .team-card__name { font-size: clamp(15px, 1.04vw, 20px); }
   .team-grid__cta-link { font-size: 13px; }
-  .update-card__title { font-size: clamp(17px, 1.7vw, 22px); }
   .update-card__desc { font-size: clamp(13px, 1.15vw, 16px); }
   .update-card__cta { font-size: clamp(13px, 1.15vw, 16px); }
 }

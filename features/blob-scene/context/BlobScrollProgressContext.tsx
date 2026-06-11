@@ -16,9 +16,12 @@ import {
 } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 
 type BlobScrollState = {
-  progress: number;
+  /** Continuous scroll floats live in refs (read per-frame in useFrame), so
+      scrolling doesn't re-render every context consumer 60×/s. Only the
+      threshold booleans below go through React state. */
+  progressRef: MutableRefObject<number>;
   /** Blob-motion progress; reaches 1 only at the end of the section-2 sticky hold. */
-  motionProgress: number;
+  motionProgressRef: MutableRefObject<number>;
   /** Hero / section 1 scroll stage (ambient lightning). */
   inSection1: boolean;
   interactionEnabled: boolean;
@@ -43,10 +46,12 @@ const defaultTransitionTuning: BlobTransitionTuning = {
 
 const defaultColoredToGrayMixRef = { current: 1 };
 const defaultScrollWobbleStrengthRef = { current: 0 };
+const defaultProgressRef = { current: 1 };
+const defaultMotionProgressRef = { current: 1 };
 
 const defaultState: BlobScrollState = {
-  progress: 1,
-  motionProgress: 1,
+  progressRef: defaultProgressRef,
+  motionProgressRef: defaultMotionProgressRef,
   inSection1: false,
   interactionEnabled: true,
   mobileZoneCarouselEnabled: false,
@@ -61,8 +66,8 @@ const defaultState: BlobScrollState = {
 const BlobScrollProgressContext = createContext<BlobScrollState>(defaultState);
 
 export function BlobScrollProgressProvider({
-  progress,
-  motionProgress,
+  progressRef,
+  motionProgressRef,
   inSection1,
   interactionEnabled,
   mobileZoneCarouselEnabled,
@@ -74,8 +79,8 @@ export function BlobScrollProgressProvider({
   transitionTuning = defaultTransitionTuning,
   children,
 }: {
-  progress: number;
-  motionProgress: number;
+  progressRef: MutableRefObject<number>;
+  motionProgressRef: MutableRefObject<number>;
   inSection1: boolean;
   interactionEnabled: boolean;
   mobileZoneCarouselEnabled: boolean;
@@ -90,8 +95,8 @@ export function BlobScrollProgressProvider({
   return (
     <BlobScrollProgressContext.Provider
       value={{
-        progress,
-        motionProgress,
+        progressRef,
+        motionProgressRef,
         inSection1,
         interactionEnabled,
         mobileZoneCarouselEnabled,
@@ -108,14 +113,15 @@ export function BlobScrollProgressProvider({
   );
 }
 
-/** 0 = hero (left), 1 = section 2 (right). */
-export function useBlobScrollProgress() {
-  return useContext(BlobScrollProgressContext).progress;
+/** 0 = hero (left), 1 = section 2 (right). Per-frame value — read in useFrame. */
+export function useBlobScrollProgressRef() {
+  return useContext(BlobScrollProgressContext).progressRef;
 }
 
-/** Blob-motion progress; reaches 1 only at the end of the section-2 sticky hold. */
-export function useBlobMotionProgress() {
-  return useContext(BlobScrollProgressContext).motionProgress;
+/** Blob-motion progress; reaches 1 only at the end of the section-2 sticky hold.
+ *  Per-frame value — read in useFrame. */
+export function useBlobMotionProgressRef() {
+  return useContext(BlobScrollProgressContext).motionProgressRef;
 }
 
 export function useBlobInSection1() {

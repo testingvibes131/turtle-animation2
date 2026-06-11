@@ -34,6 +34,12 @@ function counterEase(t: number) {
   return 1 - (1 - t) ** 3;
 }
 
+/** Counters jump straight to their final value for reduced-motion users
+ *  (same check as the chart canvases). */
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function animateCounter(
   el: HTMLElement,
   target: number,
@@ -41,6 +47,10 @@ function animateCounter(
   suffix: string,
   decimals: number,
 ) {
+  if (prefersReducedMotion()) {
+    el.textContent = `${prefix}${target.toFixed(decimals)}${suffix}`;
+    return;
+  }
   const startedAt = performance.now();
 
   const tick = (now: number) => {
@@ -62,6 +72,10 @@ function animateApyRange(
   maxDecimals: number,
   suffix: string,
 ) {
+  if (prefersReducedMotion()) {
+    el.textContent = `${minTarget.toFixed(minDecimals)}-${maxTarget.toFixed(maxDecimals)}${suffix}`;
+    return;
+  }
   const startedAt = performance.now();
 
   const tick = (now: number) => {

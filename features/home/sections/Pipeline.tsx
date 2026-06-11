@@ -46,7 +46,9 @@ export function Pipeline() {
     >
       <div className="scroll-stage-inner pipeline-stage-inner w-full min-h-0">
         <RevealOnScroll className="pipeline-stage-header shrink-0 max-lg:pt-0 lg:pt-14">
-          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-[35px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-4xl text-transparent text-gradient-heading lg:whitespace-nowrap">
+          {/* Statement piece: its own mobile step between the hero (35px) and
+              the 23px section titles. */}
+          <h2 className="mx-auto max-w-none bg-clip-text pb-[0.05em] text-center text-[28px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-4xl text-transparent text-gradient-heading lg:whitespace-nowrap">
             The tools a fund runs on, now yours.
           </h2>
         </RevealOnScroll>
@@ -113,7 +115,9 @@ export function Pipeline() {
                   className="flex w-full flex-col"
                   style={{ gap: "clamp(6px, 0.6vw, 10px)" }}
                 >
-                  <h3 className="pipeline-card-title text-[23px] font-normal leading-[1.3] tracking-[0.015em] lg:text-2xl">
+                  {/* Mobile matches the DeFi-CTA intro line (18px), a step
+                      below the 23px section/card-title size. */}
+                  <h3 className="pipeline-card-title text-[18px] font-normal leading-[1.3] tracking-[0.015em] lg:text-2xl">
                     {step.title}
                   </h3>
                   <div className="pipeline-card-body-wrap">

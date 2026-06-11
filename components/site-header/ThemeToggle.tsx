@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type Theme = "dark" | "light";
 
@@ -35,15 +35,15 @@ export function MoonIcon() {
  *  init in layout). Shared by the round header toggle and the mobile-menu
  *  segmented control. */
 export function useThemePreference() {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  useEffect(() => {
-    setTheme(
-      document.documentElement.getAttribute("data-theme") === "light"
-        ? "light"
-        : "dark",
-    );
-  }, []);
+  // Lazy init from the data-theme the no-flash script already set, so the
+  // first client render agrees with the page (no icon/label flash). SSR can't
+  // know the theme, so nothing SSR-rendered may derive an attribute from it.
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof document === "undefined") return "dark";
+    return document.documentElement.getAttribute("data-theme") === "light"
+      ? "light"
+      : "dark";
+  });
 
   const applyTheme = (next: Theme) => {
     setTheme(next);
@@ -73,16 +73,26 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      aria-label={
-        theme === "light" ? "Switch to dark mode" : "Switch to light mode"
-      }
       className={[
         // Same shell recipe as the header's Enter App pill (headerMenuShellBase).
         "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-[0.6px] border-solid border-stroke-subtle bg-subtle text-ink-primary transition-colors hover:bg-[var(--fill)]",
         className,
       ].join(" ")}
     >
-      {theme === "light" ? <MoonIcon /> : <SunIcon />}
+      {/* Both icons in the DOM, CSS-gated off html[data-theme]: identical
+          markup on server and client, and the pre-hydration frame already
+          shows the right icon. The sr-only text doubles as the accessible
+          name — display:none drops the inactive span from the a11y tree, so
+          the name tracks the theme without a state-derived attribute (which
+          React would leave stale on a hydration mismatch). */}
+      <span className="theme-toggle-icon-dark">
+        <SunIcon />
+        <span className="sr-only">Switch to light mode</span>
+      </span>
+      <span className="theme-toggle-icon-light">
+        <MoonIcon />
+        <span className="sr-only">Switch to dark mode</span>
+      </span>
     </button>
   );
 }
