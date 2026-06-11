@@ -4,7 +4,6 @@ import { GRID_SPACING } from "@/features/home/components/commandCenterGrid";
 export const COMMAND_CENTER_VISUAL_ASPECT = 570 / 499;
 
 /** Figma Card-Deals / chart visual inset — top-left to bottom-right. */
-export const COMMAND_CENTER_CANVAS_BG = "#161716";
 export const VISUAL_CANVAS_GRADIENT_START = "#2D2E2D";
 export const VISUAL_CANVAS_GRADIENT_END = "#161716";
 
