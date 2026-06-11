@@ -70,7 +70,7 @@ export function CommandCenter() {
             delayMs={index * 120}
             className="flex w-full max-md:mx-auto max-md:max-w-[min(100%,28rem)] md:justify-center"
           >
-            <CommandCenterCardShell className="w-full md:max-w-[min(448px,34vw,46.8svh)]">
+            <CommandCenterCardShell className="w-full md:max-w-[min(396px,34vw)]">
               <CommandCenterFeatureVisual
                 visual={feature.visual}
                 image={feature.image}

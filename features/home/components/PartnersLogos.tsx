@@ -20,10 +20,14 @@ export function PartnersLogos({
       className={[
         // No base w-full: it would override the flow variant's breakout
         // width (same-specificity width utilities), leaving the strip flush
-        // left but inset on the right.
+        // left but inset on the right. Desktop deliberately stays at lg:w-full
+        // (yesterday's exact geometry): widening the three continuously
+        // animating marquee rows to true edge-to-edge measurably janked
+        // Safari's scroll compositing (blind-tested), and the full-bleed fix
+        // was only ever needed on mobile.
         "pointer-events-none z-10",
         variant === "flow" &&
-          "relative -mx-6 w-[calc(100%+3rem)] md:-mx-10 md:w-[calc(100%+5rem)] lg:-mx-[100px] lg:w-[calc(100%+200px)]",
+          "relative -mx-6 w-[calc(100%+3rem)] md:-mx-10 md:w-[calc(100%+5rem)] lg:-mx-[100px] lg:w-full",
         variant === "pinned" && "absolute inset-x-0 bottom-0 w-full",
         variant === "overlay" && "absolute inset-x-0 bottom-0 w-full",
         className,
