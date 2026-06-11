@@ -96,27 +96,40 @@ const coordinatedStats = [
   { label: "Turtle Partners", value: "94" },
 ] as const;
 
+const ETH_DOT = "bg-[#0685ff] [box-shadow:0_0_4px_#0685ff66]";
+const USDC_DOT = "bg-[#6dd7f4] [box-shadow:0_0_4px_#6dd7f466]";
+
 const benchmarkRates = [
-  {
-    asset: "ETH",
-    activeDots: 6,
-    dotClass: "bg-[#0685ff] [box-shadow:0_0_4px_#0685ff66]",
-    value: "2.15%",
-    valueClass: "text-[#0685ff]",
-  },
   {
     asset: "USDC",
     activeDots: 9,
-    dotClass: "bg-[#6dd7f4] [box-shadow:0_0_4px_#6dd7f466]",
+    dotClass: USDC_DOT,
     value: "3.51%",
     valueClass: "text-[#51daff]",
   },
   {
-    asset: "BTC",
-    activeDots: 4,
-    dotClass: "bg-[#f7931a] [box-shadow:0_0_4px_#f7931a66]",
-    value: "1.45%",
-    valueClass: "text-[#f7931a]",
+    asset: "ETH",
+    activeDots: 6,
+    dotClass: ETH_DOT,
+    value: "2.15%",
+    valueClass: "text-[#0685ff]",
+  },
+] as const;
+
+const turtleRates = [
+  {
+    asset: "USDC",
+    activeDots: 11,
+    dotClass: USDC_DOT,
+    value: "15.69%",
+    valueClass: "text-[#51daff]",
+  },
+  {
+    asset: "ETH",
+    activeDots: 8,
+    dotClass: ETH_DOT,
+    value: "8.75%",
+    valueClass: "text-[#0685ff]",
   },
 ] as const;
 
@@ -152,30 +165,19 @@ function CoordinatedCapitalCard() {
   );
 }
 
-function DefiTvlCard() {
-  return (
-    <div className={[stakeWidgetShell, widgetWidth, "rounded-[20px] p-5"].join(" ")}>
-      <div className="flex w-full flex-col gap-4">
-        <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">Total Defi TVL</p>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <p className="text-[26px] font-normal leading-none text-ink-primary">$134.2bn</p>
-          <span className="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full border border-ink-faint bg-subtle px-2 py-1 text-[10px] font-normal leading-[1.2]">
-            <span className="text-(--status-error)/80">-0.15%</span>
-            <span className="tracking-[-0.16px] text-ink-subtle">24hr</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BenchmarkRatesCard() {
+function RatesCard({
+  title,
+  rates,
+}: {
+  title: string;
+  rates: readonly BenchmarkRateRowProps[];
+}) {
   return (
     <div className={[stakeWidgetShell, widgetWidth, "rounded-[20px] p-5"].join(" ")}>
       <div className="flex w-full flex-col gap-3.5">
-        <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">Benchmark Rates</p>
+        <p className="text-[14px] font-medium leading-[1.2] text-ink-subtle">{title}</p>
         <div className="flex flex-col gap-2.5">
-          {benchmarkRates.map((rate) => (
+          {rates.map((rate) => (
             <BenchmarkRateRow key={rate.asset} {...rate} />
           ))}
         </div>
@@ -190,19 +192,19 @@ export function HeroStatsPanel() {
       className="relative isolate z-10 mt-[clamp(80px,23svh,200px)] flex w-full flex-col pb-4 lg:mt-0 lg:pb-[clamp(24px,4vh,48px)] lg:pointer-events-none lg:items-end"
       aria-label="Platform statistics"
     >
-      {/* Mobile: stacked column. Desktop: big card left, TVL + benchmark stacked right. */}
+      {/* Mobile: stacked column. Desktop: big card left, the two rate pills stacked right. */}
       <div className="flex w-full flex-col items-end gap-[14px] lg:w-auto lg:flex-row lg:items-end">
         <RevealOnScroll>
           <CoordinatedCapitalCard />
         </RevealOnScroll>
-        {/* Mobile: only the Capital Coordinated card shows (cleaner); the TVL +
-            Benchmark cards return at lg. */}
+        {/* Mobile: only the Capital Coordinated card shows (cleaner); the rate
+            pills return at lg. */}
         <div className="hidden flex-col items-end gap-[14px] lg:flex">
           <RevealOnScroll delayMs={120}>
-            <DefiTvlCard />
+            <RatesCard title="Benchmark Rates" rates={benchmarkRates} />
           </RevealOnScroll>
           <RevealOnScroll delayMs={240}>
-            <BenchmarkRatesCard />
+            <RatesCard title="Turtle.xyz Rates" rates={turtleRates} />
           </RevealOnScroll>
         </div>
       </div>
