@@ -55,7 +55,7 @@ export function MobileNavOverlay({
             alt="Turtle Club"
             width={78}
             height={19}
-            className="block h-[18.534px] w-[77.643px]"
+            className="brand-wordmark block h-[18.534px] w-[77.643px]"
           />
         </Link>
 
