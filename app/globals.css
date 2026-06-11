@@ -476,14 +476,6 @@ body {
     scrollbar-width: none;
   }
 
-  @media (min-width: 768px) {
-    .pipeline-cards {
-      /* px-10 section: pull all the way out to the screen edges. */
-      margin-inline: -40px;
-      width: calc(100% + 80px);
-    }
-  }
-
   .pipeline-cards::-webkit-scrollbar {
     display: none;
   }

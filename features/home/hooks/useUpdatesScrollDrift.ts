@@ -22,6 +22,11 @@ const USER_PAUSE_MS = 300;
  * way up. Manual scrolling always wins — the drift is applied on top of a
  * user-owned base (scrollLeft = userBase + drift), and any user scroll
  * rebases that offset, so the row never snaps back or fights the user.
+ *
+ * Perf contract (Safari janks where Chrome shrugs): the hook is fully inert
+ * — no scroll listener, no rAF — unless the row is within ~1.5 viewports
+ * (IntersectionObserver-gated), scroll handlers only set a flag, and all
+ * layout reads happen at most once per animation frame.
  */
 export function useUpdatesScrollDrift(
   scrollerRef: RefObject<HTMLDivElement | null>,
@@ -41,33 +46,41 @@ export function useUpdatesScrollDrift(
       let userBase = 0;
       let drift = 0;
       let target = 0;
+      let step = 420;
       /** scrollLeft as of our last write — distinguishes our scroll events. */
       let expected = -1;
       let userPauseUntil = 0;
       let rafId = 0;
+      let engaged = false;
+      /** Page scrolled/resized since the last frame — recompute the target. */
+      let dirty = true;
 
-      const cardStep = () => {
+      const measure = () => {
         const card = scroller.querySelector(".update-card");
-        return (card?.getBoundingClientRect().width ?? 400) + 20;
-      };
-
-      const applyInset = () => {
+        step = (card?.getBoundingClientRect().width ?? 400) + 20;
         scroller.style.setProperty(
           "--updates-drift-inset",
-          `${Math.round(cardStep() * INSET_CARDS)}px`,
+          `${Math.round(step * INSET_CARDS)}px`,
         );
       };
 
-      const onPageScroll = () => {
+      const computeTarget = () => {
         const r = scroller.getBoundingClientRect();
         // 0 as the row's top meets the viewport bottom → 1 as its bottom
         // leaves the top; the page ends just past the section, so the
-        // reachable range lands around 3 cards of travel.
+        // reachable range lands around 1.8 cards of travel.
         const p = Math.min(
           1,
-          Math.max(0, (window.innerHeight - r.top) / (window.innerHeight + r.height)),
+          Math.max(
+            0,
+            (window.innerHeight - r.top) / (window.innerHeight + r.height),
+          ),
         );
-        target = p * cardStep() * DRIFT_CARDS;
+        target = p * step * DRIFT_CARDS;
+      };
+
+      const onPageScroll = () => {
+        dirty = true;
       };
 
       const onRowScroll = () => {
@@ -76,6 +89,10 @@ export function useUpdatesScrollDrift(
       };
 
       const tick = () => {
+        if (dirty) {
+          dirty = false;
+          computeTarget();
+        }
         drift += (target - drift) * 0.06;
         if (performance.now() < userPauseUntil) {
           // The user owns the row right now: track their position so the
@@ -83,7 +100,9 @@ export function useUpdatesScrollDrift(
           userBase = scroller.scrollLeft - drift;
         } else {
           const max = scroller.scrollWidth - scroller.clientWidth;
-          const desired = Math.min(max, Math.max(0, userBase + drift));
+          const desired = Math.round(
+            Math.min(max, Math.max(0, userBase + drift)),
+          );
           if (Math.abs(scroller.scrollLeft - desired) > 0.5) {
             scroller.scrollLeft = desired;
             expected = scroller.scrollLeft;
@@ -92,26 +111,48 @@ export function useUpdatesScrollDrift(
         rafId = requestAnimationFrame(tick);
       };
 
-      const onResize = () => {
-        applyInset();
-        onPageScroll();
+      const engage = () => {
+        if (engaged) return;
+        engaged = true;
+        dirty = true;
+        window.addEventListener("scroll", onPageScroll, { passive: true });
+        rafId = requestAnimationFrame(tick);
       };
 
-      applyInset();
-      onPageScroll();
+      const disengage = () => {
+        if (!engaged) return;
+        engaged = false;
+        window.removeEventListener("scroll", onPageScroll);
+        cancelAnimationFrame(rafId);
+      };
+
+      const onResize = () => {
+        measure();
+        dirty = true;
+      };
+
+      measure();
       // Land mid-page (reload with scroll restoration) without a sweep-in.
+      computeTarget();
       drift = target;
       userBase = scroller.scrollLeft - drift;
 
-      window.addEventListener("scroll", onPageScroll, { passive: true });
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) engage();
+          else disengage();
+        },
+        { rootMargin: "150% 0px" },
+      );
+      io.observe(scroller);
+
       window.addEventListener("resize", onResize);
       scroller.addEventListener("scroll", onRowScroll, { passive: true });
-      rafId = requestAnimationFrame(tick);
 
       teardown = () => {
-        cancelAnimationFrame(rafId);
+        disengage();
+        io.disconnect();
         scroller.style.removeProperty("--updates-drift-inset");
-        window.removeEventListener("scroll", onPageScroll);
         window.removeEventListener("resize", onResize);
         scroller.removeEventListener("scroll", onRowScroll);
         teardown = null;

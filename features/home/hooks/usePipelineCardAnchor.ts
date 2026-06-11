@@ -31,35 +31,10 @@ export function usePipelineCardAnchor(
     const cardRect = card.getBoundingClientRect();
     const cardCenterX = cardRect.left + cardRect.width / 2 - mainRect.left;
 
-    const visual = visibleVisual(main);
-    if (visual) {
-      // The stage box is full-bleed, so the limit that keeps the visual
-      // married to the cards on wide monitors is the SECTION's padded
-      // content box (1728-capped, where the card row lives). Only when the
-      // visual is wider than that box (narrow-lg windows) fall back to a
-      // 24px screen margin — its width is capped at 100vw - 48px, so those
-      // bounds always leave room.
-      const margin = 24;
-      const half = visual.getBoundingClientRect().width / 2;
-      const section = main.closest("section") ?? main;
-      const sectionRect = section.getBoundingClientRect();
-      const sectionStyle = getComputedStyle(section);
-      const contentL =
-        sectionRect.left + (parseFloat(sectionStyle.paddingLeft) || 0);
-      const contentR =
-        sectionRect.right - (parseFloat(sectionStyle.paddingRight) || 0);
-      const fits = half * 2 <= contentR - contentL;
-      const minX = (fits ? contentL : margin) - mainRect.left + half;
-      const maxX =
-        (fits ? contentR : window.innerWidth - margin) - mainRect.left - half;
-      setAnchorX(
-        maxX < minX
-          ? (minX + maxX) / 2
-          : Math.min(maxX, Math.max(minX, cardCenterX)),
-      );
-      return;
-    }
-
+    // Always centre the visual on the selected card — no clamping. Edge
+    // cards may push it slightly past the viewport (its width is capped at
+    // 100vw - 48px), which reads better than the monitor detaching from the
+    // card it illustrates.
     setAnchorX(cardCenterX);
   }, [cardsRef, selectedIndex]);
 
