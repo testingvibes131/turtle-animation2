@@ -1274,14 +1274,14 @@ body {
   }
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .site-header {
-    transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.32s ease;
-  }
-  .site-header:not(.is-visible) {
-    transform: translateY(calc(-100% - 4px));
-    opacity: 0;
-  }
+/* Hide/reveal applies on all inputs: desktop reveals via top-edge cursor,
+   touch hides on scroll-down and pops back on scroll-up (useHeaderVisibility). */
+.site-header {
+  transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.32s ease;
+}
+.site-header:not(.is-visible) {
+  transform: translateY(calc(-100% - 4px));
+  opacity: 0;
 }
 
 .footer-nav-col h3 {

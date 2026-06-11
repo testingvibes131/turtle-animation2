@@ -4,11 +4,53 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import {
+  MoonIcon,
+  SunIcon,
+  useThemePreference,
+  type Theme,
+} from "@/components/site-header/ThemeToggle";
 
 const headerMenuShell = "inline-flex items-center overflow-hidden rounded-[20px] border-[0.6px] border-solid border-stroke-subtle bg-subtle";
 
 const mobileMenuButtonShell =
-  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-stroke-default bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
+  "inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-[0.6px] border-solid border-stroke-subtle bg-subtle text-green-400 transition-colors hover:bg-accent-subtle";
+
+/** Segmented Light/Dark switch — the mobile home of the theme toggle. */
+function ThemeSegmentedToggle() {
+  const { theme, applyTheme } = useThemePreference();
+
+  const segment = (value: Theme, label: string, icon: ReactNode) => {
+    const active = theme === value;
+    return (
+      <button
+        type="button"
+        onClick={() => applyTheme(value)}
+        aria-pressed={active}
+        className={[
+          "inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-normal leading-none transition-colors",
+          active
+            ? "bg-fill text-ink-primary"
+            : "text-ink-subtle hover:text-ink-primary",
+        ].join(" ")}
+      >
+        {icon}
+        {label}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      className="inline-flex items-center gap-1 rounded-full border-[0.6px] border-solid border-stroke-subtle bg-subtle p-1"
+      role="group"
+      aria-label="Colour theme"
+    >
+      {segment("light", "Light", <SunIcon />)}
+      {segment("dark", "Dark", <MoonIcon />)}
+    </div>
+  );
+}
 
 type NavLink = { href: string; label: string };
 
@@ -106,6 +148,10 @@ export function MobileNavOverlay({
             );
           })}
         </ul>
+
+        <div className="mt-10 flex justify-center">
+          <ThemeSegmentedToggle />
+        </div>
       </nav>
     </div>,
     document.body,

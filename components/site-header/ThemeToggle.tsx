@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-type Theme = "dark" | "light";
+export type Theme = "dark" | "light";
 
-function SunIcon() {
+export function SunIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
       <circle cx="9" cy="9" r="3.4" stroke="currentColor" strokeWidth="1.2" />
@@ -18,7 +18,7 @@ function SunIcon() {
   );
 }
 
-function MoonIcon() {
+export function MoonIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
       <path
@@ -31,8 +31,10 @@ function MoonIcon() {
   );
 }
 
-/** Flips `data-theme` on <html> and persists the choice (see no-flash init in layout). */
-export function ThemeToggle({ className = "" }: { className?: string }) {
+/** Reads/flips `data-theme` on <html> and persists the choice (see no-flash
+ *  init in layout). Shared by the round header toggle and the mobile-menu
+ *  segmented control. */
+export function useThemePreference() {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
@@ -43,8 +45,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     );
   }, []);
 
-  const toggle = () => {
-    const next: Theme = theme === "light" ? "dark" : "light";
+  const applyTheme = (next: Theme) => {
     setTheme(next);
     if (next === "light") {
       document.documentElement.setAttribute("data-theme", "light");
@@ -56,6 +57,16 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     } catch {
       /* ignore */
     }
+  };
+
+  return { theme, applyTheme };
+}
+
+export function ThemeToggle({ className = "" }: { className?: string }) {
+  const { theme, applyTheme } = useThemePreference();
+
+  const toggle = () => {
+    applyTheme(theme === "light" ? "dark" : "light");
   };
 
   return (

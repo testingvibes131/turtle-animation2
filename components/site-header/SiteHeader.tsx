@@ -181,7 +181,8 @@ export function SiteHeader() {
 
         {/* Right actions — Figma 1381:44609: Enter App + hamburger (mobile) */}
         <div className="relative z-10 flex shrink-0 items-center gap-2.5 lg:gap-2">
-          <ThemeToggle />
+          {/* Mobile keeps the toggle inside the menu overlay instead. */}
+          <ThemeToggle className="max-lg:hidden" />
           <Link
             href="https://app.turtle.xyz/earn"
             target="_blank"
