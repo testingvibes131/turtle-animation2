@@ -26,21 +26,17 @@ const LAYOUT_MIRROR_THRESHOLD = 0.5;
 export function BlobScrollBlock({ children }: { children: ReactNode }) {
   const { params, transition } = useBlobControls();
   const blockRef = useRef<HTMLDivElement>(null);
-  // Continuous scroll floats live in refs — the canvas reads them per-frame in
-  // useFrame, so routing them through setState would re-render the whole blob
-  // tree on every scroll frame for nothing. Only the threshold booleans below
-  // are React state.
-  const scrollProgressRef = useRef(0);
-  const motionProgressRef = useRef(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [motionProgress, setMotionProgress] = useState(0);
   const [inSection1, setInSection1] = useState(true);
   const [interactionEnabled, setInteractionEnabled] = useState(false);
   const [mobileZoneCarouselEnabled, setMobileZoneCarouselEnabled] =
     useState(false);
-  const [layoutMirrored, setLayoutMirrored] = useState(true);
   const coloredToGrayMixRef = useRef(GRAY_DOT_MIX);
   const scrollWobbleStrengthRef = useRef(0);
   const prevScrolledRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
+  const layoutMirrored = scrollProgress < LAYOUT_MIRROR_THRESHOLD;
 
   useEffect(() => {
     const block = blockRef.current;
@@ -66,14 +62,9 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
       const metrics = { scrolled, heroScroll, section2Scroll };
       const isMobile = mobileQuery.matches;
 
-      const progress = computeBlobScrollProgress(
-        scrolled,
-        heroScroll,
-        section2,
-        isMobile,
+      setScrollProgress(
+        computeBlobScrollProgress(scrolled, heroScroll, section2, isMobile),
       );
-      scrollProgressRef.current = progress;
-      setLayoutMirrored(progress < LAYOUT_MIRROR_THRESHOLD);
       // Blob motion: most of the travel over the hero (0 -> 0.88), then the final
       // creep over section 2's sticky hold (0.88 -> 1), so the blob glides to its
       // resting spot and lands as the section scrolls on (no wall at handoff).
@@ -85,8 +76,9 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
         1,
         Math.max(0, (scrolled - heroScroll) / Math.max(section2Scroll, 1)),
       );
-      motionProgressRef.current =
-        heroMotionT < 1 ? heroMotionT * 0.88 : 0.88 + 0.12 * holdMotionT;
+      setMotionProgress(
+        heroMotionT < 1 ? heroMotionT * 0.88 : 0.88 + 0.12 * holdMotionT,
+      );
       const inSec1 = blobInSection1(metrics);
       setInSection1(inSec1);
       const inSection2 = blobInteractionEnabledFromScroll(metrics);
@@ -130,8 +122,8 @@ export function BlobScrollBlock({ children }: { children: ReactNode }) {
           ].join(" ")}
         >
           <BlobScrollProgressProvider
-            progressRef={scrollProgressRef}
-            motionProgressRef={motionProgressRef}
+            progress={scrollProgress}
+            motionProgress={motionProgress}
             inSection1={inSection1}
             interactionEnabled={interactionEnabled}
             mobileZoneCarouselEnabled={mobileZoneCarouselEnabled}

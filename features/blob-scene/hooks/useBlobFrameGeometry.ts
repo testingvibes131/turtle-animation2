@@ -3,9 +3,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { useBlobScene } from "@/features/blob-scene/context/BlobSceneContext";
-import { usePrefersReducedMotionRef } from "@/features/blob-scene/hooks/usePrefersReducedMotion";
 import {
-  useBlobScrollProgressRef,
+  useBlobScrollProgress,
   useBlobScrollWobbleStrengthRef,
 } from "@/features/blob-scene/context/BlobScrollProgressContext";
 import {
@@ -36,9 +35,10 @@ export function BlobFrameGeometryCache() {
   const { vertices, blobAnimTimeRef, getBlobParamsAtTime, blobFrameCacheRef } =
     useBlobScene();
   const scrollWobbleStrengthRef = useBlobScrollWobbleStrengthRef();
-  const scrollProgressRef = useBlobScrollProgressRef();
-  const reducedMotionRef = usePrefersReducedMotionRef();
-  const displayedProgressRef = useRef(scrollProgressRef.current);
+  const scrollProgress = useBlobScrollProgress();
+  const scrollProgressRef = useRef(scrollProgress);
+  scrollProgressRef.current = scrollProgress;
+  const displayedProgressRef = useRef(scrollProgress);
   const cacheRef = useRef<BlobVertexFrameCache | null>(null);
 
   // Stable per-vertex scatter: an independent random direction × magnitude, so
@@ -91,9 +91,6 @@ export function BlobFrameGeometryCache() {
     );
     const strength = blobTransitionDistortStrength(gatherMix);
     const floatT = state.clock.elapsedTime * DOT_FLOAT_SPEED;
-    // Reduced motion stills the ambient drift; the scatter gather stays —
-    // it's scroll-driven, not autonomous.
-    const floatAmp = reducedMotionRef.current ? 0 : DOT_FLOAT_AMP;
     const pos = cache.positions;
     const n = cache.vertexCount;
     for (let i = 0; i < n; i++) {
@@ -101,11 +98,11 @@ export function BlobFrameGeometryCache() {
       const ox = scatterOffsets[i3]!;
       const oy = scatterOffsets[i3 + 1]!;
       const oz = scatterOffsets[i3 + 2]!;
-      pos[i3] += Math.sin(floatT + ox * 9) * floatAmp + ox * strength;
+      pos[i3] += Math.sin(floatT + ox * 9) * DOT_FLOAT_AMP + ox * strength;
       pos[i3 + 1] +=
-        Math.sin(floatT * 1.13 + oy * 9) * floatAmp + oy * strength;
+        Math.sin(floatT * 1.13 + oy * 9) * DOT_FLOAT_AMP + oy * strength;
       pos[i3 + 2] +=
-        Math.sin(floatT * 0.87 + oz * 9) * floatAmp + oz * strength;
+        Math.sin(floatT * 0.87 + oz * 9) * DOT_FLOAT_AMP + oz * strength;
     }
   }, -100);
 

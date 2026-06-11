@@ -1142,14 +1142,6 @@ body {
   display: none;
 }
 
-/* Desktop: the scroll-linked drift (useUpdatesScrollDrift) owns the row;
-   mandatory snap would yank it to a card edge every time the drift pauses.
-   Mobile keeps snap for finger swipes. */
-@media (min-width: 1024px) {
-  .updates-scroll {
-    scroll-snap-type: none;
-  }
-}
 
 .updates-scroll__track {
   display: inline-flex;
@@ -1165,11 +1157,9 @@ body {
     scroll-padding-left: max(24px, calc((100vw - 1728px) / 2));
   }
   .updates-scroll__track {
-    /* 24px floor: below 1728px viewports the container line IS the screen
-       edge — without it, reduced-motion/no-JS desktops (where the drift
-       inset never applies) rest the first card flush against the glass. */
+    /* Resting first card sits on the 1728 container line (Backed by's bleed
+       start), with a 24px floor for viewports narrower than the cap. */
     padding-inline: max(24px, calc((100vw - 1728px) / 2));
-    padding-left: calc(max(24px, (100vw - 1728px) / 2) + var(--updates-drift-inset, 0px));
   }
 }
 
