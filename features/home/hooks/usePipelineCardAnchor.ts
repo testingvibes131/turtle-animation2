@@ -31,10 +31,15 @@ export function usePipelineCardAnchor(
     const cardRect = card.getBoundingClientRect();
     const cardCenterX = cardRect.left + cardRect.width / 2 - mainRect.left;
 
-    // Always centre the visual on the selected card — no clamping. Edge
-    // cards may push it slightly past the viewport (its width is capped at
-    // 100vw - 48px), which reads better than the monitor detaching from the
-    // card it illustrates.
+    const visual = visibleVisual(main);
+    if (visual) {
+      const half = visual.getBoundingClientRect().width / 2;
+      const minX = half;
+      const maxX = mainRect.width - half;
+      setAnchorX(Math.min(maxX, Math.max(minX, cardCenterX)));
+      return;
+    }
+
     setAnchorX(cardCenterX);
   }, [cardsRef, selectedIndex]);
 

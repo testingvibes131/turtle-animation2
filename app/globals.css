@@ -353,7 +353,18 @@ body {
 /* Monitor illustration — fluid tokens on .pipeline-stage-main */
 .pipeline-visual {
   position: absolute;
-  left: var(--pipeline-visual-x, 50%);
+  /* Declarative edge guard on the JS anchor: the visual's edges keep at
+     least the clamp margin from the stage edges. Desktop stage is
+     full-bleed → 24px screen margin (set below); <lg the section padding
+     already insets the stage, and where the visual spans the full stage
+     the bounds collapse to dead-centre. Pure CSS — the anchor hook stays
+     untouched. */
+  --pipeline-visual-clamp-margin: 0px;
+  left: clamp(
+    calc(var(--pipeline-visual-clamp-margin) + var(--pipeline-visual-width) / 2),
+    var(--pipeline-visual-x, 50%),
+    calc(100% - var(--pipeline-visual-clamp-margin) - var(--pipeline-visual-width) / 2)
+  );
   top: var(--pipeline-visual-top);
   bottom: var(--pipeline-visual-bottom);
   z-index: 0;
@@ -392,6 +403,12 @@ body {
   position: relative;
   z-index: 1;
   margin-top: auto;
+}
+
+@media (min-width: 1024px) {
+  .pipeline-visual {
+    --pipeline-visual-clamp-margin: 24px;
+  }
 }
 
 /* ---------- pipeline cards ---------- */
