@@ -203,9 +203,26 @@ body {
 .benchmark-dot-pulse {
   animation: benchmark-dot-pulse 2.6s ease-in-out infinite;
 }
+/* The fractional tier dot: slow, obvious breathe between off and on. */
+@keyframes benchmark-dot-partial {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+.benchmark-dot-partial {
+  animation: benchmark-dot-partial 2.6s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .benchmark-dot-pulse {
+  .benchmark-dot-pulse,
+  .benchmark-dot-partial {
     animation: none;
+  }
+  .benchmark-dot-partial {
+    opacity: 0.55;
   }
 }
 

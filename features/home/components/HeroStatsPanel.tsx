@@ -27,28 +27,43 @@ function StatRow({ label, value }: StatRowProps) {
 }
 
 const BENCHMARK_DOT_COUNT = 12;
+/** Each dot is 1.5% — a full bar reads 18%+ (the sensible APY ceiling). */
+const BENCHMARK_DOT_STEP = 1.5;
 
 function BenchmarkDotBar({
-  activeCount,
+  rate,
   activeClass,
 }: {
-  activeCount: number;
+  rate: number;
   activeClass: string;
 }) {
+  const fullDots = Math.min(
+    BENCHMARK_DOT_COUNT,
+    Math.floor(rate / BENCHMARK_DOT_STEP),
+  );
+  // The fractional remainder breathes on the next dot: 2.15% = one solid
+  // dot plus one slowly glowing in and out.
+  const hasPartial =
+    fullDots < BENCHMARK_DOT_COUNT && rate > fullDots * BENCHMARK_DOT_STEP;
   return (
     <div
       className="flex min-w-0 flex-1 items-center justify-between lg:w-[118px] lg:flex-none"
       aria-hidden="true"
     >
       {Array.from({ length: BENCHMARK_DOT_COUNT }, (_, i) => {
-        const active = i < activeCount;
+        const active = i < fullDots;
+        const partial = hasPartial && i === fullDots;
         return (
           <span
             key={i}
             className={[
               "size-[3px] shrink-0 rounded-full",
-              active ? `${activeClass} benchmark-dot-pulse` : "bg-ink-faint",
-            ].join(" ")}
+              active ? `${activeClass} benchmark-dot-pulse` : "",
+              partial ? `${activeClass} benchmark-dot-partial` : "",
+              !active && !partial ? "bg-ink-faint" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={active ? { animationDelay: `${i * 0.12}s` } : undefined}
           />
         );
@@ -59,7 +74,7 @@ function BenchmarkDotBar({
 
 type BenchmarkRateRowProps = {
   asset: string;
-  activeDots: number;
+  rate: number;
   dotClass: string;
   value: string;
   valueClass: string;
@@ -67,7 +82,7 @@ type BenchmarkRateRowProps = {
 
 function BenchmarkRateRow({
   asset,
-  activeDots,
+  rate,
   dotClass,
   value,
   valueClass,
@@ -77,7 +92,7 @@ function BenchmarkRateRow({
       <span className="w-10 shrink-0 text-[14px] font-medium leading-[1.2] text-ink-subtle">
         {asset}
       </span>
-      <BenchmarkDotBar activeCount={activeDots} activeClass={dotClass} />
+      <BenchmarkDotBar rate={rate} activeClass={dotClass} />
       <span
         className={[
           "shrink-0 text-right text-[14px] font-medium leading-[1.2]",
@@ -102,14 +117,14 @@ const USDC_DOT = "bg-[#6dd7f4] [box-shadow:0_0_4px_#6dd7f466]";
 const benchmarkRates = [
   {
     asset: "USDC",
-    activeDots: 9,
+    rate: 3.51,
     dotClass: USDC_DOT,
     value: "3.51%",
     valueClass: "text-[#51daff]",
   },
   {
     asset: "ETH",
-    activeDots: 6,
+    rate: 2.15,
     dotClass: ETH_DOT,
     value: "2.15%",
     valueClass: "text-[#0685ff]",
@@ -119,14 +134,14 @@ const benchmarkRates = [
 const turtleRates = [
   {
     asset: "USDC",
-    activeDots: 11,
+    rate: 15.69,
     dotClass: USDC_DOT,
     value: "15.69%",
     valueClass: "text-[#51daff]",
   },
   {
     asset: "ETH",
-    activeDots: 8,
+    rate: 8.75,
     dotClass: ETH_DOT,
     value: "8.75%",
     valueClass: "text-[#0685ff]",
@@ -140,7 +155,7 @@ function CoordinatedCapitalCard() {
         stakeWidgetShell,
         widgetWidth,
         "rounded-[14px] p-3.5 lg:rounded-[20px] lg:p-5",
-        "flex flex-col lg:h-[255px]",
+        "flex flex-col lg:h-[247px]",
       ].join(" ")}
     >
       <div className="flex h-full w-full flex-col justify-between">
