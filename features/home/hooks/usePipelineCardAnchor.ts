@@ -33,14 +33,25 @@ export function usePipelineCardAnchor(
 
     const visual = visibleVisual(main);
     if (visual) {
-      // Clamp against the SCREEN (24px margin each side), not the stage box:
-      // the visual may be wider than the stage, but its edges must never get
-      // closer than 24px to the viewport edge (its width is capped at
-      // 100vw - 48px, so these bounds always leave room).
+      // The stage box is full-bleed, so the limit that keeps the visual
+      // married to the cards on wide monitors is the SECTION's padded
+      // content box (1728-capped, where the card row lives). Only when the
+      // visual is wider than that box (narrow-lg windows) fall back to a
+      // 24px screen margin — its width is capped at 100vw - 48px, so those
+      // bounds always leave room.
       const margin = 24;
       const half = visual.getBoundingClientRect().width / 2;
-      const minX = margin - mainRect.left + half;
-      const maxX = window.innerWidth - margin - mainRect.left - half;
+      const section = main.closest("section") ?? main;
+      const sectionRect = section.getBoundingClientRect();
+      const sectionStyle = getComputedStyle(section);
+      const contentL =
+        sectionRect.left + (parseFloat(sectionStyle.paddingLeft) || 0);
+      const contentR =
+        sectionRect.right - (parseFloat(sectionStyle.paddingRight) || 0);
+      const fits = half * 2 <= contentR - contentL;
+      const minX = (fits ? contentL : margin) - mainRect.left + half;
+      const maxX =
+        (fits ? contentR : window.innerWidth - margin) - mainRect.left - half;
       setAnchorX(
         maxX < minX
           ? (minX + maxX) / 2
