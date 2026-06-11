@@ -25,11 +25,13 @@ export default function RootLayout({
       className={`${dmSans.variable} ${dmSans.className} h-full antialiased`}
     >
       <head>
-        {/* No-flash theme init: apply the saved theme before first paint. */}
+        {/* No-flash theme init, before first paint. Priority: ?theme= param >
+            saved toggle choice > OS prefers-color-scheme > light. Errors and
+            unknown values fall through to light. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var u=new URLSearchParams(location.search).get('theme');var t=u||localStorage.getItem('turtle-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');else if(t==='dark')document.documentElement.removeAttribute('data-theme');}catch(e){}",
+              "var __dark=false;try{var u=new URLSearchParams(location.search).get('theme');var t=u||localStorage.getItem('turtle-theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}__dark=t==='dark';}catch(e){}if(__dark)document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme','light');",
           }}
         />
       </head>
