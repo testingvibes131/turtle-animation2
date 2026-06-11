@@ -381,13 +381,14 @@ export function CaseStudies() {
                 {activeStudy.boosted.badges.length > 0 ? (
                   <div
                     className={[
-                      "mt-auto flex w-full flex-nowrap items-center justify-between gap-x-[clamp(3px,1vw,12px)] px-[10px] lg:px-[clamp(16px,1.65vw,25px)]",
+                      "mt-auto flex w-full flex-nowrap items-center justify-between gap-x-[clamp(3px,1vw,12px)] lg:px-[clamp(16px,1.65vw,25px)]",
                       // 3 bars sit at the chart's quarter points; evenly puts the
                       // chip centres (~22/50/78%) on top of them. The 4-badge
-                      // card already lines up under justify-between.
+                      // card already lines up under justify-between. The 3-chip
+                      // rows breathe 2px more from the sides on mobile.
                       activeStudy.boosted.badges.length === 3
-                        ? "lg:justify-evenly"
-                        : "",
+                        ? "px-[12px] lg:justify-evenly"
+                        : "px-[10px]",
                     ].join(" ")}
                     style={{ paddingBottom: "clamp(2px, 0.25vw, 6px)" }}
                   >
