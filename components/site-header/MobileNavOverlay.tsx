@@ -126,11 +126,14 @@ export function MobileNavOverlay({
         </div>
       </div>
 
+      {/* 1:2 spacers float the link list around the upper third; the theme
+          toggle sits pinned at the bottom. */}
       <nav
         id={id}
         aria-label="Mobile"
-        className="flex flex-1 flex-col items-center justify-center px-6 pb-10 md:px-10"
+        className="flex flex-1 flex-col items-center px-6 pb-[max(2rem,env(safe-area-inset-bottom))] md:px-10"
       >
+        <div className="flex-1" aria-hidden />
         <ul className="flex w-full max-w-xs flex-col items-center gap-2">
           {links.map((link) => {
             const active = isNavActive(pathname, link.href);
@@ -148,10 +151,8 @@ export function MobileNavOverlay({
             );
           })}
         </ul>
-
-        <div className="mt-10 flex justify-center">
-          <ThemeSegmentedToggle />
-        </div>
+        <div className="flex-[2]" aria-hidden />
+        <ThemeSegmentedToggle />
       </nav>
     </div>,
     document.body,
