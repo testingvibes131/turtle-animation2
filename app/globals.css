@@ -312,7 +312,8 @@ body {
 
 @media (min-width: 1024px) {
   .pipeline-stage {
-    --pipeline-gutter: 100px;
+    /* Card row sits 30px inside the monitor rail (24px edge margin + 30). */
+    --pipeline-gutter: 54px;
   }
 }
 
@@ -408,17 +409,22 @@ body {
 @media (min-width: 1024px) {
   .pipeline-visual {
     /* Even-rail model: the monitor's five positions are evenly spaced along
-       a rail slightly wider than the card row — the rail's ends sit
-       --pipeline-visual-bleed past the VIEWPORT edges (html overflow-x:
-       clip absorbs the overhang), so edge selections hang off-screen a
-       touch. Position is a pure function of --pipeline-step-frac
-       (selectedIndex / (count-1), set inline by Pipeline.tsx): no card
-       measuring, no re-anchoring, nothing to jiggle. 0.88/0.44 convert the
-       width var to rendered size (the 0.88 render scale); (100vw - 100%)/2
-       is the centred stage's offset on >1728px screens. */
-    --pipeline-visual-bleed: 100px;
-    --pipeline-rail-inset: calc(
-      -1 * max(0px, (100vw - 100%) / 2) - var(--pipeline-visual-bleed)
+       a rail wider than the card row but fully ON-SCREEN — the rail's ends
+       sit --pipeline-visual-edge-margin inside the VIEWPORT edges, so edge
+       selections overhang the cards while keeping screen padding. Position
+       is a pure function of --pipeline-step-frac (selectedIndex /
+       (count-1), set inline by Pipeline.tsx): no card measuring, no
+       re-anchoring, nothing to jiggle. 0.88/0.44 convert the width var to
+       rendered size (the 0.88 render scale); (100vw - 100%)/2 is the
+       centred stage's offset on >1728px screens. */
+    /* Rail ends sit 24px inside the SCREEN edges (the wide spread), but
+       never extend more than 160px outside the stage box — so ultra-wide
+       monitors keep the composition together instead of chasing the
+       screen edges. */
+    --pipeline-visual-edge-margin: 24px;
+    --pipeline-rail-inset: max(
+      calc(var(--pipeline-visual-edge-margin) - max(0px, (100vw - 100%) / 2)),
+      -160px
     );
     left: calc(
       var(--pipeline-rail-inset) + 0.44 * var(--pipeline-visual-width) +

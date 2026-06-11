@@ -9,11 +9,10 @@ type Props = {
   activeIndex: number;
 };
 
-function slideObjectPosition(index: number, count: number) {
-  if (index === 0) return "0% 100%";
-  if (index === count - 1) return "100% 100%";
-  return "50% 100%";
-}
+// Every slide centres its artwork in the box: positions come from the
+// even rail (.pipeline-visual), so edge-pinning the end slides (the old
+// full-bleed design) would make the VISIBLE monitors unevenly spaced —
+// the end exports carry big internal slack that 0%/100% shoved outward.
 
 /** Crossfades pipeline step illustrations (`/pipeline/{StepName}.png`). */
 export function PipelineStepVisual({ steps, activeIndex }: Props) {
@@ -95,7 +94,7 @@ export function PipelineStepVisual({ steps, activeIndex }: Props) {
                     ? "opacity-100 transition-opacity duration-[250ms] ease-out"
                     : "opacity-0",
                 ].join(" ")}
-                style={{ objectPosition: slideObjectPosition(index, steps.length) }}
+                style={{ objectPosition: "50% 100%" }}
               />
             </div>
           );
