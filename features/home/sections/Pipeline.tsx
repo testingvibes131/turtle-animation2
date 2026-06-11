@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { PipelineStepVisual } from "@/features/home/components/PipelineStepVisual";
 import { pipelineSteps } from "@/features/home/data/pipelineSteps";
-import { usePipelineCardAnchor } from "@/features/home/hooks/usePipelineCardAnchor";
 import { usePipelineScroll } from "@/features/home/hooks/usePipelineScroll";
 
 export function Pipeline() {
@@ -18,7 +17,6 @@ export function Pipeline() {
     pipelineSteps.length,
     cardsEl,
   );
-  const anchorX = usePipelineCardAnchor(cardsRef, selectedIndex);
   const [carouselMode, setCarouselMode] = useState(false);
 
   useEffect(() => {
@@ -53,14 +51,18 @@ export function Pipeline() {
           </h2>
         </RevealOnScroll>
 
+        {/* The monitor's position is a pure function of the selected index
+            (see .pipeline-visual: evenly spaced along a rail slightly wider
+            than the card row) — no card measuring, no re-anchoring. */}
         <div
           className="pipeline-stage-main"
           style={
-            anchorX != null
-              ? ({
-                  "--pipeline-visual-x": `${anchorX}px`,
-                } as CSSProperties)
-              : undefined
+            {
+              "--pipeline-step-frac":
+                pipelineSteps.length > 1
+                  ? selectedIndex / (pipelineSteps.length - 1)
+                  : 0.5,
+            } as CSSProperties
           }
         >
           <PipelineStepVisual steps={pipelineSteps} activeIndex={selectedIndex} />

@@ -407,17 +407,25 @@ body {
 
 @media (min-width: 1024px) {
   .pipeline-visual {
-    /* Desktop: centre on the selected card, letting edge cards bleed up to
-       --pipeline-visual-bleed past the VIEWPORT edge (html overflow-x: clip
-       absorbs it). 0.44 = half the 0.88 render scale, converting the width
-       var to rendered half-width; the max() term cancels the centred
-       stage's offset on >1728px screens so the bleed is viewport-true. */
+    /* Even-rail model: the monitor's five positions are evenly spaced along
+       a rail slightly wider than the card row — the rail's ends sit
+       --pipeline-visual-bleed past the VIEWPORT edges (html overflow-x:
+       clip absorbs the overhang), so edge selections hang off-screen a
+       touch. Position is a pure function of --pipeline-step-frac
+       (selectedIndex / (count-1), set inline by Pipeline.tsx): no card
+       measuring, no re-anchoring, nothing to jiggle. 0.88/0.44 convert the
+       width var to rendered size (the 0.88 render scale); (100vw - 100%)/2
+       is the centred stage's offset on >1728px screens. */
     --pipeline-visual-bleed: 100px;
-    left: clamp(
-      calc(0.44 * var(--pipeline-visual-width) - max(0px, (100vw - 1728px) / 2) - var(--pipeline-visual-bleed)),
-      var(--pipeline-visual-x, 50%),
-      calc(100% - 0.44 * var(--pipeline-visual-width) + max(0px, (100vw - 1728px) / 2) + var(--pipeline-visual-bleed))
+    --pipeline-rail-inset: calc(
+      -1 * max(0px, (100vw - 100%) / 2) - var(--pipeline-visual-bleed)
     );
+    left: calc(
+      var(--pipeline-rail-inset) + 0.44 * var(--pipeline-visual-width) +
+        (100% - 2 * var(--pipeline-rail-inset) - 0.88 * var(--pipeline-visual-width)) *
+        var(--pipeline-step-frac, 0.5)
+    );
+    transition: opacity 0.5s ease, left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
