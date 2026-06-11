@@ -22,7 +22,7 @@ export function DeFiCta() {
       <RevealOnScroll className="min-w-0 text-left">
         <SectionIntro className="max-w-none items-start">
           <p className="bg-clip-text text-[clamp(17px,1.6vw,24px)] font-normal leading-[1.4] text-transparent text-gradient-heading-h">
-            DeFi promised an upgrade. It delivered a mess. Turtle is the upgrade it was supposed to be:
+            DeFi promised an upgrade. It delivered a mess. Turtle is the upgrade it was supposed to be
           </p>
           <p className="bg-clip-text text-[clamp(22px,2.2vw,30px)] font-normal leading-[1.3] text-transparent text-gradient-heading-h">
             Aggregated, Diligenced, Personalized
