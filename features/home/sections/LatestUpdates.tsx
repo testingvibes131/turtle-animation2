@@ -15,15 +15,17 @@ export function LatestUpdates() {
 
   return (
     <section
-      // Same 1728px cap as BackedBy so the two headers share a left edge on
-      // wide screens.
-      className="relative mx-auto w-full max-w-[1728px]"
+      // Full-width section: the scroller spans the viewport WITHOUT a
+      // 100vw/negative-margin breakout (which gave Safari horizontal-overflow
+      // scroll jitter). The header keeps the BackedBy 1728px alignment via
+      // its own capped container.
+      className="relative w-full"
       style={{
         paddingTop: "clamp(48px, 6vw, 80px)",
         paddingBottom: "clamp(48px, 6vw, 80px)",
       }}
     >
-      <div className="w-full px-6 md:px-10 lg:px-[100px]">
+      <div className="mx-auto w-full max-w-[1728px] px-6 md:px-10 lg:px-[100px]">
         <RevealOnScroll>
           <h2 className="max-w-[22ch] bg-clip-text pb-[0.05em] text-[18px] font-normal leading-[1.2] tracking-[-0.8px] lg:text-2xl text-transparent text-gradient-heading">
             Latest Updates

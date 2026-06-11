@@ -1112,12 +1112,10 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  /* Full-viewport breakout: scrolled cards clip at the screen edge, not at
-     the 1728px section box. Mobile rests with a 24px inset; desktop (lg+,
-     below) rests on the section-container line — where the Backed by rows'
-     bleed starts — plus the drift hook's start inset. */
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  /* The section is full-width, so the scroller reaches the screen edges
+     without any 100vw breakout. Mobile rests with a 24px inset; desktop
+     (lg+, below) rests on the section-container line — where the Backed by
+     rows' bleed starts — plus the drift hook's start inset. */
   scroll-padding-left: 24px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

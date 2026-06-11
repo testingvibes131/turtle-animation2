@@ -156,13 +156,17 @@ export function computeBlobScrollMotion(
   const t = clampScrollProgress(scrollProgress);
   const section2Scale =
     viewportAspect < 1 ? BLOB_SECTION2_SCALE_PORTRAIT : 1;
+  // Portrait: finish the horizontal travel by the end of the hero (motion
+  // progress 0.88) so the blob sits dead-centre for the whole section-2
+  // hold instead of still gliding in from the left during the final creep.
+  const xProgress = viewportAspect < 1 ? Math.min(1, t / 0.88) : t;
 
   return {
     offsetX: computeBlobOffsetXForScroll(
       camera,
       viewportAspect,
       extent,
-      scrollProgress,
+      xProgress,
     ),
     offsetY: computeBlobOffsetYForScroll(
       camera,
