@@ -407,6 +407,8 @@ body {
 
 @media (min-width: 1024px) {
   .pipeline-visual {
+    /* Edge-card selections: the monitor travels with the card and hangs
+       over it, guarded only by a 24px screen margin. */
     --pipeline-visual-clamp-margin: 24px;
   }
 }
@@ -1140,6 +1142,15 @@ body {
 
 .updates-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* Desktop: the transform-based drift (useUpdatesScrollDrift) offsets the
+   track visually; mandatory snap would fight that alignment. Mobile keeps
+   snap for finger swipes. */
+@media (min-width: 1024px) {
+  .updates-scroll {
+    scroll-snap-type: none;
+  }
 }
 
 

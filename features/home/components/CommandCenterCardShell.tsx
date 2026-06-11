@@ -10,17 +10,17 @@ type Props = {
   className?: string;
 };
 
-/** Bottom foot below the union waist. */
+/** Bottom foot below the union waist — the remainder of the fixed-aspect
+ *  card. Copy is anchored to the card's bottom edge with the same inset the
+ *  pipeline (“tools a fund runs on”) cards use, so the two card families
+ *  share a bottom rhythm. */
 export const commandCenterCardFooterClass = [
-  "flex min-h-[clamp(104px,13vw,140px)] flex-col",
-  "px-[clamp(10px,1vw,14px)] pt-[clamp(16px,1.6vw,22px)] text-[13px] lg:text-sm",
+  "flex flex-1 flex-col justify-end",
+  "px-[clamp(10px,1vw,14px)] pb-[clamp(14px,1.4vw,20px)] text-[13px] lg:text-sm",
 ].join(" ");
 
-/** Nudge copy down into the foot without changing shell padding. */
-export const commandCenterCardCopyClass = [
-  "flex flex-col gap-[clamp(9px,0.77vh,13px)]",
-  "translate-y-[clamp(18px,1.8vw,28px)]",
-].join(" ");
+export const commandCenterCardCopyClass =
+  "flex flex-col gap-[clamp(9px,0.77vh,13px)]";
 
 /** Figma “Card-Deals” shell — vertical waisted silhouette. */
 export function CommandCenterCardShell({ children, className }: Props) {
@@ -28,8 +28,17 @@ export function CommandCenterCardShell({ children, className }: Props) {
     <UnionCardShell
       path={COMMAND_CENTER_CARD_SHELL_PATH}
       viewBox={COMMAND_CENTER_CARD_SHELL_VIEWBOX}
-      className={["w-full md:max-w-[480px]", className].filter(Boolean).join(" ")}
-      contentClassName="flex flex-col gap-0 px-[clamp(9px,0.83vw,12px)] pt-[clamp(9px,0.83vw,12px)] pb-[clamp(28px,2.4vw,36px)]"
+      // Card locked to the shell viewBox aspect, canvas margins proportional
+      // (3.03% = 12px at the 396px reference width): card, canvas, and waist
+      // scale together, so the canvas stays framed with equal margins on all
+      // sides at every viewport.
+      className={["aspect-[601/745] w-full md:max-w-[480px]", className]
+        .filter(Boolean)
+        .join(" ")}
+      // min-h (not h): at squeezed widths (3-up iPad band) where the copy
+      // can't fit the fixed-ratio foot, the card grows past the aspect and
+      // the SVG stretches with it instead of the text spilling out.
+      contentClassName="flex min-h-full flex-col gap-0 px-[3.03%] pt-[3.03%]"
     >
       {children}
     </UnionCardShell>

@@ -11,7 +11,9 @@ export const commandCenterVisualFrameClass = [
 export const commandCenterVisualFrameInnerClass = [
   "relative grid w-full grid-cols-1 grid-rows-1",
   "aspect-[570/499]",
-  "md:mx-auto md:max-h-[min(330px,38.5vh)] md:max-w-[min(100%,calc(min(330px,38.5vh)*570/499))]",
+  // No height cap here: the canvas must scale 1:1 with the fixed-aspect card
+  // shell so the waist stays one margin below it (short-viewport protection
+  // is the svh term in the card width cap instead).
 ].join(" ");
 
 /** Canvas layer — same grid cell as the aspect-ratio box. */

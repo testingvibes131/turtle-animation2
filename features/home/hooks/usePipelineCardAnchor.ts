@@ -31,15 +31,17 @@ export function usePipelineCardAnchor(
     const cardRect = card.getBoundingClientRect();
     const cardCenterX = cardRect.left + cardRect.width / 2 - mainRect.left;
 
-    const visual = visibleVisual(main);
-    if (visual) {
-      const half = visual.getBoundingClientRect().width / 2;
-      const minX = half;
-      const maxX = mainRect.width - half;
-      setAnchorX(Math.min(maxX, Math.max(minX, cardCenterX)));
+    // Carousel mode (<lg): the monitor is PINNED dead-centre in the stage —
+    // the cards scroll beneath it. Following the selected card here would
+    // re-anchor through carousel scroll states and jiggle the monitor.
+    if (!window.matchMedia(DESKTOP_QUERY).matches) {
+      setAnchorX(mainRect.width / 2);
       return;
     }
 
+    // Desktop: centre the visual on the selected card. The CSS clamp() on
+    // .pipeline-visual's left (--pipeline-visual-clamp-margin) guards the
+    // 24px screen margins declaratively, so no JS clamping here.
     setAnchorX(cardCenterX);
   }, [cardsRef, selectedIndex]);
 

@@ -1,11 +1,17 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRef } from "react";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { updates } from "@/features/home/data/updates";
+import { useUpdatesScrollDrift } from "@/features/home/hooks/useUpdatesScrollDrift";
 
 export function LatestUpdates() {
   const cards = [...updates, ...updates];
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  useUpdatesScrollDrift(scrollerRef);
 
   return (
     <section
@@ -27,7 +33,7 @@ export function LatestUpdates() {
         </RevealOnScroll>
       </div>
 
-      <div className="updates-scroll mt-[clamp(12px,1.25vw,20px)] w-full">
+      <div ref={scrollerRef} className="updates-scroll mt-[clamp(12px,1.25vw,20px)] w-full">
         <div className="updates-scroll__track">
           {cards.map((article, index) => (
             <article
