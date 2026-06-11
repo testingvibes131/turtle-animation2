@@ -417,15 +417,13 @@ body {
        re-anchoring, nothing to jiggle. 0.88/0.44 convert the width var to
        rendered size (the 0.88 render scale); (100vw - 100%)/2 is the
        centred stage's offset on >1728px screens. */
-    /* Rail ends sit 24px inside the SCREEN edges (the wide spread), but
-       never extend more than 160px outside the stage box — so ultra-wide
-       monitors keep the composition together instead of chasing the
-       screen edges. */
-    --pipeline-visual-edge-margin: 24px;
-    --pipeline-rail-inset: max(
-      calc(var(--pipeline-visual-edge-margin) - max(0px, (100vw - 100%) / 2)),
-      -160px
-    );
+    /* Rail fitted against the VISIBLE artwork (the export PNGs carry
+       viewport-dependent slack inside the box, measured 114-350px): the
+       linear vw term lands the end-slides' artwork ~60-100px OUTSIDE the
+       card row's edge across 1280-2048 widths, and the -350px floor caps
+       ultra-wide monitors so the composition tracks the container with a
+       steady ~80px overhang instead of chasing the screen edges. */
+    --pipeline-rail-inset: max(calc(386px - 36vw), -350px);
     left: calc(
       var(--pipeline-rail-inset) + 0.44 * var(--pipeline-visual-width) +
         (100% - 2 * var(--pipeline-rail-inset) - 0.88 * var(--pipeline-visual-width)) *
