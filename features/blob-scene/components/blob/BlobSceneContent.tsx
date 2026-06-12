@@ -23,6 +23,7 @@ import { useMobileZoneCarousel } from "@/features/blob-scene/hooks/useMobileZone
 import { BlobFrameGeometryCache } from "@/features/blob-scene/hooks/useBlobFrameGeometry";
 import { useTowardCamera } from "@/features/blob-scene/hooks/useTowardCamera";
 import type { BlobScrollMotion } from "@/features/blob-scene/lib/geometry/blobViewportOffset";
+import type { PerlinBlobParams } from "@/features/blob-scene/lib/geometry/perlinBlob";
 import { BLOB_SCROLL_EASE_RATE } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 import { createConnectedMarkerLayout } from "@/features/blob-scene/lib/geometry/connectedMarkerLayout";
 import { createMarkerDepthFadeUniforms } from "@/features/blob-scene/lib/rendering/markerDepthFade";
@@ -93,8 +94,18 @@ export function BlobSceneContent({
     return frozenLayoutAxisRef.current ?? getTowardCamera();
   }, [getTowardCamera]);
 
+  // Reuse one scratch object: this runs multiple times per frame and a fresh
+  // ~20-field allocation each call produced steady GC garbage (periodic
+  // ~120ms collection pauses in Safari read as dropped frames). Callers must
+  // consume the result synchronously, not hold it across frames.
+  const paramsAtTimeScratchRef = useRef<PerlinBlobParams | null>(null);
   const getBlobParamsAtTime = useCallback(
-    (time: number) => ({ ...params, time }),
+    (time: number) => {
+      const scratch = (paramsAtTimeScratchRef.current ??= { ...params, time });
+      Object.assign(scratch, params);
+      scratch.time = time;
+      return scratch;
+    },
     [params],
   );
 

@@ -49,7 +49,7 @@ export function computeBlobOffsetX(
   extent: number,
   cropFraction = BLOB_RIGHT_CROP_FRACTION,
 ): number {
-  const dist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+  const dist = camera.position.length();
   const vFov = THREE.MathUtils.degToRad(camera.fov);
   const hFov = 2 * Math.atan(Math.tan(vFov / 2) * viewportAspect);
   const halfViewWidth = dist * Math.tan(hFov / 2);
@@ -61,7 +61,7 @@ function viewHalfExtents(
   camera: THREE.PerspectiveCamera,
   viewportAspect: number,
 ): { halfViewWidth: number; halfViewHeight: number } {
-  const dist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+  const dist = camera.position.length();
   const vFov = THREE.MathUtils.degToRad(camera.fov);
   const hFov = 2 * Math.atan(Math.tan(vFov / 2) * viewportAspect);
   return {

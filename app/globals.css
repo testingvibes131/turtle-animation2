@@ -1408,6 +1408,19 @@ body {
 .site-header {
   transition: transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.32s ease;
 }
+
+/* Safari only (hanging-punctuation + -apple-system-body are WebKit-exclusive):
+   backdrop-filter over the every-frame-animating blob canvas forces WebKit to
+   re-blur the header strip per frame — measured ~9ms/frame on tall windows,
+   the cause of the Safari-only scroll stutter. Swap glass blur for a more
+   opaque fill there; Chrome/Firefox keep the full effect. */
+@supports (hanging-punctuation: first) and (font: -apple-system-body) {
+  .site-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: color-mix(in srgb, var(--surface-0) 94%, transparent);
+  }
+}
 .site-header:not(.is-visible) {
   transform: translateY(calc(-100% - 4px));
   opacity: 0;

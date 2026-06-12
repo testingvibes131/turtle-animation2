@@ -18,6 +18,7 @@ import {
 } from "@/features/blob-scene/lib/rendering/markerDepthFade";
 import { noiseSlopeOpacityFromDisplacement } from "@/features/blob-scene/lib/geometry/noiseSlopeOpacity";
 import { vertexFacesCamera } from "@/features/blob-scene/lib/geometry/frontHemisphere";
+import { fastSin } from "@/features/blob-scene/lib/geometry/fastSin";
 import { depthSizeMultiplier } from "@/features/blob-scene/lib/geometry/sphereDepthSize";
 import {
   RENDER_DEBUG_PICKABLE,
@@ -31,8 +32,9 @@ const DEBUG_PICKABLE_COLOR = 0x2973ff;
 const BLOB_POINT_SCALE_MUL = 1.25;
 const DEBUG_PICKABLE_SCALE_MUL = 1.08;
 const createSphereGeo = () => new THREE.SphereGeometry(1, 10, 8);
-const _dummy = new THREE.Object3D();
-const _worldPos = new THREE.Vector3();
+const _localPos = new THREE.Vector3();
+const _camLocal = new THREE.Vector3();
+const _worldScale = new THREE.Vector3();
 
 /** Distinct shader cache key so the base cloud gets its own depth-fade program +
  *  uniforms — the hover overlay can't leak its raised fade-min into it. */
@@ -198,6 +200,18 @@ export function BlobPointCloud({
       scalesRef.current = scales;
     }
 
+    // Hot path (runs per node, per frame): camera is transformed into
+    // blob-local space ONCE so each node's world distance is a plain
+    // local-space distance × the group's uniform world scale — no per-node
+    // localToWorld. Matrices are written straight into the instance buffer
+    // (scale on the diagonal + translation); nodes never rotate, so the full
+    // quaternion compose in Object3D.updateMatrix was wasted work.
+    _camLocal.copy(state.camera.position);
+    let groupWorldScale = 1;
+    if (group) {
+      group.worldToLocal(_camLocal);
+      groupWorldScale = group.getWorldScale(_worldScale).x;
+    }
     const writeInstance = (
       mesh: THREE.InstancedMesh,
       vertexIndex: number,
@@ -205,10 +219,11 @@ export function BlobPointCloud({
       scaleMul: number,
       hide: boolean,
     ) => {
-      readCachedVertexPosition(frameCache, vertexIndex, _dummy.position);
-      _worldPos.copy(_dummy.position);
-      if (group) group.localToWorld(_worldPos);
-      const dist = state.camera.position.distanceTo(_worldPos);
+      readCachedVertexPosition(frameCache, vertexIndex, _localPos);
+      const dx = _localPos.x - _camLocal.x;
+      const dy = _localPos.y - _camLocal.y;
+      const dz = _localPos.z - _camLocal.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) * groupWorldScale;
       const visualScale =
         pointRadius *
         scaleMul *
@@ -220,10 +235,25 @@ export function BlobPointCloud({
           params.depthSizeMaxMul,
         );
       scales[vertexIndex] = visualScale;
-      _dummy.scale.setScalar(hide ? 0 : visualScale);
-      _dummy.rotation.set(0, 0, 0);
-      _dummy.updateMatrix();
-      mesh.setMatrixAt(slot, _dummy.matrix);
+      const s = hide ? 0 : visualScale;
+      const arr = mesh.instanceMatrix.array as Float32Array;
+      const o = slot * 16;
+      arr[o] = s;
+      arr[o + 1] = 0;
+      arr[o + 2] = 0;
+      arr[o + 3] = 0;
+      arr[o + 4] = 0;
+      arr[o + 5] = s;
+      arr[o + 6] = 0;
+      arr[o + 7] = 0;
+      arr[o + 8] = 0;
+      arr[o + 9] = 0;
+      arr[o + 10] = s;
+      arr[o + 11] = 0;
+      arr[o + 12] = _localPos.x;
+      arr[o + 13] = _localPos.y;
+      arr[o + 14] = _localPos.z;
+      arr[o + 15] = 1;
     };
 
     const writeOpacity = (
@@ -265,7 +295,7 @@ export function BlobPointCloud({
         const ripple =
           0.5 +
           0.5 *
-            Math.sin(
+            fastSin(
               gradientPhase[i]! * TAU * GRADIENT_RIPPLE_FREQ + gradientT,
             );
         const silverGlow = GRADIENT_MIX * slope * ripple;
@@ -311,7 +341,10 @@ export function BlobPointCloud({
         }
       }
       debugMesh.count = pi;
-      debugMesh.instanceMatrix.needsUpdate = true;
+      // Only re-upload when the debug overlay is actually populated — an
+      // unconditional flag re-uploaded the full (empty) 405KB instance buffer
+      // every frame.
+      if (params.debugHoverZone) debugMesh.instanceMatrix.needsUpdate = true;
     }
 
     updateMarkerDepthFadeUniforms(

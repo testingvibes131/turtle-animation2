@@ -13,6 +13,7 @@ import {
   type BlobVertexFrameCache,
 } from "@/features/blob-scene/lib/geometry/blobVertexFrameCache";
 import { blobTransitionDistortStrength } from "@/features/blob-scene/lib/geometry/blobTransitionDistort";
+import { fastSin } from "@/features/blob-scene/lib/geometry/fastSin";
 import { BLOB_SCROLL_EASE_RATE } from "@/features/blob-scene/lib/scroll/blobScrollInteraction";
 
 /** Landing: radius (blob-local units) each point scatters into the surrounding volume. */
@@ -29,6 +30,7 @@ const hashFract = (n: number) => {
   const x = Math.sin(n) * 43758.5453;
   return x - Math.floor(x);
 };
+
 
 /** Runs before point/zone useFrame hooks — single displacement pass per frame. */
 export function BlobFrameGeometryCache() {
@@ -72,8 +74,6 @@ export function BlobFrameGeometryCache() {
     // (read in Section1CapWave) eases back to rest. The wobble no longer
     // distorts the blob geometry — that scroll "jello" displacement was removed.
     scrollWobbleStrengthRef.current *= 0.9;
-    const blobParams = getBlobParamsAtTime(blobAnimTimeRef.current);
-    updateBlobVertexFrameCache(vertices, blobParams, cache);
 
     // Ease displayed scroll progress toward the target so the dispersion gather
     // stays smooth (matching the eased blob motion) rather than stepping with
@@ -81,6 +81,9 @@ export function BlobFrameGeometryCache() {
     displayedProgressRef.current +=
       (scrollProgressRef.current - displayedProgressRef.current) *
       (1 - Math.exp(-delta * BLOB_SCROLL_EASE_RATE));
+
+    const blobParams = getBlobParamsAtTime(blobAnimTimeRef.current);
+    updateBlobVertexFrameCache(vertices, blobParams, cache);
 
     // Landing dispersion (scatter, gathers across the hero scroll) plus an
     // always-on subtle per-dot float so the cloud keeps gently drifting — the
@@ -98,11 +101,11 @@ export function BlobFrameGeometryCache() {
       const ox = scatterOffsets[i3]!;
       const oy = scatterOffsets[i3 + 1]!;
       const oz = scatterOffsets[i3 + 2]!;
-      pos[i3] += Math.sin(floatT + ox * 9) * DOT_FLOAT_AMP + ox * strength;
+      pos[i3] += fastSin(floatT + ox * 9) * DOT_FLOAT_AMP + ox * strength;
       pos[i3 + 1] +=
-        Math.sin(floatT * 1.13 + oy * 9) * DOT_FLOAT_AMP + oy * strength;
+        fastSin(floatT * 1.13 + oy * 9) * DOT_FLOAT_AMP + oy * strength;
       pos[i3 + 2] +=
-        Math.sin(floatT * 0.87 + oz * 9) * DOT_FLOAT_AMP + oz * strength;
+        fastSin(floatT * 0.87 + oz * 9) * DOT_FLOAT_AMP + oz * strength;
     }
   }, -100);
 

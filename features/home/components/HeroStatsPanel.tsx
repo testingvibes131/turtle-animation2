@@ -3,8 +3,11 @@
 import { Fragment } from "react";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 
+// No backdrop-blur here: the gradient uses fully opaque surface tokens, so the
+// blur was invisible — but it forced WebKit to re-blur the animating blob
+// canvas beneath the panel every frame (the Safari tall-viewport scroll glitch).
 const stakeWidgetShell =
-  "overflow-hidden backdrop-blur-[7px] border border-stroke-subtle bg-gradient-to-b from-surface-0 to-surface-1";
+  "overflow-hidden border border-stroke-subtle bg-gradient-to-b from-surface-0 to-surface-1";
 
 const widgetWidth = "w-[200px] max-w-full lg:w-[280px]";
 
